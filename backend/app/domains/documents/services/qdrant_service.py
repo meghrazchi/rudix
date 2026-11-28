@@ -13,6 +13,7 @@ from qdrant_client.http.models import FieldCondition, MatchAny, MatchValue, Poin
 from app.clients import qdrant_client as qdrant_module
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.tracing_context import operation_span
 from app.domains.documents.services.qdrant_filters import build_organization_filter
 
 logger = get_logger("documents.qdrant")
@@ -123,6 +124,14 @@ class QdrantService:
         return qdrant_module.get_async_write_client()
 
     async def _request(self, operation: str, **kwargs: Any) -> Any:
+        # R08-10: one span per write-path call (upsert, delete, ...); collection name only.
+        with operation_span(
+            f"rudix.qdrant.{operation}",
+            attributes={"rudix.qdrant.collection": kwargs.get("collection_name")},
+        ):
+            return await self._request_once(operation, **kwargs)
+
+    async def _request_once(self, operation: str, **kwargs: Any) -> Any:
         method = getattr(self._client(), operation)
         try:
             return await _call(method, **kwargs)

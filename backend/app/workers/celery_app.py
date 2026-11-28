@@ -238,6 +238,7 @@ def _initialize_worker(*_: object, **__: object) -> None:
     import app.models  # noqa: F401 — ensure all SQLAlchemy mappers are registered
 
     init_sentry(runtime="worker")
+    _init_worker_tracing()
     from app.workers.async_runtime import reset_worker_loop_after_fork, run_async
 
     # A child forked after the main process used the database or an event loop (dead-letter
@@ -252,6 +253,20 @@ def _initialize_worker(*_: object, **__: object) -> None:
     use_worker_redis()
     run_async(init_neo4j())
     _bootstrap_qdrant()
+
+
+def _init_worker_tracing() -> None:
+    """R08-10: per child (after fork), so the span exporter thread lives in the child.
+
+    Installs the Celery consumer side (``traceparent`` from message headers) and the
+    producer side for tasks the child publishes. A no-op while TRACING_ENABLED=false.
+    """
+    from app.core.tracing import init_tracing
+
+    try:
+        init_tracing("worker")
+    except Exception as exc:
+        logging.getLogger(__name__).warning("worker.tracing_init_failed: %s", type(exc).__name__)
 
 
 def _bootstrap_qdrant() -> None:
@@ -295,6 +310,9 @@ def _shutdown_worker(*_: object, **__: object) -> None:
     except Exception as exc:
         logging.getLogger(__name__).warning("worker.qdrant_close_failed: %s", type(exc).__name__)
     _mark_metrics_process_dead()
+    from app.core.tracing import shutdown_tracing
+
+    shutdown_tracing()
 
 
 def _mark_metrics_process_dead() -> None:

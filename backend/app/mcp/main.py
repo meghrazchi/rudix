@@ -5,6 +5,7 @@ from collections.abc import Sequence
 
 from app.core.config import Environment, MCPTransport, settings
 from app.core.logging import configure_logging, get_logger
+from app.core.tracing import init_tracing, shutdown_tracing
 from app.mcp.server import run_stdio_server, run_streamable_http_server
 
 _logger = get_logger("mcp.main")
@@ -93,11 +94,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         auth_required=settings.mcp_require_bearer_auth,
     )
 
-    if transport == MCPTransport.stdio:
-        run_stdio_server()
-        return 0
-
-    run_streamable_http_server()
+    init_tracing("mcp")
+    try:
+        if transport == MCPTransport.stdio:
+            run_stdio_server()
+        else:
+            run_streamable_http_server()
+    finally:
+        shutdown_tracing()
     return 0
 
 

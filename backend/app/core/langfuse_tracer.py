@@ -23,6 +23,8 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any, Literal
 
+from app.core.tracing_context import current_trace_id
+
 _logger = logging.getLogger("observability.langfuse")
 
 _langfuse_client: Any | None = None
@@ -395,6 +397,11 @@ def _emit_chat_trace(metadata: ChatTraceMetadata) -> None:
         "trust_extraction_warning": metadata.trust_extraction_warning,
         "trust_evidence_quality_warning": metadata.trust_evidence_quality_warning,
     }
+
+    # R08-10: link the Langfuse trace to the OpenTelemetry trace (tracing on only).
+    otel_trace_id = current_trace_id()
+    if otel_trace_id is not None:
+        trace_meta["otel_trace_id"] = otel_trace_id
 
     trace = _langfuse_client.trace(
         name=f"rag.{metadata.feature_area}",

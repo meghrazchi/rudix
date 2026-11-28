@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request
 from structlog.types import EventDict
 
 from app.core.sentry import bind_sentry_context, capture_sentry_exception
+from app.core.tracing_context import annotate_current_span, current_trace_ids
 
 LOG_FORMAT_AUTO = "auto"
 LOG_FORMAT_JSON = "json"
@@ -134,6 +135,15 @@ def _redact_sensitive_fields(_: Any, __: str, event_dict: EventDict) -> EventDic
     return event_dict
 
 
+def _add_trace_context(_: Any, __: str, event_dict: EventDict) -> EventDict:
+    """R08-10: ``trace_id`` and ``span_id`` of the active span (tracing on only)."""
+    ids = current_trace_ids()
+    if ids is not None:
+        event_dict.setdefault("trace_id", ids[0])
+        event_dict.setdefault("span_id", ids[1])
+    return event_dict
+
+
 def _resolve_log_format(environment: str, log_format: str) -> ResolvedLogFormat:
     normalized = log_format.strip().lower()
     if normalized == LOG_FORMAT_JSON:
@@ -187,6 +197,7 @@ def configure_logging(
             structlog.stdlib.add_logger_name,
             structlog.stdlib.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
+            _add_trace_context,
             _redact_sensitive_fields,
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
@@ -230,6 +241,7 @@ def attach_access_log_middleware(app: FastAPI) -> None:
         request_id = context["request_id"] or str(uuid4())
         context["request_id"] = request_id
         request.state.request_id = request_id
+        annotate_current_span(request_id=request_id)
 
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(**context)
@@ -268,6 +280,11 @@ def attach_access_log_middleware(app: FastAPI) -> None:
             latency_ms = round((perf_counter() - started_at) * 1000, 2)
             log_context = _pick_context_from_request(request)
             log_context["request_id"] = request_id
+            # Only an authenticated principal's organisation, never the client header.
+            principal_org = getattr(
+                getattr(request.state, "auth_principal", None), "organization_id", None
+            )
+            annotate_current_span(organization_id=str(principal_org) if principal_org else None)
             bind_sentry_context(
                 runtime="api",
                 request_id=request_id,

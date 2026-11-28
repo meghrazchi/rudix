@@ -183,7 +183,10 @@
     "celery_result_backend_url_set": false,
     "database_replica_url_set": false,
     "db_replica_max_lag_seconds": 30.0,
+    "otel_exporter_otlp_endpoint_set": false,
     "redis_cache_url_set": false,
+    "tracing_enabled": false,
+    "tracing_sample_ratio": 0.05,
     "worker_metrics_multiprocess": true,
     "ws_chat_connection_limit_backend": "memory"
   },

@@ -11,6 +11,7 @@ from app.core.lifespan import lifespan
 from app.core.logging import attach_access_log_middleware, configure_logging
 from app.core.metrics import attach_metrics_middleware
 from app.core.security_headers import SecurityHeadersMiddleware
+from app.core.tracing import instrument_fastapi_app
 from app.interfaces.http import metrics
 
 configure_logging(
@@ -68,3 +69,5 @@ app.add_middleware(
 )
 app.include_router(metrics.router)
 app.include_router(api_router, prefix=settings.api_prefix)
+# R08-10: outermost ASGI layer when TRACING_ENABLED=true; nothing is added otherwise.
+instrument_fastapi_app(app, settings)
