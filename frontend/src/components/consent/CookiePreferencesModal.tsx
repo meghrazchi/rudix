@@ -7,6 +7,7 @@ import { X } from "lucide-react";
 
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
 import type { ConsentDecisions } from "@/lib/consent";
+import { publicEnv } from "@/lib/public-env";
 
 type CategoryRowProps = {
   id: string;
@@ -108,7 +109,7 @@ export function CookiePreferencesModal({
     onSave(localDecisions);
   }
 
-  const gaId = process.env.NEXT_PUBLIC_GA_ID;
+  const gaId = publicEnv("NEXT_PUBLIC_GA_ID", process.env.NEXT_PUBLIC_GA_ID);
   const analyticsConfigured = Boolean(gaId && gaId.trim().length > 0);
 
   return (

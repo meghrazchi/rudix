@@ -2,6 +2,7 @@ import type { Served } from "@/lib/api/schema-helpers";
 import type { components } from "@/lib/api/generated/schema";
 
 import { apiRequest } from "@/lib/api/request";
+import { publicEnv } from "@/lib/public-env";
 
 type Schemas = components["schemas"];
 
@@ -40,20 +41,47 @@ export function isSecurityEndpointUnavailableError(
 
 function getSecurityEndpoints() {
   return {
-    sessionsUrl: trimToNull(process.env.NEXT_PUBLIC_SECURITY_SESSIONS_URL),
+    sessionsUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_SECURITY_SESSIONS_URL",
+        process.env.NEXT_PUBLIC_SECURITY_SESSIONS_URL,
+      ),
+    ),
     revokeSessionUrl: trimToNull(
-      process.env.NEXT_PUBLIC_SECURITY_REVOKE_SESSION_URL,
+      publicEnv(
+        "NEXT_PUBLIC_SECURITY_REVOKE_SESSION_URL",
+        process.env.NEXT_PUBLIC_SECURITY_REVOKE_SESSION_URL,
+      ),
     ),
     revokeAllSessionsUrl: trimToNull(
-      process.env.NEXT_PUBLIC_SECURITY_REVOKE_ALL_SESSIONS_URL,
+      publicEnv(
+        "NEXT_PUBLIC_SECURITY_REVOKE_ALL_SESSIONS_URL",
+        process.env.NEXT_PUBLIC_SECURITY_REVOKE_ALL_SESSIONS_URL,
+      ),
     ),
     loginPolicyUrl: trimToNull(
-      process.env.NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL,
+      publicEnv(
+        "NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL",
+        process.env.NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL,
+      ),
     ),
-    postureUrl: trimToNull(process.env.NEXT_PUBLIC_SECURITY_POSTURE_URL),
-    auditUrl: trimToNull(process.env.NEXT_PUBLIC_SECURITY_AUDIT_URL),
+    postureUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_SECURITY_POSTURE_URL",
+        process.env.NEXT_PUBLIC_SECURITY_POSTURE_URL,
+      ),
+    ),
+    auditUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_SECURITY_AUDIT_URL",
+        process.env.NEXT_PUBLIC_SECURITY_AUDIT_URL,
+      ),
+    ),
     auditExportUrl: trimToNull(
-      process.env.NEXT_PUBLIC_SECURITY_AUDIT_EXPORT_URL,
+      publicEnv(
+        "NEXT_PUBLIC_SECURITY_AUDIT_EXPORT_URL",
+        process.env.NEXT_PUBLIC_SECURITY_AUDIT_EXPORT_URL,
+      ),
     ),
   };
 }

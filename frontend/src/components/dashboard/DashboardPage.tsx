@@ -48,6 +48,7 @@ import {
 import { resolveDocumentCapabilities } from "@/lib/documents-ui";
 import { usePermissions } from "@/lib/use-permissions";
 import { useAuthSession } from "@/lib/use-auth-session";
+import { publicEnv } from "@/lib/public-env";
 
 const DOCUMENT_PAGE_SIZE = 200;
 const LATEST_DOCUMENTS_PAGE_SIZE = 5;
@@ -208,7 +209,10 @@ function isTruthyEnv(value: string | undefined): boolean {
 
 async function fetchDashboardDocumentsSummary(): Promise<DashboardDocumentSummary> {
   const maxDocumentRows = parsePositiveIntegerEnv(
-    process.env.NEXT_PUBLIC_DASHBOARD_MAX_DOCUMENT_ROWS,
+    publicEnv(
+      "NEXT_PUBLIC_DASHBOARD_MAX_DOCUMENT_ROWS",
+      process.env.NEXT_PUBLIC_DASHBOARD_MAX_DOCUMENT_ROWS,
+    ),
     1_000,
   );
 
@@ -700,7 +704,10 @@ export function DashboardPage() {
   const { state } = useAuthSession();
   const role = state.session?.role;
   const adminUsageEnabled = isTruthyEnv(
-    process.env.NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE,
+    publicEnv(
+      "NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE",
+      process.env.NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE,
+    ),
   );
   const showAdminUsage = canViewAdminUsage(role) && adminUsageEnabled;
   const documentCapabilities = resolveDocumentCapabilities(role);

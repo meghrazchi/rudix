@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { isExternalHref, type PublicSiteLinks } from "@/lib/public-site/links";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
+import { publicEnv } from "@/lib/public-env";
 
 export const CONTACT_TEAM_SIZE_OPTIONS = [
   "1-10",
@@ -143,7 +144,10 @@ function createMailtoBody(values: ContactFormValues): string {
 
 function inferExternalSubmitUrl(links: PublicSiteLinks): string | null {
   const configured = trimToNull(
-    process.env.NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL,
+    publicEnv(
+      "NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL",
+      process.env.NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL,
+    ),
   );
   if (configured) {
     return configured;
@@ -163,8 +167,18 @@ function inferDefaultApiEndpoint(): string | null {
 
 function inferMailtoAddress(links: PublicSiteLinks): string | null {
   const configured =
-    trimToNull(process.env.NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO) ??
-    trimToNull(process.env.NEXT_PUBLIC_SUPPORT_EMAIL);
+    trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO",
+        process.env.NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO,
+      ),
+    ) ??
+    trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_SUPPORT_EMAIL",
+        process.env.NEXT_PUBLIC_SUPPORT_EMAIL,
+      ),
+    );
 
   if (configured) {
     return toMailtoHref(configured);
@@ -227,7 +241,10 @@ export function resolveContactSubmissionConfig(
   links: PublicSiteLinks,
 ): ContactSubmissionConfig {
   const configuredApiEndpoint = trimToNull(
-    process.env.NEXT_PUBLIC_CONTACT_SUBMIT_API_URL,
+    publicEnv(
+      "NEXT_PUBLIC_CONTACT_SUBMIT_API_URL",
+      process.env.NEXT_PUBLIC_CONTACT_SUBMIT_API_URL,
+    ),
   );
   const externalSubmitUrl = inferExternalSubmitUrl(links);
   const mailtoAddress = inferMailtoAddress(links);
@@ -235,13 +252,23 @@ export function resolveContactSubmissionConfig(
     configuredApiEndpoint ??
     (mailtoAddress || externalSubmitUrl ? null : inferDefaultApiEndpoint());
   const schedulerUrl =
-    trimToNull(process.env.NEXT_PUBLIC_CONTACT_SCHEDULER_URL) ??
-    externalSubmitUrl;
+    trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_CONTACT_SCHEDULER_URL",
+        process.env.NEXT_PUBLIC_CONTACT_SCHEDULER_URL,
+      ),
+    ) ?? externalSubmitUrl;
   const captchaProvider = trimToNull(
-    process.env.NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER,
+    publicEnv(
+      "NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER",
+      process.env.NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER,
+    ),
   );
   const captchaSiteKey = trimToNull(
-    process.env.NEXT_PUBLIC_CONTACT_CAPTCHA_SITE_KEY,
+    publicEnv(
+      "NEXT_PUBLIC_CONTACT_CAPTCHA_SITE_KEY",
+      process.env.NEXT_PUBLIC_CONTACT_CAPTCHA_SITE_KEY,
+    ),
   );
 
   const configWithoutMode = {

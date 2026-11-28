@@ -2,6 +2,7 @@ import { getSupportAction } from "@/lib/forbidden";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 import type { AppRole } from "@/lib/auth-session";
 import type { TopBarNotification } from "@/lib/api/notifications";
+import { publicEnv } from "@/lib/public-env";
 
 export type HelpMenuItem = {
   id: "docs" | "changelog" | "status" | "support" | "shortcuts" | "readme";
@@ -22,12 +23,37 @@ export function isAdminLikeRole(role: AppRole | null | undefined): boolean {
 }
 
 export function resolveHelpMenuItems(): HelpMenuItem[] {
-  const docsUrl = trimToNull(process.env.NEXT_PUBLIC_HELP_DOCS_URL);
-  const changelogUrl = trimToNull(process.env.NEXT_PUBLIC_HELP_CHANGELOG_URL);
-  const shortcutsUrl = trimToNull(process.env.NEXT_PUBLIC_HELP_SHORTCUTS_URL);
-  const readmeUrl = trimToNull(process.env.NEXT_PUBLIC_HELP_README_URL);
+  const docsUrl = trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_HELP_DOCS_URL",
+      process.env.NEXT_PUBLIC_HELP_DOCS_URL,
+    ),
+  );
+  const changelogUrl = trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_HELP_CHANGELOG_URL",
+      process.env.NEXT_PUBLIC_HELP_CHANGELOG_URL,
+    ),
+  );
+  const shortcutsUrl = trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_HELP_SHORTCUTS_URL",
+      process.env.NEXT_PUBLIC_HELP_SHORTCUTS_URL,
+    ),
+  );
+  const readmeUrl = trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_HELP_README_URL",
+      process.env.NEXT_PUBLIC_HELP_README_URL,
+    ),
+  );
   const statusUrl = resolvePublicSiteLinks().status;
-  const supportOverride = trimToNull(process.env.NEXT_PUBLIC_HELP_SUPPORT_URL);
+  const supportOverride = trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_HELP_SUPPORT_URL",
+      process.env.NEXT_PUBLIC_HELP_SUPPORT_URL,
+    ),
+  );
   const supportAction = supportOverride
     ? { href: supportOverride, label: "Support" }
     : getSupportAction();
@@ -74,7 +100,12 @@ export function resolveHelpMenuItems(): HelpMenuItem[] {
 }
 
 export function resolveNotificationsEndpoint(): string | null {
-  return trimToNull(process.env.NEXT_PUBLIC_TOPBAR_NOTIFICATIONS_URL);
+  return trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_TOPBAR_NOTIFICATIONS_URL",
+      process.env.NEXT_PUBLIC_TOPBAR_NOTIFICATIONS_URL,
+    ),
+  );
 }
 
 export function filterNotificationsByRole(

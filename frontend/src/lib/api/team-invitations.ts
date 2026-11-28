@@ -4,6 +4,7 @@ import type { Overlay, Served } from "@/lib/api/schema-helpers";
 import type { components } from "@/lib/api/generated/schema";
 
 import { apiRequest } from "@/lib/api/request";
+import { publicEnv } from "@/lib/public-env";
 
 type Schemas = components["schemas"];
 
@@ -70,7 +71,12 @@ function normalizeInvitation(
 }
 
 function getInvitationsBaseUrl(): string | null {
-  return trimToNull(process.env.NEXT_PUBLIC_TEAM_INVITATIONS_URL);
+  return trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_TEAM_INVITATIONS_URL",
+      process.env.NEXT_PUBLIC_TEAM_INVITATIONS_URL,
+    ),
+  );
 }
 
 function getInvitationActionUrl(
@@ -163,7 +169,12 @@ export async function acceptInvitation(
   token: string,
   password: string,
 ): Promise<AcceptInvitationResponse> {
-  const url = trimToNull(process.env.NEXT_PUBLIC_TEAM_INVITATIONS_ACCEPT_URL);
+  const url = trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_TEAM_INVITATIONS_ACCEPT_URL",
+      process.env.NEXT_PUBLIC_TEAM_INVITATIONS_ACCEPT_URL,
+    ),
+  );
   if (!url) {
     throw new Error("Accept invitation endpoint not configured");
   }
@@ -190,7 +201,12 @@ export async function acceptInvitation(
 export async function getTeamMemberDetail(
   memberId: string,
 ): Promise<TeamMemberDetail> {
-  const baseUrl = trimToNull(process.env.NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL);
+  const baseUrl = trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL",
+      process.env.NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL,
+    ),
+  );
   if (!baseUrl) {
     throw new Error("Team members endpoint not configured");
   }
@@ -223,7 +239,12 @@ export async function getTeamMemberDetail(
 export async function deactivateTeamMember(
   memberId: string,
 ): Promise<TeamMemberDetail> {
-  const baseUrl = trimToNull(process.env.NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL);
+  const baseUrl = trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL",
+      process.env.NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL,
+    ),
+  );
   if (!baseUrl) {
     throw new Error("Team members endpoint not configured");
   }

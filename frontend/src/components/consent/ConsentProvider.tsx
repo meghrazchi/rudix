@@ -19,6 +19,7 @@ import {
   writeConsentRecord,
 } from "@/lib/consent";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
+import { publicEnv } from "@/lib/public-env";
 
 type ConsentContextValue = {
   isLoaded: boolean;
@@ -43,7 +44,7 @@ export function useConsentContext(): ConsentContextValue {
 }
 
 function getGaId(): string | null {
-  const id = process.env.NEXT_PUBLIC_GA_ID;
+  const id = publicEnv("NEXT_PUBLIC_GA_ID", process.env.NEXT_PUBLIC_GA_ID);
   return id && id.trim().length > 0 ? id.trim() : null;
 }
 

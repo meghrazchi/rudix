@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { canViewAdminUsage } from "@/lib/dashboard";
 import { useAuthSession } from "@/lib/use-auth-session";
+import { publicEnv } from "@/lib/public-env";
 
 type CardStatus =
   | "available"
@@ -240,7 +241,10 @@ export function AdminLandingPage() {
   const role = state.session?.role;
 
   const monitoringUrl = trimToNull(
-    process.env.NEXT_PUBLIC_ADMIN_MONITORING_URL,
+    publicEnv(
+      "NEXT_PUBLIC_ADMIN_MONITORING_URL",
+      process.env.NEXT_PUBLIC_ADMIN_MONITORING_URL,
+    ),
   );
 
   if (!canViewAdminUsage(role)) {

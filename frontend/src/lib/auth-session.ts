@@ -6,6 +6,7 @@ import {
   SESSION_STORE_EVENT_NAME,
   setSession as setStoredSession,
 } from "@/lib/auth/session-store";
+import { publicEnv } from "@/lib/public-env";
 
 export type AppRole =
   | "owner"
@@ -105,7 +106,12 @@ export const LEGACY_SESSION_STORAGE_KEY = SESSION_STORAGE_KEY;
 export const DEV_SESSION_STORAGE_KEY = "rudix.session.dev.v1";
 
 function isLegacySessionReadEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ !== "false";
+  return (
+    publicEnv(
+      "NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ",
+      process.env.NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ,
+    ) !== "false"
+  );
 }
 
 /**
