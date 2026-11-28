@@ -114,6 +114,7 @@ REINDEX_PROGRESS = Gauge(
     "Fraction of indexed documents written to a building vector index generation",
     ["generation"],
     registry=registry,
+    multiprocess_mode="mostrecent",
 )
 
 
@@ -134,6 +135,7 @@ EVALUATION_QUESTIONS_IN_FLIGHT = Gauge(
     "rudix_evaluation_questions_in_flight",
     "Evaluation questions being evaluated now (inside the concurrency bound)",
     registry=registry,
+    multiprocess_mode="livesum",
 )
 
 
@@ -192,12 +194,14 @@ CELERY_QUEUE_DEPTH = Gauge(
     "Ready messages per queue from a passive queue_declare (dead-letter queue included)",
     ["queue"],
     registry=registry,
+    multiprocess_mode="mostrecent",
 )
 CELERY_QUEUE_CONSUMERS = Gauge(
     "rudix_celery_queue_consumers",
     "Consumers per queue from a passive queue_declare",
     ["queue"],
     registry=registry,
+    multiprocess_mode="mostrecent",
 )
 # kind: soft or hard.
 CELERY_TASK_TIME_LIMIT_TOTAL = Counter(

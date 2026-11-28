@@ -148,7 +148,14 @@ but scheduled ones never start.
 - Check the log: `docker compose logs beat` should show `beat: Starting...` and
   `Scheduler: Sending due task connector-sync-schedule-poll`.
 - Run exactly one beat instance; never scale it.
-- There is no beat alert yet (planned for `0.8.0`); check the beat log when scheduled syncs stop.
+- Beat alerts (0.8.0): beat enqueues `ops.beat.heartbeat` every
+  `BEAT_HEARTBEAT_INTERVAL_SECONDS` (default 60) on the default queue, and each run sets
+  `rudix_beat_heartbeat_timestamp_seconds`. `RudixBeatHeartbeatStale` (critical) fires when the
+  newest heartbeat is older than 5 minutes for 5 minutes; `RudixBeatHeartbeatMissing` fires
+  when worker targets are up but no heartbeat was ever exported for 15 minutes (beat never
+  started, or `METRICS_ENABLED` is off on the workers). Either alert means scheduled syncs are
+  not being enqueued, or the default pool is not running them: check the beat log first, then
+  `worker-default` (`infra/observability/prometheus/rules/beat.yml`).
 
 ### OAuth reconnect fails
 
