@@ -232,6 +232,49 @@ def test_excluded_urls_pattern() -> None:
     assert pattern == "/health/?$,/ready/?$,/metrics/?$"
 
 
+def test_excluded_paths_record_no_dependency_spans() -> None:
+    """A readiness probe's database and dependency calls start no root trace of their own."""
+    from sqlalchemy import text
+
+    from app.db import session as db_session
+
+    app = FastAPI()
+
+    async def dependency_calls() -> None:
+        engine = db_session.create_async_engine("sqlite+aiosqlite:///:memory:")
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        await engine.dispose()
+        with operation_span("rudix.qdrant.search"):
+            pass
+
+    @app.get("/api/v1/ready")
+    async def ready() -> dict[str, str]:
+        await dependency_calls()
+        return {"status": "ok"}
+
+    @app.get("/api/v1/items")
+    async def items() -> dict[str, str]:
+        await dependency_calls()
+        return {"status": "ok"}
+
+    with tracing_session(tracing_instrument_redis=False, tracing_instrument_celery=False) as exp:
+        assert tracing.instrument_fastapi_app(app, tracing_config())
+        with TestClient(app) as client:
+            assert client.get("/api/v1/ready").status_code == 200
+            assert exp.get_finished_spans() == ()
+            assert client.get("/api/v1/items").status_code == 200
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+        FastAPIInstrumentor.uninstrument_app(app)
+    spans = exp.get_finished_spans()
+    [server] = _server_spans(exp)
+    assert (server.attributes or {})["http.route"] == "/api/v1/items"
+    children = [s for s in spans if s is not server]
+    assert {s.name for s in children} >= {"connect", "rudix.qdrant.search"}
+    assert all(s.context.trace_id == server.context.trace_id for s in children)
+
+
 # -- sampling ------------------------------------------------------------------------------
 
 

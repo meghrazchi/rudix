@@ -28,6 +28,8 @@ from opentelemetry.sdk.trace.export import (
     SpanExporter,
     SpanProcessor,
 )
+from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
+from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from app.core.tracing_context import set_tracing_active
@@ -37,6 +39,7 @@ from app.core.tracing_sampling import build_sampler
 if TYPE_CHECKING:
     from fastapi import FastAPI
     from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
+    from starlette.types import ASGIApp, Receive, Scope, Send
 
     from app.core.config import Settings
 
@@ -111,6 +114,36 @@ def trusts_remote_parent(runtime: Runtime, config: Settings) -> bool:
 def excluded_urls_pattern(paths: list[str]) -> str:
     """Comma-joined regexes for the ASGI middleware: ``/<path>`` at the end of the URL."""
     return ",".join(rf"/{re.escape(path)}/?$" for path in paths)
+
+
+class UnsampledExcludedPaths:
+    """Run requests on excluded paths under an unsampled local parent span.
+
+    The OpenTelemetry ASGI middleware only skips the server span of an excluded path. The
+    readiness check's SQLAlchemy, Redis, and httpx calls would then have no parent and each
+    start a root trace of its own (sampled at ``TRACING_SAMPLE_RATIO``). Under an unsampled
+    local parent the ``ParentBased`` sampler drops every child span instead.
+    """
+
+    def __init__(self, app: ASGIApp, paths: list[str]) -> None:
+        self.app = app
+        self._pattern = re.compile("|".join(rf"/{re.escape(path)}/?$" for path in paths))
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or not self._pattern.search(str(scope.get("path", ""))):
+            await self.app(scope, receive, send)
+            return
+        ids = RandomIdGenerator()
+        parent = NonRecordingSpan(
+            SpanContext(
+                ids.generate_trace_id(),
+                ids.generate_span_id(),
+                is_remote=False,
+                trace_flags=TraceFlags(TraceFlags.DEFAULT),
+            )
+        )
+        with trace.use_span(parent, end_on_exit=False):
+            await self.app(scope, receive, send)
 
 
 def init_tracing(
@@ -212,6 +245,9 @@ def instrument_fastapi_app(app: FastAPI, config: Settings | None = None) -> bool
         excluded_urls=excluded_urls_pattern(config.tracing_excluded_paths) or None,
         exclude_spans=["receive", "send"],
     )
+    if config.tracing_excluded_paths:
+        # Inside the ASGI middleware: no span from the probes' dependency calls either.
+        app.add_middleware(UnsampledExcludedPaths, paths=config.tracing_excluded_paths)
     return True
 
 

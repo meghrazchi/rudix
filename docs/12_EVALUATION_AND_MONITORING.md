@@ -1119,8 +1119,9 @@ managed service) with the node or Docker logging driver, and index `request_id`,
   `service.name` `rudix-api`, `rudix-worker`, or `rudix-mcp` (prefix
   `TRACING_SERVICE_NAME_PREFIX`), with `deployment.environment` and `service.version`.
 - Spans: one server span per HTTP request (route template and status; `/health`, `/ready`, and
-  `/metrics` excluded by `TRACING_EXCLUDED_PATHS`) carrying `rudix.request_id` and, once
-  authenticated, `rudix.organization_id`; SQLAlchemy (all engines, including the replica and
+  `/metrics` excluded by `TRACING_EXCLUDED_PATHS`, which run under an unsampled parent so the
+  probes' database, Redis, and httpx calls export no spans either) carrying `rudix.request_id`
+  and, once authenticated, `rudix.organization_id`; SQLAlchemy (all engines, including the replica and
   maintenance engines), Redis, and httpx client spans; Celery publish and run spans linked
   through the `traceparent` message header; manual `rudix.qdrant.search`,
   `rudix.qdrant.upsert`/`delete`, and `rudix.llm.call` spans with `rudix.outcome`
