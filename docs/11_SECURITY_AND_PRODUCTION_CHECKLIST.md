@@ -874,6 +874,23 @@ never document text.
       force it on `document_chunks`.
 - [ ] `KEYWORD_SEARCH_TENANT_COLUMN=on` only after that step. `auto` switches only in
       processes that start after no NULL row remains, because each process checks once.
+- [ ] Managed PostgreSQL with point-in-time recovery is provisioned; the provider's RPO and
+      failover behaviour are recorded in docs/28, and a point-in-time restore of a scratch
+      instance passed `backend/scripts/verify_postgres_restore.py` (operator, 0.8.0).
+- [ ] `DATABASE_REPLICA_URL`, when set, uses a read-only role on the replica (never the owner
+      or a `BYPASSRLS` role); only the reporting routes listed in docs/28 read from it, and
+      `RudixDbReplicaLagHigh` and `RudixDbReplicaFallbacks` route to the on-call receiver
+      (operator, 0.8.0).
+- [ ] A failover drill on staging: the replica URL failing or lagging sends reports to the
+      primary without errors, and `DATABASE_URL` and `DATABASE_REPLICA_URL` were repointed
+      after promotion (operator, 0.8.0).
+- [ ] Behind a pooler: `DB_PGBOUNCER_MODE=true` (and `database.pgbouncerMode` in the chart),
+      `pool_mode = transaction`, migrations through `DATABASE_MIGRATION_URL` directly, the
+      PgBouncer image pinned by digest, and `pgbouncer.ini` pool sizes equal to the chart's
+      `pgbouncer.*` budget values (operator, 0.8.0).
+- [ ] `make check-migration-safety` and the CI step "Check migration safety" pass; every
+      `# migration-safety: allow=...` marker has a reason a reviewer accepted, and new
+      migrations follow expand-contract (docs/CONTRIBUTING.md) (operator, 0.8.0).
 
 ### Workers
 

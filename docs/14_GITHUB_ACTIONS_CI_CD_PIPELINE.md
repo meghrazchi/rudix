@@ -54,6 +54,9 @@ Jobs:
    - starts ephemeral PostgreSQL and Redis services
    - runs `alembic upgrade head`
    - runs a downgrade/upgrade round trip to catch migration regressions
+   - "Check migration safety" (0.8.0, R08-08): `scripts/check_migration_safety.py --all`, and
+     on pull requests `--base-ref origin/<base>` (the checkout uses `fetch-depth: 0`); rules in
+     `docs/CONTRIBUTING.md`, "Database migrations"
    - job name `Backend Alembic validation`; the PostgreSQL test lane moved to
      `backend-postgres.yml` (R03-01)
 4. `frontend`

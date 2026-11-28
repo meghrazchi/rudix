@@ -101,6 +101,20 @@ make seed-dev
   stream), and the endpoint commits the request session before streaming so a stream
   holds no database connection. `documents.changed` is recorded once per organisation and
   transaction, so a bulk change publishes one hint.
+- Read replica for reports (0.8.0, R08-04): `DATABASE_REPLICA_URL` (unset: everything on the
+  primary), `DB_REPLICA_MAX_LAG_SECONDS` (30), `DB_REPLICA_LAG_CHECK_INTERVAL_SECONDS` (10),
+  `DB_REPLICA_LAG_QUERY_TIMEOUT_MS` (500), `DB_REPLICA_POOL_SIZE` (5),
+  `DB_REPLICA_MAX_OVERFLOW` (10). `get_reporting_db_session` (`app/auth/dependencies.py`)
+  serves `GET /admin/usage/dashboard`, `GET /admin/usage-adoption/{summary,charts,funnel,users,export}`,
+  `GET /reports`, and `GET /reports/answer-quality` from a read-only replica session
+  (`app/db/replica.py`) bound to the request's tenant while the lag sampled on demand is
+  within the limit; otherwise it yields the primary session itself, so tests that override
+  `get_db_session` are unaffected. Metrics `rudix_db_replica_lag_seconds` and
+  `rudix_db_replica_routed_total{target,reason}`; details in docs/28.
+- Migration safety (0.8.0, R08-08): `make check-migration-safety` runs
+  `scripts/check_migration_safety.py --all`; CI also runs `--base-ref origin/<base>`. Rules,
+  the `# migration-safety: allow=<rule> reason="..."` marker, and
+  `scripts/migration_safety_allowlist.json` are described in docs/CONTRIBUTING.md.
 
 ## Settings layout and startup behavior
 
