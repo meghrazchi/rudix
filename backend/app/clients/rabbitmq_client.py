@@ -50,7 +50,8 @@ def rabbitmq_broker_url() -> str:
 
 def redis_result_backend_url() -> str | None:
     if settings.celery_result_backend_enabled:
-        return str(settings.redis_url)
+        # R08-05: a separate result Redis when CELERY_RESULT_BACKEND_URL is set.
+        return str(settings.celery_result_backend_url or settings.redis_url)
     return None
 
 
