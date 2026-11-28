@@ -77,6 +77,7 @@ def state(monkeypatch: pytest.MonkeyPatch, clock: FakeClock) -> Iterator[FakeRed
 @pytest.fixture
 def cache_store(monkeypatch: pytest.MonkeyPatch, clock: FakeClock) -> FakeRedis:
     redis = FakeRedis(clock=clock)
+    monkeypatch.setattr(settings, "redis_cache_url", "redis://cache.invalid:6379/1")
     monkeypatch.setattr(redis_module, "cache_redis_client", redis)
     return redis
 
@@ -137,6 +138,7 @@ async def test_evicting_every_cached_value_never_resets_a_version(
 async def test_cache_client_down_degrades_to_a_miss(
     monkeypatch: pytest.MonkeyPatch, state: FakeRedis
 ) -> None:
+    monkeypatch.setattr(settings, "redis_cache_url", "redis://cache.invalid:6379/1")
     monkeypatch.setattr(redis_module, "cache_redis_client", BrokenRedis())
     org = str(uuid4())
     errors = float(
@@ -152,9 +154,33 @@ async def test_cache_client_down_degrades_to_a_miss(
     assert after - errors == 2
 
 
+async def test_cache_url_set_but_client_unconnected_misses_without_using_state(
+    monkeypatch: pytest.MonkeyPatch, state: FakeRedis
+) -> None:
+    """Degraded boot: ``REDIS_CACHE_URL`` is set but its client never connected. Cached
+    values must not land on the state Redis (which may run ``noeviction``)."""
+    monkeypatch.setattr(settings, "redis_cache_url", "redis://cache.invalid:6379/1")
+    monkeypatch.setattr(redis_module, "cache_redis_client", None)
+    assert cache.value_redis_client() is None
+    unavailable = float(
+        cache.CACHE_ERRORS_TOTAL.labels(namespace="roles_ns", operation="unavailable")._value.get()
+    )
+    org = str(uuid4())
+    loader = _Loader(4)
+    assert await _get(org, loader) == 4
+    assert await _get(org, loader) == 4
+    assert loader.calls == 2
+    assert not [k for k in state.keyspace.strings if k.endswith(":roles_ns:k")]
+    after = float(
+        cache.CACHE_ERRORS_TOTAL.labels(namespace="roles_ns", operation="unavailable")._value.get()
+    )
+    assert after - unavailable == 2
+
+
 async def test_without_a_cache_url_values_share_the_state_client(
     monkeypatch: pytest.MonkeyPatch, state: FakeRedis
 ) -> None:
+    monkeypatch.setattr(settings, "redis_cache_url", None)
     monkeypatch.setattr(redis_module, "cache_redis_client", None)
     assert cache.value_redis_client() is state
     org = str(uuid4())

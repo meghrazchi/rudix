@@ -115,9 +115,13 @@ def value_redis_client() -> Any:
     """The client for cached values: ``REDIS_CACHE_URL``'s when set, else ``REDIS_URL``'s.
 
     Version keys never use it (``_current_version`` and ``cache_invalidation._bump`` read
-    ``redis_client``), so evicting cached values cannot reset a version.
+    ``redis_client``), so evicting cached values cannot reset a version. ``None`` when
+    ``REDIS_CACHE_URL`` is set but its client is not connected (degraded boot): values then
+    miss instead of landing on the state Redis.
     """
-    return redis_module.cache_redis_client or redis_module.redis_client
+    if settings.redis_cache_url is not None:
+        return redis_module.cache_redis_client
+    return redis_module.redis_client
 
 
 def _timeout_seconds() -> float:
@@ -217,6 +221,9 @@ async def get_or_load[T](
         record_error(namespace, "version", exc)
         return await loader()
     value_client = value_redis_client()
+    if value_client is None:
+        record_error(namespace, "unavailable")
+        return await loader()
 
     key = value_key(scope, version, namespace, key_id)
     leader = _inflight.get(key)

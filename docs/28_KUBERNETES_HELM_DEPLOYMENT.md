@@ -138,8 +138,9 @@ the single-instance behaviour of `0.7.0`; the chart and production Compose set t
   `rudix:{env}:chat:ws:conn:v1:{organization_id}:{user_id}` (the semaphore script of
   `app/rate_limit/concurrency.py`, scored by Redis `TIME` plus the lease). Code:
   `app/application/chat/ws_connection_limit.py`.
-- The lease lasts `WS_CHAT_CONNECTION_LEASE_SECONDS` (default 90; it must be more than twice
-  `WS_CHAT_HEARTBEAT_INTERVAL_SECONDS`, 30) and every heartbeat tick refreshes it
+- The lease lasts `WS_CHAT_CONNECTION_LEASE_SECONDS` (default 90; with the `redis` backend
+  it must be more than twice `WS_CHAT_HEARTBEAT_INTERVAL_SECONDS`, 30, or settings validation
+  fails at startup) and every heartbeat tick refreshes it
   (`REFRESH_SCRIPT`). A replica that crashes without releasing frees its slots once the
   lease runs out, so no per-replica heartbeat key is needed.
 - A closed connection removes its lease at once (`ZREM`). A refresh that finds the lease gone
@@ -225,7 +226,9 @@ every pod out of the Service at once; liveness uses `GET /api/v1/health`.
 
 Version keys stay on `REDIS_URL` so evicting cached values can never reset a version and
 resurrect stale values. When the cache Redis is down, cached reads fall back to PostgreSQL
-(`rudix_cache_errors_total{operation="get"}`), and `/ready` reports `redis_cache` down. The
+(`rudix_cache_errors_total{operation="get"}`, or `operation="unavailable"` when it was down
+at boot; values never move to `REDIS_URL`), and `/ready` reports `redis_cache` down and
+reconnects it. The
 state Redis needs persistence and `noeviction` (see "Data stores, backups, and restore").
 
 ## Metrics and alerting
