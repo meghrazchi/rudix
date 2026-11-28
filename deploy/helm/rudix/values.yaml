@@ -154,10 +154,89 @@ ingress:
 
 # owner: A2
 backup:
+  # CronJobs that run scripts/backup_run.py per kind (R08-06): client-side AES-256-GCM
+  # encryption, upload to the backup bucket, marker <prefix>/<kind>/latest.json. Off by
+  # default. Bucket credentials (BACKUP_S3_ACCESS_KEY, BACKUP_S3_SECRET_KEY) and other
+  # BACKUP_S3_* settings come from secrets.existingSecret or config.env; an instance role
+  # works too. docs/runbooks/BACKUP_AND_RESTORE.md.
   enabled: false
+  # Backup bucket (another account or region than the application data) and key prefix.
+  bucket: ""
+  prefix: rudix
+  # Existing Secret holding the key file (base64 of 32 random bytes), mounted read-only at
+  # /run/secrets/rudix-backup/<key>. Rotate by adding a new Secret; keep old keys for restore.
+  encryptionKeySecret:
+    name: ""
+    key: backup.key
+  # A second run of a kind never starts while one is running (the render fails otherwise).
+  concurrencyPolicy: Forbid
+  # Empty: the controller's time zone (usually UTC).
+  timeZone: ""
+  startingDeadlineSeconds: 3600
+  activeDeadlineSeconds: 21600
+  backoffLimit: 1
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  # emptyDir for the dump, snapshots, and ciphertext of one run.
+  workDirSizeLimit: 50Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  postgres:
+    # Off: managed PostgreSQL with point-in-time recovery is the primary recovery path; this
+    # logical dump is a provider-independent copy (docs/runbooks/DR_DATABASE_CORRUPTION.md).
+    enabled: false
+    schedule: "30 2 * * *"
+    # Dump initContainer image (pg_dump must match the server major version).
+    image:
+      repository: postgres
+      tag: "16"
+      digest: ""
+    # Key in secrets.existingSecret with a libpq URL (postgresql://) for pg_dump.
+    databaseUrlSecretKey: BACKUP_DATABASE_URL
+  qdrant:
+    enabled: true
+    schedule: "0 3 * * *"
+  objects:
+    # Prefer provider replication plus versioning for managed S3; this is an encrypted
+    # incremental mirror (ETag and size manifest).
+    enabled: true
+    schedule: "30 3 * * *"
 
 # owner: A2
-dataStores: {}
+dataStores:
+  # Documentation only: this chart deploys no data store and renders nothing from this key.
+  # It records what the operator's external stores must provide (docs/28, "Data stores,
+  # backups, and restore").
+  postgres:
+    # Managed PostgreSQL with point-in-time recovery and a read replica (C2).
+    pointInTimeRecovery: true
+  qdrant:
+    # Cluster of at least 2 nodes; set QDRANT_REPLICATION_FACTOR >= 2 before the collection
+    # is created (applies only at creation) and QDRANT_WRITE_CONSISTENCY_FACTOR <= it.
+    replicationFactor: 2
+    writeConsistencyFactor: 1
+  rabbitmq:
+    # Three nodes; CELERY_QUEUE_TYPE=quorum only after the docs/27 quorum cut-over.
+    nodes: 3
+    queueType: classic
+  redis:
+    # REDIS_URL: state (rate limits, tickets, pub/sub, cache version keys): persistence and
+    # a replica, maxmemory-policy noeviction. REDIS_CACHE_URL (optional): cache only,
+    # allkeys-lru, no persistence.
+    state: persistent-with-replica
+    cache: optional-evicting
+  objectStorage:
+    # Versioning on the application bucket (MINIO_BUCKET_VERSIONING on Compose) and on the
+    # backup bucket, with a noncurrent-version expiry.
+    versioning: true
 
 # owner: C1
 frontend:
