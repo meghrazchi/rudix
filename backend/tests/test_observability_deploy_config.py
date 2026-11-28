@@ -88,6 +88,9 @@ def test_deploy_alertmanager_routes_by_severity_to_file_receivers() -> None:
     assert inhibit["source_matchers"] == ['severity="critical"']
     assert inhibit["target_matchers"] == ['severity="warning"']
     assert inhibit["equal"] == ["alertname", "service"]
+    # A page on one queue must not hide the ticket of another queue (per-queue SLO).
+    slo_inhibit = config["inhibit_rules"][1]
+    assert slo_inhibit["equal"] == ["slo", "queue"]
     # No endpoint or secret in the repository.
     text = (OBSERVABILITY / "alertmanager" / "alertmanager.deploy.yml").read_text()
     assert not re.search(r"https?://", text)
@@ -117,6 +120,10 @@ def test_compose_deploy_overlay_hides_ports_and_requires_grafana_password() -> N
         services["redis-exporter"]["environment"]["REDIS_PASSWORD"],
     ):
         assert ":?" in value and ":-postgres}" not in value.split("@")[0]
+    # lib/pq (postgres-exporter) rejects sslmode=prefer; the operator picks a supported mode.
+    dsn = services["postgres-exporter"]["environment"]["DATA_SOURCE_NAME"]
+    assert "sslmode=${POSTGRES_EXPORTER_SSLMODE:?" in dsn
+    assert "prefer" not in dsn
 
 
 def test_observability_secrets_are_git_ignored() -> None:

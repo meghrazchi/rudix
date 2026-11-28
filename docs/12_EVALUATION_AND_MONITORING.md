@@ -1005,7 +1005,9 @@ recording rules, multi-window burn-rate alerts, and on-call routing.
 
 **Multiprocess worker metrics.** `python -m app.workers.pools <pool>` sets
 `PROMETHEUS_MULTIPROC_DIR` (default `/tmp/rudix-prometheus`; a value already in the
-environment wins), removes stale `*.db` files from an earlier start, and creates the
+environment wins, but set it only in a pool's own environment, never in the shared `.env` or
+`config.env`: the API and beat fail at import when the directory does not exist, and worker
+probes would leave files in it), removes stale `*.db` files from an earlier start, and creates the
 directory before it execs Celery, when `WORKER_METRICS_ENABLED=true` and
 `WORKER_METRICS_MULTIPROCESS=true` (default). Every prefork child then writes its samples to
 that directory, and the main process serves the aggregate on `WORKER_METRICS_PORT`. Metric
@@ -1068,7 +1070,8 @@ its id.
 receiver with no integration). Staging and production use `alertmanager.deploy.yml`:
 `critical` goes to `oncall-pager` (repeat every hour), `warning` and `info` to
 `oncall-ticket` (every 12 and 24 hours); a critical alert inhibits the warning with the same
-`alertname` and `service`, and a burn-rate page inhibits the ticket of the same `slo`. Both
+`alertname` and `service`, and a burn-rate page inhibits the ticket of the same `slo` (and the same `queue` for the
+per-queue wait SLO). Both
 receivers are webhooks whose URLs are read from operator-created files
 (`infra/observability/secrets/oncall_pager_url`, `oncall_ticket_url`; never committed).
 Escalation: the paging tool behind `oncall-pager` pages the primary on-call; an unacknowledged

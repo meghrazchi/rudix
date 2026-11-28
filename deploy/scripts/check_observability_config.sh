@@ -28,6 +28,7 @@ cat > "$tmp_dir/deploy.env" <<'EOF'
 GRAFANA_ADMIN_PASSWORD=placeholder
 POSTGRES_EXPORTER_USER=placeholder
 POSTGRES_EXPORTER_PASSWORD=placeholder
+POSTGRES_EXPORTER_SSLMODE=require
 POSTGRES_DB=placeholder
 REDIS_PASSWORD=placeholder
 EOF
@@ -40,7 +41,7 @@ deploy="$dev -f observability/docker-compose.deploy.yml"
 
 # Variables from the caller's shell would hide a missing default; clear the ones we check.
 unset GRAFANA_ADMIN_PASSWORD POSTGRES_EXPORTER_USER POSTGRES_EXPORTER_PASSWORD \
-  POSTGRES_DB REDIS_PASSWORD 2>/dev/null || true
+  POSTGRES_EXPORTER_SSLMODE POSTGRES_DB REDIS_PASSWORD 2>/dev/null || true
 
 check() {
   label="$1"

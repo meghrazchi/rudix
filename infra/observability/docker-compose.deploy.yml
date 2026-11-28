@@ -15,7 +15,9 @@
 #     oncall_pager_url     webhook URL of the paging integration (critical alerts)
 #     oncall_ticket_url    webhook URL of the ticket or chat integration (warning, info)
 #   Create the directory with mode 0700 and the files with 0600 before `up`.
-# - Exporter credentials come from the environment without defaults.
+# - Exporter credentials come from the environment without defaults. POSTGRES_EXPORTER_SSLMODE
+#   is required too: postgres-exporter (lib/pq) accepts only disable, require, verify-ca, and
+#   verify-full (no `prefer`); use disable only for the Compose Postgres, which has no TLS.
 #
 # deploy/scripts/check_observability_config.sh validates this file with placeholder values.
 
@@ -60,7 +62,7 @@ services:
   postgres-exporter:
     ports: !reset []
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_EXPORTER_USER:?POSTGRES_EXPORTER_USER is required}:${POSTGRES_EXPORTER_PASSWORD:?POSTGRES_EXPORTER_PASSWORD is required}@${POSTGRES_EXPORTER_HOST:-postgres}:5432/${POSTGRES_DB:?POSTGRES_DB is required}?sslmode=${POSTGRES_EXPORTER_SSLMODE:-prefer}"
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_EXPORTER_USER:?POSTGRES_EXPORTER_USER is required}:${POSTGRES_EXPORTER_PASSWORD:?POSTGRES_EXPORTER_PASSWORD is required}@${POSTGRES_EXPORTER_HOST:-postgres}:5432/${POSTGRES_DB:?POSTGRES_DB is required}?sslmode=${POSTGRES_EXPORTER_SSLMODE:?POSTGRES_EXPORTER_SSLMODE is required (disable, require, verify-ca, or verify-full)}"
 
   redis-exporter:
     ports: !reset []

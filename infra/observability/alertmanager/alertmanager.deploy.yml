@@ -42,9 +42,11 @@ inhibit_rules:
     target_matchers: ['severity="warning"']
     equal: ["alertname", "service"]
   # RudixSlo*BurnRatePage (critical) and RudixSlo*BurnRateTicket (warning) share `slo`.
+  # `queue` keeps the per-queue SLO apart: a page on one queue never hides another queue's
+  # ticket (a label missing on both sides counts as equal, so other SLOs are unaffected).
   - source_matchers: ['severity="critical"', 'slo=~".+"']
     target_matchers: ['severity="warning"', 'slo=~".+"']
-    equal: ["slo"]
+    equal: ["slo", "queue"]
 
 receivers:
   - name: oncall-pager
