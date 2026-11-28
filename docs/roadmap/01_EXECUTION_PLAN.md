@@ -26,14 +26,16 @@ The per-version specs say what to build. This document says how the work is run.
 | `0.5.0` | Chat pipeline and streaming | Implemented on `develop`, except `R05-12` (needs a decision). See the Status section of [V0_5_0_IMPLEMENTATION_PLAN.md](./V0_5_0_IMPLEMENTATION_PLAN.md). |
 | `0.6.0` | Ingestion and workers | Implemented on `develop` (all nine packages); staging checks pending. See the Status section of [V0_6_0_IMPLEMENTATION_PLAN.md](./V0_6_0_IMPLEMENTATION_PLAN.md). |
 | `0.7.0` | Frontend performance | Implemented on `develop` (all nine packages, no migrations); the `/documents` bundle budget fails and staging checks are pending. See the Status section of [V0_7_0_IMPLEMENTATION_PLAN.md](./V0_7_0_IMPLEMENTATION_PLAN.md). |
-| `0.8.0` | Production infrastructure | Planned: nine packages in five chains, no migrations; decisions taken (Kubernetes and Helm, managed Postgres, OpenTelemetry off by default); provisioning, drills, and load tests are operator steps. See [V0_8_0_IMPLEMENTATION_PLAN.md](./V0_8_0_IMPLEMENTATION_PLAN.md). |
+| `0.8.0` | Production infrastructure | Implemented on `develop` (all nine packages, no migrations); provisioning, drills, load tests, and the CI-only config checks are pending. See the Status section of [V0_8_0_IMPLEMENTATION_PLAN.md](./V0_8_0_IMPLEMENTATION_PLAN.md). |
 | `0.9.0` – `1.0.0` | See section 5 | Not started. |
 
 Measured on `develop` after `0.5.0`: backend coverage 79.7%; frontend coverage 64.9% statements,
 58.2% branches, 58.8% functions, 65.8% lines. Measured after `0.6.0`: backend 82.2%;
 frontend 65.1% statements, 58.5% branches, 59.1% functions, 66.0% lines. Measured after
 `0.7.0` (backend without `.env`, as in CI): backend 82.46%; frontend 68.66% statements, 60.88%
-branches, 62.19% functions, 69.57% lines (ratchets raised to 82.4, 68.6, 60.8, 62.1, 69.5). CI
+branches, 62.19% functions, 69.57% lines (ratchets raised to 82.4, 68.6, 60.8, 62.1, 69.5).
+Measured after `0.8.0` (same conditions): backend 83.01%; frontend 68.76% statements, 60.96%
+branches, 62.34% functions, 69.66% lines (ratchets raised to 83.0, 68.7, 60.9, 62.3, 69.6). CI
 fails when a figure drops.
 
 ## 3. Roles

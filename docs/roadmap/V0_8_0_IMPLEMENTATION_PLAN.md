@@ -3,7 +3,7 @@
 ## Metadata
 
 - `Owner`: Rudix maintainers
-- `Status`: Planned (not started)
+- `Status`: Implemented on `develop` (all nine packages merged; see section 11)
 - `Last Updated`: 2026-11-28
 - `Related Docs`: [V0_8_0_PRODUCTION_INFRASTRUCTURE.md](./V0_8_0_PRODUCTION_INFRASTRUCTURE.md),
   [V0_7_0_IMPLEMENTATION_PLAN.md](./V0_7_0_IMPLEMENTATION_PLAN.md),
@@ -327,8 +327,93 @@ routing and restore verification on PostgreSQL, tracing redaction with the in-me
 - API `--workers` above 1 (would need multiprocess metrics in the API).
 - `R05-12` rich answer rendering (renderer not approved).
 
-## 11. Change Notes
+## 11. Status (2026-11-28)
+
+All nine packages are merged into `develop`, in this order: S1 (chart skeleton, rule test,
+settings stubs, shared gauges), C1 (workloads, autoscaling, network policy), B1 (Redis
+WebSocket leases, shutdown drain, readiness scope, Redis roles), A1 (edge proxy, Compose
+parity), D1 (secrets rotation, request-time frontend configuration, CDN), C2 (replica routing,
+pooler, migration safety check), B2 (multiprocess worker metrics, SLO and burn-rate rules,
+Alertmanager routing), A2 (backups, restore verification, runbooks), B3 (OpenTelemetry
+tracing). No package is deferred or unmerged, and no `feat/v0.8.0-*` branch or worktree is
+left. No migration was added: `alembic heads` reports one head, `20261128_0003`, so no
+downgrade to the `0.7.0` head was needed.
+
+Checked on `develop` plus the integration changes, with placeholder settings as in CI (no
+`.env`) and the CI staging frontend values (no secrets):
+
+- Backend: `make lint` passes (ruff; mypy on 970 files); `ruff format --check` passes;
+  `make test` 7,225 passed, 44 skipped (run with `TEST_DATABASE_URL` set, so the Postgres
+  tests ran too); `make test-cov` without `TEST_DATABASE_URL`, as in CI, 6,864 passed, 405
+  skipped, coverage 83.01% (ratchet raised from 82.4 to 83.0).
+- `make test-postgres`, run alone: 363 passed, 7 skipped in three of four runs; the fourth
+  failed `test_keyset_plans_pg.py::test_documents_cursor_page_uses_index` (the planner chose a
+  bitmap scan on another `documents` index). The test passes alone and is unchanged since
+  `0.4.0`; it is a plan-stability flake, not a `0.8.0` change. Six skips need
+  `TEST_REDIS_URL` (no Redis is available here, so the live lease and Lua script tests did not
+  run); `tests/test_rls_enforcement_pg.py`, with `TEST_MIGRATIONS_DATABASE_URL`, passed 21 of
+  21, including the migration round trip.
+- `make check-revisions` passes; `check_migration_safety.py --all` passes on 103 files and
+  `--base-ref main` on 9; the OpenAPI contract check passes (`frontend/openapi.json` matches).
+- `deploy/scripts/check_helm_chart.sh` passes (lint, and render of the default, staging,
+  production, `ci/all-features-values.yaml` and `ci/hpa-values.yaml` files);
+  `check_compose_config.sh` and `check_observability_config.sh` pass.
+- `make audit` fails on the dev-only `virtualenv` 21.14.5 (13 advisories, unchanged since
+  `0.7.0`); the CI severity gate passes on the same report through its allowlist.
+- Frontend: format, typecheck and lint pass (0 errors, 2 older warnings); Vitest 2,858 passed
+  in 280 files, twice, with coverage 68.76% statements, 60.96% branches, 62.34-62.36%
+  functions, 69.66% lines (ratchets raised from 68.6, 60.8, 62.1, 69.5 to 68.7, 60.9, 62.3,
+  69.6); `api:check` and `api:check-handwritten` (72 modules) pass; `npm run build` passes,
+  `check-prerendered-routes.mjs` finds all 144 static public routes, and
+  `check-bundle-budgets.mjs` reports all 107 routes within budget; Playwright 416 passed
+  (Chromium projects, including the route-gate and runtime-config projects).
+- No setting is defined twice across the `Settings` bases (585 fields), no metric name is
+  declared twice, and every `0.8.0` unchecked bullet in docs/11 ends with
+  `(operator, 0.8.0)`. Every package has one `docs/CHANGELOG.md` entry; a stray blank line
+  between C2 and A1 is removed and the D1 entry is labelled like the others. docs/README.md
+  lists docs/28 and the runbooks once each.
+- Docs that still described an earlier package state are updated: docs/28 status and scope,
+  its docs/README.md entry, the docs/11 OTLP header rotation bullet (now names
+  `OTEL_EXPORTER_OTLP_HEADERS`), the docs/12 backup gauge caveat (B2's multiprocess
+  collection is merged), and the frontend README, which said the legacy session read is
+  removed in `0.8.0` although section 10 defers it.
+
+Not run here: `kubeconform`, `promtool check/test rules`, `amtool check-config`,
+`caddy validate`, `terraform fmt/validate`, `shellcheck`, and `actionlint` (none is installed,
+and the CI steps that run them start containers); the deploy-config job and the
+`RUDIX_FRONTEND_IMAGE_MODE=single` release path first run in CI.
+
+Open points from the package reviews, not fixed here:
+
+- `rudix_beat_heartbeat_timestamp_seconds` and `rudix_db_replica_lag_seconds` have no labels
+  and are exported as `0` by every process before anything sets them. `RudixBeatHeartbeatStale`
+  uses `max()` and so also covers a beat that never ran, but `RudixBeatHeartbeatMissing`
+  (`absent(...)`) cannot fire. The replica lag gauge keeps its last value while no report
+  traffic samples it.
+- `record_document_indexing_job` has no caller, so the indexing duration and job metrics,
+  the ingestion SLO rules, and `RudixDocumentIndexingFailureRateHigh` return no data
+  (older gap, documented in `slo_targets.yml` and docs/12).
+- With tracing on, the httpx instrumentation sends `traceparent` to every outbound host
+  (LLM providers, webhooks, connectors, email); docs/11 "Tracing" does not say so.
+- `tests/test_usage_adoption_f353.py::test_http_onboarding_reminder_sent_and_404` sends real
+  email when a developer's `.env` has a live email provider (reported during B3).
+- Production deploys fail `check_deploy_env.sh` until `PRODUCTION_ENV_FILE` has a pinned
+  `CADDY_IMAGE`, and production Matomo is not reachable until `EDGE_MATOMO=on`,
+  `RUDIX_MATOMO_HOST`, and DNS are set (A1).
+
+Still to verify on staging (section 9): only 80 and 443 reachable and the TLS scan; no failed
+chat when a replica is killed under load; no lost work when a data-store node is lost; the
+failover drill and a point-in-time restore checked by `verify_postgres_restore.py`; the first
+restore drill with measured RPO and RTO in `docs/runbooks/RESTORE_DRILL_LOG.md` (empty); a
+burst scaling out and back and a deploy under load with no failed requests; a synthetic alert
+paging the on-call receiver; one end-to-end trace through a real collector; and the same image
+digests on staging and production (needs the section 6 decisions). No latency, RPO, RTO,
+failover, scan, or load figure is recorded in this release.
+
+## 12. Change Notes
 
 - 2026-11-28: Initial version, written after checking the `0.8.0` spec against the code at
   `9eb0acd3`, with the owner's instruction to take the recommended option on each open
   decision.
+- 2026-11-28: Status after all nine packages merged (section 11): integration check
+  results, raised coverage ratchets, doc fixes, open points, and staging checks.

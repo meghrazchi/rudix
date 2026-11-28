@@ -3,7 +3,8 @@
 ## Metadata
 
 - `Owner`: Rudix maintainers
-- `Status`: Draft (chart skeleton only; workloads arrive during `0.8.0`)
+- `Status`: Implemented on `develop` (`0.8.0`, all nine packages); not yet installed on a
+  cluster
 - `Last Updated`: 2026-11-28
 - `Related Docs`: [10_DEPLOYMENT_DOCKER.md](./10_DEPLOYMENT_DOCKER.md),
   [11_SECURITY_AND_PRODUCTION_CHECKLIST.md](./11_SECURITY_AND_PRODUCTION_CHECKLIST.md),
@@ -24,8 +25,9 @@ Prometheus Operator, managed data stores, a secret manager, or a CDN. Those are 
 (last section). No latency, failover, recovery, or load figure is recorded here; none can be
 measured in the repository.
 
-Status at `0.8.0` S1: the chart renders a config ConfigMap, a frontend ConfigMap, and a
-ServiceAccount. Each later section is filled by the task named in its marker.
+Status after `0.8.0`: every section below is filled (the marker names the task that wrote
+it). The chart renders with the default, staging, production, and `ci/*-values.yaml` files;
+it has not been installed on a cluster, and `kubeconform` first runs in CI.
 
 ## Chart layout and conventions
 
@@ -58,8 +60,9 @@ chart fails to render otherwise. Placeholder names in the values files (`rudix-s
 (`ENVIRONMENT`, `API_BASE_URL`, `FRONTEND_BASE_URL`, `LOG_FORMAT=json`, then one block per
 task under a `# v080-<task>` comment). It renders into the `<fullname>-config` ConfigMap.
 `config.env.ENVIRONMENT` must equal `global.environment`. Hosts use the reserved `.invalid`
-TLD until the operator sets real ones. `runtimeConfig.env` (empty until D1) renders into the
-`<fullname>-frontend` ConfigMap, which the frontend Deployment mounts with `envFrom`.
+TLD until the operator sets real ones. `runtimeConfig.env` (D1; see "Secrets and runtime
+configuration") renders into the `<fullname>-frontend` ConfigMap, which the frontend
+Deployment mounts with `envFrom`.
 
 **Values ownership.** Each top-level key of `values.yaml` has one owner task (plan section
 5.1): S1 `nameOverride`, `fullnameOverride`, `global`, `image`, `config`, `secrets`,
@@ -846,3 +849,4 @@ Not done in the repository (plan section 8):
 - 2026-11-28: `0.8.0` C2: database Secret keys, read replica for reporting routes with lag
   sampling and fallback, optional PgBouncer Deployment and pooler-aware connection budget,
   migration safety check.
+- 2026-11-28: `0.8.0` release integration: status updated after all nine packages merged.

@@ -317,7 +317,8 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - Compatibility: a session stored by 0.6.x in `localStorage["rudix.session.v1"]` is loaded
   once into memory (`NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ`, default on) and removed after the
   first successful refresh or authenticated response, so signed-in users stay signed in across
-  the deploy. Removed in 0.8.0. Playwright specs still seed that key.
+  the deploy. Its removal was planned for 0.8.0 and is deferred (V0_8_0 plan, section 10), so
+  the read stays on. Playwright specs still seed that key.
 - The dev-only local fallback (`NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=true` or
   `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN`) has no refresh cookie and keeps a tab-scoped copy
   in `sessionStorage["rudix.session.dev.v1"]`.
@@ -903,7 +904,7 @@ NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=true
 NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN=
 NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN=
 NEXT_PUBLIC_AUTH_REFRESH_URL=
-# Read a 0.6.x localStorage session once (removed in 0.8.0)
+# Read a 0.6.x localStorage session once (removal deferred past 0.8.0)
 NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ=true
 # Server env, read per request by src/proxy.ts: off | enforce
 RUDIX_ROUTE_GATE=off

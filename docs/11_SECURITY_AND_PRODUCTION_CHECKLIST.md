@@ -558,8 +558,9 @@ where it is checked, deploy, then remove the old one (R08-11).
 - **`METRICS_BEARER_TOKEN`.** The app accepts one token. Write the new token to the Prometheus
   credentials file (`authorization.credentials_file`) first, then deploy the app with it; scrapes
   fail between the two steps, so keep the gap short (alerts on missing scrapes may fire once).
-- **OTLP exporter headers** (the tracing exporter credentials added by B3 in `0.8.0`, when tracing is on): add the new
-  credential at the collector or vendor, deploy the new header, then revoke the old one.
+- **OTLP exporter headers** (`OTEL_EXPORTER_OTLP_HEADERS`, only when tracing is on; see
+  "Tracing" below): add the new credential at the collector or vendor, deploy the new header,
+  then revoke the old one.
 - **Redis, RabbitMQ, PostgreSQL, MinIO/S3 credentials.** Create a second user or key with the
   same grants, switch the URLs or keys in the Secret, roll every API, worker, beat, and MCP pod
   (or Compose service), confirm no connection uses the old user (server-side client lists),
@@ -567,7 +568,7 @@ where it is checked, deploy, then remove the old one (R08-11).
   owner) and rotate the password with `ALTER ROLE ... PASSWORD` only after the switch.
 - **Backup encryption key.** Encrypt new backups with the new key and keep every old key for as
   long as backups made with it are retained, or restores fail; see
-  `docs/runbooks/BACKUP_AND_RESTORE.md` (written in `0.8.0`, A2).
+  [docs/runbooks/BACKUP_AND_RESTORE.md](./runbooks/BACKUP_AND_RESTORE.md).
 - **Moving off whole-file environment secrets.** `STAGING_ENV_FILE` and `PRODUCTION_ENV_FILE`
   (docs/14 `## Required GitHub Secrets`) hold every backend secret in one GitHub secret, so
   rotating one value means rewriting the file. Prefer one GitHub environment secret per value,

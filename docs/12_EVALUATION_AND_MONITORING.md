@@ -1044,8 +1044,10 @@ outbound request: the browser posts to our own API.
   (error class only), `backup.marker.written`, `backup.postgres.completed`,
   `backup.qdrant.completed`, `backup.objects.completed` (sizes, counts, durations). No key,
   URL, bucket credential, or object name is logged.
-- The gauge is set in the worker process that ran the task; until multiprocess collection
-  (B2) is enabled, prefork child values are not exported by the worker metrics server.
+- The gauge is set in the worker process that ran the task. Pools started by
+  `python -m app.workers.pools` export it through multiprocess collection (B2,
+  `WORKER_METRICS_MULTIPROCESS=true` by default); a plain `celery worker` exports only its main
+  process, so prefork child values are not exported there.
 - No baseline exists yet; the first restore drill and its RPO and RTO are staging steps
   ([runbooks/RESTORE_DRILL_LOG.md](./runbooks/RESTORE_DRILL_LOG.md)).
 
