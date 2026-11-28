@@ -226,6 +226,27 @@ CASES: list[tuple[str, str, str]] = [
         'op.create_foreign_key("fk_d", "tags", "users", ["user_id"], ["id"])',
     ),
     (
+        rules.FOREIGN_KEY_VALIDATING,
+        'op.add_column("documents", sa.Column("owner_id", sa.UUID(), '
+        'sa.ForeignKey("users.id"), nullable=True))',
+        'op.add_column("documents", sa.Column("owner_id", sa.UUID(), nullable=True))',
+    ),
+    (
+        rules.FOREIGN_KEY_VALIDATING,
+        'op.execute("ALTER TABLE documents ADD COLUMN owner_id uuid REFERENCES users(id)")',
+        'op.execute("ALTER TABLE documents ADD COLUMN owner_id uuid")',
+    ),
+    (
+        rules.ADD_CONSTRAINT_VALIDATING,
+        'op.create_unique_constraint("uq_t", "documents", ["title"])',
+        'op.create_unique_constraint("uq_t", "tags", ["name"])',
+    ),
+    (
+        rules.ADD_CONSTRAINT_VALIDATING,
+        'op.create_primary_key("pk_t", "documents", ["id"])',
+        'op.create_primary_key("pk_t", "tags", ["name"])',
+    ),
+    (
         rules.CHECK_CONSTRAINT_VALIDATING,
         'op.create_check_constraint("ck_t", "documents", "length(title) > 0")',
         'op.create_check_constraint("ck_t", "documents", "length(title) > 0", postgresql_not_valid=True)',

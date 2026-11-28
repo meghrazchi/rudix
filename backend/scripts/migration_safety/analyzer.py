@@ -50,6 +50,8 @@ _TABLE_ARG: dict[str, tuple[int | None, str | None]] = {
     "create_index": (1, "table_name"),
     "create_foreign_key": (1, "source_table"),
     "create_check_constraint": (1, "table_name"),
+    "create_unique_constraint": (1, "table_name"),
+    "create_primary_key": (1, "table_name"),
 }
 
 
@@ -294,6 +296,15 @@ class _Walker:
             node = call.args[offset] if len(call.args) > offset else _keyword(call, "column")
             if isinstance(node, ast.Call) and self._volatile_default(node):
                 self.emit(ctx, Event(rules.VOLATILE_DEFAULT, line, table))
+            if isinstance(node, ast.Call):
+                for referent in self._inline_foreign_keys(node):
+                    # ADD COLUMN ... REFERENCES validates at once (no NOT VALID form).
+                    event = Event(rules.FOREIGN_KEY_VALIDATING, line, table, referent=referent)
+                    self.emit(ctx, event)
+        elif method in ("create_unique_constraint", "create_primary_key"):
+            # Builds a unique index under ACCESS EXCLUSIVE; the safe form is CREATE UNIQUE
+            # INDEX CONCURRENTLY, then ADD CONSTRAINT ... USING INDEX.
+            self.emit(ctx, Event(rules.ADD_CONSTRAINT_VALIDATING, line, table))
         elif method == "create_index":
             if _is_true(_keyword(call, "postgresql_concurrently")):
                 if not ctx.autocommit:
@@ -314,6 +325,17 @@ class _Walker:
                 )
                 self.emit(ctx, Event(rule, line, table, referent=referent))
 
+    def _inline_foreign_keys(self, column: ast.Call) -> list[str | None]:
+        """Referenced tables of ``sa.ForeignKey("table.column")`` arguments of a column."""
+        referents: list[str | None] = []
+        for arg in column.args:
+            if not isinstance(arg, ast.Call) or _attr_chain(arg.func)[:1] != ["ForeignKey"]:
+                continue
+            target = self.resolve_str(arg.args[0] if arg.args else _keyword(arg, "column"))
+            table = target.rsplit(".", 1)[0].split(".")[-1].lower() if target else None
+            referents.append(table or None)
+        return referents
+
     def _volatile_default(self, column: ast.Call) -> bool:
         default = _keyword(column, "server_default")
         if default is None:
@@ -332,7 +354,9 @@ class _Walker:
         for event in sql_events(sql):
             if event.rule == rules.CONCURRENTLY_OUTSIDE_AUTOCOMMIT and ctx.autocommit:
                 continue
-            self.emit(ctx, Event(event.rule, call.lineno, event.table, event.column))
+            self.emit(
+                ctx, Event(event.rule, call.lineno, event.table, event.column, event.referent)
+            )
 
 
 def _calls(node: ast.AST) -> Iterator[ast.Call]:

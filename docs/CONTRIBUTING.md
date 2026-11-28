@@ -59,9 +59,9 @@ module helpers it calls, skipping branches that run only on non-PostgreSQL diale
 | `alter-column-type` | `op.alter_column(type_=...)` or raw `ALTER COLUMN ... TYPE` on a large table |
 | `set-not-null` | `op.alter_column(nullable=False)` or raw `SET NOT NULL` on a large table |
 | `create-index-non-concurrent` | `op.create_index` without `postgresql_concurrently=True`, or raw `CREATE INDEX` without `CONCURRENTLY`, on a large table |
-| `foreign-key-validating` | `op.create_foreign_key` without `postgresql_not_valid=True` when either table is large |
+| `foreign-key-validating` | `op.create_foreign_key` without `postgresql_not_valid=True`, or a new column with an inline `sa.ForeignKey(...)` / raw `ADD COLUMN ... REFERENCES` (no `NOT VALID` form: add the column, then the constraint `NOT VALID`), when either table is large |
 | `check-constraint-validating` | `op.create_check_constraint` without `postgresql_not_valid=True` on a large table |
-| `add-constraint-validating` | raw `ALTER TABLE ... ADD CONSTRAINT` without `NOT VALID` (or `USING INDEX`) on a large table |
+| `add-constraint-validating` | raw `ALTER TABLE ... ADD CONSTRAINT` without `NOT VALID` (or `USING INDEX`), or `op.create_unique_constraint` / `op.create_primary_key` (build the unique index `CONCURRENTLY`, then `ADD CONSTRAINT ... USING INDEX`), on a large table |
 | `volatile-default` | a new column whose server default calls `random()`, `gen_random_uuid()`, `uuid_generate_v4()`, `clock_timestamp()`, `timeofday()`, or `nextval()` on a large table (`now()` is fine) |
 | `lock-table`, `vacuum-full`, `cluster` | raw `LOCK TABLE`, `VACUUM FULL`, or `CLUSTER` on a large table |
 | `concurrently-outside-autocommit` | `CONCURRENTLY` (or `postgresql_concurrently=True`) outside `with op.get_context().autocommit_block():` |

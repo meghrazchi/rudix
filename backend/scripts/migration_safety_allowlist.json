@@ -122,6 +122,11 @@
       "reason": "Applied before the 0.8.0 migration safety check; the index was built while the table was small and exists in every environment. New indexes on large tables use CONCURRENTLY in an autocommit block (20261128_0003 pattern)."
     },
     {
+      "revision": "20260615_0008",
+      "rule": "foreign-key-validating",
+      "reason": "Applied before the 0.8.0 migration safety check; the column and its inline foreign key were added and validated while the tables were small. New foreign-key columns on large tables are added without the constraint, which follows as NOT VALID and is validated in a later migration."
+    },
+    {
       "revision": "20260616_0001",
       "rule": "check-constraint-validating",
       "reason": "Applied before the 0.8.0 migration safety check; the constraint was validated while the table was small. New check constraints on large tables use NOT VALID, then VALIDATE CONSTRAINT in a later migration."
@@ -147,6 +152,11 @@
       "reason": "Applied before the 0.8.0 migration safety check; the index was built while the table was small and exists in every environment. New indexes on large tables use CONCURRENTLY in an autocommit block (20261128_0003 pattern)."
     },
     {
+      "revision": "20260617_0002",
+      "rule": "foreign-key-validating",
+      "reason": "Applied before the 0.8.0 migration safety check; the column and its inline foreign key were added and validated while the tables were small. New foreign-key columns on large tables are added without the constraint, which follows as NOT VALID and is validated in a later migration."
+    },
+    {
       "revision": "20260624_0001",
       "rule": "foreign-key-validating",
       "reason": "Applied before the 0.8.0 migration safety check; the foreign key was validated while the tables were small. New foreign keys on large tables use NOT VALID, then VALIDATE CONSTRAINT in a later migration."
@@ -165,6 +175,11 @@
       "revision": "20260624_0002",
       "rule": "create-index-non-concurrent",
       "reason": "Applied before the 0.8.0 migration safety check; the index was built while the table was small and exists in every environment. New indexes on large tables use CONCURRENTLY in an autocommit block (20261128_0003 pattern)."
+    },
+    {
+      "revision": "20260624_0002",
+      "rule": "foreign-key-validating",
+      "reason": "Applied before the 0.8.0 migration safety check; the column and its inline foreign key were added and validated while the tables were small. New foreign-key columns on large tables are added without the constraint, which follows as NOT VALID and is validated in a later migration."
     },
     {
       "revision": "20260624_0009",

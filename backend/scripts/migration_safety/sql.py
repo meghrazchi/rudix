@@ -60,6 +60,7 @@ VOLATILE_DEFAULT_RE = re.compile(
     re.IGNORECASE,
 )
 _DEFAULT_RE = re.compile(r"\bDEFAULT\b", re.IGNORECASE)
+_REFERENCES_RE = re.compile(rf"\bREFERENCES\s+(?P<table>{_IDENT})", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -68,6 +69,7 @@ class SqlEvent:
     table: str | None
     column: str | None = None
     concurrently: bool = False
+    referent: str | None = None
 
 
 def clean_name(raw: str | None) -> str | None:
@@ -124,9 +126,13 @@ def _alter_table_events(table: str | None, rest: str) -> list[SqlEvent]:
         elif _ADD_CONSTRAINT_RE.search(stripped):
             if not _NOT_VALID_RE.search(stripped) and not _USING_INDEX_RE.search(stripped):
                 events.append(SqlEvent(rules.ADD_CONSTRAINT_VALIDATING, table))
-        elif _ADD_COLUMN_RE.match(stripped) and _DEFAULT_RE.search(stripped):
-            if VOLATILE_DEFAULT_RE.search(stripped):
+        elif _ADD_COLUMN_RE.match(stripped):
+            if _DEFAULT_RE.search(stripped) and VOLATILE_DEFAULT_RE.search(stripped):
                 events.append(SqlEvent(rules.VOLATILE_DEFAULT, table))
+            if references := _REFERENCES_RE.search(stripped):
+                # An inline REFERENCES validates at once; it has no NOT VALID form.
+                referent = clean_name(references["table"])
+                events.append(SqlEvent(rules.FOREIGN_KEY_VALIDATING, table, referent=referent))
     return events
 
 
