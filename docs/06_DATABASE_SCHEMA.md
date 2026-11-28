@@ -648,14 +648,23 @@ Columns on existing tables:
 | Table | Column | Notes |
 |---|---|---|
 | `users` | `email_verified_at timestamptz` | NULL: mailbox not proven. Nothing enforces it by default. |
-| `auth_refresh_sessions` | `auth_method varchar(16) NOT NULL DEFAULT 'password'` (CHECK `password`, `sso`), `mfa_verified_at timestamptz` | Constant default: metadata only on PostgreSQL 11+; the CHECK is added `NOT VALID` and validated separately. |
+| `auth_refresh_sessions` | `auth_method varchar(16) NOT NULL DEFAULT 'password'` (CHECK `password`, `sso`), `mfa_verified_at timestamptz` | Constant default: metadata only on PostgreSQL 11+; the CHECK is added `NOT VALID` (enforced on every write, not validated in the migration: see below). |
 | `org_quota_policy` | `stage_limits json` | NULL means every optional pipeline stage is allowed (the behaviour before 0.9.0). |
-| `email_delivery_logs`, `user_notification_preferences` | `event_type` CHECK | Now the full `EmailEventType` list: adds `email_verification`, `password_reset`, and `onboarding_reminder` (in the model since F353, never migrated). Added `NOT VALID`, then validated. |
+| `email_delivery_logs`, `user_notification_preferences` | `event_type` CHECK | Now the full `EmailEventType` list: adds `email_verification`, `password_reset`, and `onboarding_reminder` (in the model since F353, never migrated). Added `NOT VALID` (enforced on every write, not validated in the migration: see below). |
 
 The RLS lists are `RLS_LOOKUP_TABLES_0_9_0` and `RLS_STRICT_TABLES_0_9_0` in
 `backend/app/db/rls.py`; the migrations copy them as literals and
 `tests/test_rls_coverage.py` checks both. `deploy/sql/force_rls.sql` includes the new policy
 tables. Every new foreign key has an index (`tests/test_fk_index_guard.py`).
+
+The two CHECK constraints on large existing tables (`auth_refresh_sessions.auth_method`,
+`email_delivery_logs.event_type`, and the `user_notification_preferences` list with it) stay
+`NOT VALID` (`pg_constraint.convalidated = false`). Alembic runs the upgrade in one
+transaction, so a `VALIDATE CONSTRAINT` there would scan the table while the `ACCESS
+EXCLUSIVE` lock of the `ADD COLUMN` or `ADD CONSTRAINT` is still held. No existing row can
+violate them (a new column with a constant default; a widened list), and PostgreSQL enforces
+a `NOT VALID` CHECK on every insert and update. A later migration may validate them inside
+an autocommit block (docs/CONTRIBUTING.md, "Database migrations").
 
 Rollback: `alembic downgrade 20261128_0003` drops the nine tables, the four columns, and the
 policies, and puts back the previous `event_type` lists (`NOT VALID`, so rows with the new

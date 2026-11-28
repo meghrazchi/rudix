@@ -18,8 +18,12 @@ Data-safety notes:
 - Additive only: three new, empty tables and two columns on ``auth_refresh_sessions`` (a
   large table). ``auth_method`` is ``NOT NULL`` with a constant default, which PostgreSQL 11+
   adds as metadata only (no rewrite, existing sessions read ``password``). Its CHECK
-  constraint is added ``NOT VALID`` and validated in a second statement (``SHARE UPDATE
-  EXCLUSIVE``). Every statement runs after ``SET LOCAL lock_timeout = '5s'``.
+  constraint is added ``NOT VALID`` and not validated here: the migration runs in one
+  transaction, so a ``VALIDATE`` scan would run under the ``ACCESS EXCLUSIVE`` lock that
+  ``ADD COLUMN`` already holds on this login-path table. The constraint is still enforced on
+  every insert and update, and every existing row holds the constant default; a later
+  migration may validate it in an autocommit block (docs/CONTRIBUTING.md). Every statement
+  runs after ``SET LOCAL lock_timeout = '5s'``.
 - ``user_mfa_*`` have no tenant column (a factor protects the user in every organisation),
   so they get no policy, like ``users``. ``org_login_policies`` is read at login before a
   tenant is bound: it gets the lookup policy from a literal list
@@ -169,7 +173,6 @@ def upgrade() -> None:
             f"ALTER TABLE auth_refresh_sessions ADD CONSTRAINT {AUTH_METHOD_CHECK} "
             "CHECK (auth_method IN ('password', 'sso')) NOT VALID"
         )
-        op.execute(f"ALTER TABLE auth_refresh_sessions VALIDATE CONSTRAINT {AUTH_METHOD_CHECK}")
         for table in LOOKUP_TABLES:
             for statement in build_lookup_policy_sql(table):
                 op.execute(statement)

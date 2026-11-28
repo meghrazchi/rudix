@@ -19,10 +19,14 @@ Data-safety notes:
 - Additive only: one new, empty table and one nullable column (metadata only on
   PostgreSQL 11+). No existing row changes.
 - The replacement CHECK constraints only widen the allowed list. On PostgreSQL they are added
-  ``NOT VALID`` and then validated in a separate statement, so the large
-  ``email_delivery_logs`` table is scanned under ``SHARE UPDATE EXCLUSIVE`` (reads and writes
-  continue) instead of ``ACCESS EXCLUSIVE``. Every statement runs after
-  ``SET LOCAL lock_timeout = '5s'``; rerun after a blocking transaction ends.
+  ``NOT VALID`` and not validated here: the migration runs in one transaction, so the
+  ``ACCESS EXCLUSIVE`` lock that ``DROP``/``ADD CONSTRAINT`` takes on the large
+  ``email_delivery_logs`` table would be held through a ``VALIDATE`` scan. A ``NOT VALID``
+  CHECK is still enforced on every insert and update, and no existing row can violate it
+  (each one passed the narrower list it replaces), so the lock is brief and metadata only.
+  A later migration may validate it in an autocommit block (docs/CONTRIBUTING.md, "Database
+  migrations"). Every statement runs after ``SET LOCAL lock_timeout = '5s'``; rerun after a
+  blocking transaction ends.
 - ``auth_one_time_tokens`` is a lookup table for row-level security (tokens are read before a
   tenant is bound): it gets the lookup policy of ``app.db.rls`` from a literal list
   (``tests/test_rls_coverage.py`` checks it against ``RLS_LOOKUP_TABLES_0_9_0``).
@@ -94,14 +98,13 @@ def _in_list(values: tuple[str, ...]) -> str:
     return "event_type IN (" + ", ".join(f"'{value}'" for value in values) + ")"
 
 
-def _replace_event_type_checks(values: tuple[str, ...], *, validate: bool) -> None:
+def _replace_event_type_checks(values: tuple[str, ...]) -> None:
+    # NOT VALID without VALIDATE: see the data-safety notes (no scan under ACCESS EXCLUSIVE).
     for table, name in EVENT_TYPE_CONSTRAINTS:
         op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {name}")
         op.execute(
             f"ALTER TABLE {table} ADD CONSTRAINT {name} CHECK ({_in_list(values)}) NOT VALID"
         )
-        if validate:
-            op.execute(f"ALTER TABLE {table} VALIDATE CONSTRAINT {name}")
 
 
 def upgrade() -> None:
@@ -160,7 +163,7 @@ def upgrade() -> None:
         "users", sa.Column("email_verified_at", sa.DateTime(timezone=True), nullable=True)
     )
     if _is_postgresql():
-        _replace_event_type_checks(NEW_EVENT_TYPES, validate=True)
+        _replace_event_type_checks(NEW_EVENT_TYPES)
         for table in LOOKUP_TABLES:
             for statement in build_lookup_policy_sql(table):
                 op.execute(statement)
@@ -171,7 +174,7 @@ def downgrade() -> None:
         op.execute("SET LOCAL lock_timeout = '5s'")
         for table in LOOKUP_TABLES:
             op.execute(f"DROP POLICY IF EXISTS {TENANT_RLS_POLICY_NAME} ON {table}")
-        _replace_event_type_checks(OLD_EVENT_TYPES, validate=False)
+        _replace_event_type_checks(OLD_EVENT_TYPES)
     op.drop_column("users", "email_verified_at")
     op.drop_index("idx_auth_one_time_tokens_org", table_name="auth_one_time_tokens")
     op.drop_index("idx_auth_one_time_tokens_purpose_consumed", table_name="auth_one_time_tokens")

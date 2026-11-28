@@ -10,9 +10,11 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -137,12 +139,16 @@ def _assert_upgraded(state: dict[str, object]) -> None:
         assert "app.rls_mode" in policies[table], table
     for table in ("user_mfa_factors", "user_mfa_recovery_codes", "billing_plans"):
         assert table not in policies
+    # Checks on the large existing tables stay NOT VALID: validating them inside the
+    # migration transaction would scan the table under ACCESS EXCLUSIVE. They are still
+    # enforced on every write; a later migration may validate them in an autocommit block.
     definition, validated = checks[EVENT_TYPE_CHECK]
-    assert validated is True
+    assert validated is False and "NOT VALID" in definition
     for event_type in ("email_verification", "password_reset", "onboarding_reminder"):
         assert event_type in definition
         assert event_type in checks[PREFERENCE_CHECK][0]
-    assert checks["ck_auth_refresh_sessions_auth_method_allowed"][1] is True
+    auth_method, auth_method_validated = checks["ck_auth_refresh_sessions_auth_method_allowed"]
+    assert auth_method_validated is False and "'sso'" in auth_method
     assert "mfa_challenge" in checks["ck_auth_one_time_tokens_purpose_allowed"][0]
     assert "past_due" in checks["ck_billing_subscriptions_status_allowed"][0]
     assert "processed" in checks["ck_billing_webhook_events_status_allowed"][0]
@@ -188,3 +194,66 @@ async def test_downgrade_one_step_and_back() -> None:
     assert "billing_plans" not in tables and "user_mfa_factors" in tables
     _alembic(url, "upgrade", "head")
     _assert_upgraded(await _state(url))
+
+
+async def test_not_valid_checks_still_reject_bad_writes() -> None:
+    url = _url()
+    _alembic(url, "upgrade", "head")
+    engine = create_async_engine(url, poolclass=NullPool)
+    org_id, user_id = uuid4(), uuid4()
+    try:
+        async with engine.connect() as conn:
+            transaction = await conn.begin()
+            try:
+                await conn.execute(
+                    text("INSERT INTO organizations (id, name, slug) VALUES (:id, 'm', :slug)"),
+                    {"id": org_id, "slug": f"m-{org_id.hex[:12]}"},
+                )
+                await conn.execute(
+                    text(
+                        "INSERT INTO users (id, organization_id, external_auth_id, email) "
+                        "VALUES (:id, :org, :ext, :email)"
+                    ),
+                    {"id": user_id, "org": org_id, "ext": user_id.hex, "email": "m@example.com"},
+                )
+
+                async def _log(event_type: str) -> None:
+                    await conn.execute(
+                        text(
+                            "INSERT INTO email_delivery_logs (id, organization_id, user_id, "
+                            "event_type, recipient_email, subject, provider, status) VALUES "
+                            "(:id, :org, :user, :event, 'm@example.com', 's', 'console', 'sent')"
+                        ),
+                        {"id": uuid4(), "org": org_id, "user": user_id, "event": event_type},
+                    )
+
+                async def _session(auth_method: str) -> None:
+                    await conn.execute(
+                        text(
+                            "INSERT INTO auth_refresh_sessions (id, organization_id, user_id, "
+                            "session_id, refresh_token_hash, refresh_token_jti, expires_at, "
+                            "auth_method) VALUES (:id, :org, :user, :sid, :hash, :jti, "
+                            "now() + interval '1 hour', :method)"
+                        ),
+                        {
+                            "id": uuid4(),
+                            "org": org_id,
+                            "user": user_id,
+                            "sid": uuid4(),
+                            "hash": uuid4().hex,
+                            "jti": uuid4().hex,
+                            "method": auth_method,
+                        },
+                    )
+
+                await _log("password_reset")
+                await _session("sso")
+                for write, bad in ((_log, "not_an_event"), (_session, "magic_link")):
+                    savepoint = await conn.begin_nested()
+                    with pytest.raises(IntegrityError, match="check constraint"):
+                        await write(bad)
+                    await savepoint.rollback()
+            finally:
+                await transaction.rollback()
+    finally:
+        await engine.dispose()
