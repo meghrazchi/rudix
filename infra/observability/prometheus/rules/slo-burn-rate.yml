@@ -1,0 +1,156 @@
+# Multi-window burn-rate alerts (R08-09, B2) on the series of slo-recording.yml.
+# Page (critical): the 1h and 5m bad-event ratios both exceed 14.4x the error budget
+# (2% of a 30-day budget per hour). Ticket (warning): the 6h and 30m ratios both exceed
+# 6x (5% of the budget in 6 hours). Alertmanager routes critical to oncall-pager and
+# warning to oncall-ticket (alertmanager/alertmanager.deploy.yml).
+groups:
+- name: rudix-slo-burn-chat-ttft-p95
+  rules:
+  - alert: RudixSloChatTtftBurnRatePage
+    expr: |-
+      slo:rudix_chat_ttft_seconds:slow_ratio_le2_5_rate1h > (14.4 * 0.05)
+      and
+      slo:rudix_chat_ttft_seconds:slow_ratio_le2_5_rate5m > (14.4 * 0.05)
+    for: 2m
+    labels:
+      severity: critical
+      service: api
+      slo: chat_ttft_p95
+    annotations:
+      summary: 'SLO chat_ttft_p95: error budget burning at 14.4x (1h and 5m windows)'
+      description: 'Target: Chat time to first token, default profile, p95 2.5 s or less. The bad-event ratio over 1h and 5m is above 14.4 x 0.05 (budget = 1 - 0.95). At this rate the 30-day budget is gone in 50.0 hours. Current 1h ratio: {{ $value | humanizePercentage }}.'
+      runbook: docs/12_EVALUATION_AND_MONITORING.md#slo-rules-and-burn-rate-alerts-080
+  - alert: RudixSloChatTtftBurnRateTicket
+    expr: |-
+      slo:rudix_chat_ttft_seconds:slow_ratio_le2_5_rate6h > (6 * 0.05)
+      and
+      slo:rudix_chat_ttft_seconds:slow_ratio_le2_5_rate30m > (6 * 0.05)
+    for: 15m
+    labels:
+      severity: warning
+      service: api
+      slo: chat_ttft_p95
+    annotations:
+      summary: 'SLO chat_ttft_p95: error budget burning at 6x (6h and 30m windows)'
+      description: 'Target: Chat time to first token, default profile, p95 2.5 s or less. The bad-event ratio over 6h and 30m is above 6 x 0.05 (budget = 1 - 0.95). At this rate the 30-day budget is gone in 120.0 hours. Current 6h ratio: {{ $value | humanizePercentage }}.'
+      runbook: docs/12_EVALUATION_AND_MONITORING.md#slo-rules-and-burn-rate-alerts-080
+- name: rudix-slo-burn-chat-full-answer-p95
+  rules:
+  - alert: RudixSloChatAnswerLatencyBurnRatePage
+    expr: |-
+      slo:rudix_rag_query_duration_seconds:slow_ratio_le15_rate1h > (14.4 * 0.05)
+      and
+      slo:rudix_rag_query_duration_seconds:slow_ratio_le15_rate5m > (14.4 * 0.05)
+    for: 2m
+    labels:
+      severity: critical
+      service: api
+      slo: chat_full_answer_p95
+    annotations:
+      summary: 'SLO chat_full_answer_p95: error budget burning at 14.4x (1h and 5m windows)'
+      description: 'Target: Chat full answer, default profile, p95 12 s or less. The bad-event ratio over 1h and 5m is above 14.4 x 0.05 (budget = 1 - 0.95). At this rate the 30-day budget is gone in 50.0 hours. Current 1h ratio: {{ $value | humanizePercentage }}.'
+      runbook: docs/12_EVALUATION_AND_MONITORING.md#slo-rules-and-burn-rate-alerts-080
+  - alert: RudixSloChatAnswerLatencyBurnRateTicket
+    expr: |-
+      slo:rudix_rag_query_duration_seconds:slow_ratio_le15_rate6h > (6 * 0.05)
+      and
+      slo:rudix_rag_query_duration_seconds:slow_ratio_le15_rate30m > (6 * 0.05)
+    for: 15m
+    labels:
+      severity: warning
+      service: api
+      slo: chat_full_answer_p95
+    annotations:
+      summary: 'SLO chat_full_answer_p95: error budget burning at 6x (6h and 30m windows)'
+      description: 'Target: Chat full answer, default profile, p95 12 s or less. The bad-event ratio over 6h and 30m is above 6 x 0.05 (budget = 1 - 0.95). At this rate the 30-day budget is gone in 120.0 hours. Current 6h ratio: {{ $value | humanizePercentage }}.'
+      runbook: docs/12_EVALUATION_AND_MONITORING.md#slo-rules-and-burn-rate-alerts-080
+- name: rudix-slo-burn-ingestion-50-page-pdf-p95
+  rules:
+  - alert: RudixSloIngestionLatencyBurnRatePage
+    expr: |-
+      slo:rudix_document_indexing_duration_seconds:slow_ratio_le120_rate1h > (14.4 * 0.05)
+      and
+      slo:rudix_document_indexing_duration_seconds:slow_ratio_le120_rate5m > (14.4 * 0.05)
+    for: 2m
+    labels:
+      severity: critical
+      service: worker
+      slo: ingestion_50_page_pdf_p95
+    annotations:
+      summary: 'SLO ingestion_50_page_pdf_p95: error budget burning at 14.4x (1h and 5m windows)'
+      description: 'Target: Ingestion of a 50-page text PDF to indexed, p95 90 s or less. The bad-event ratio over 1h and 5m is above 14.4 x 0.05 (budget = 1 - 0.95). At this rate the 30-day budget is gone in 50.0 hours. Current 1h ratio: {{ $value | humanizePercentage }}.'
+      runbook: docs/12_EVALUATION_AND_MONITORING.md#slo-rules-and-burn-rate-alerts-080
+  - alert: RudixSloIngestionLatencyBurnRateTicket
+    expr: |-
+      slo:rudix_document_indexing_duration_seconds:slow_ratio_le120_rate6h > (6 * 0.05)
+      and
+      slo:rudix_document_indexing_duration_seconds:slow_ratio_le120_rate30m > (6 * 0.05)
+    for: 15m
+    labels:
+      severity: warning
+      service: worker
+      slo: ingestion_50_page_pdf_p95
+    annotations:
+      summary: 'SLO ingestion_50_page_pdf_p95: error budget burning at 6x (6h and 30m windows)'
+      description: 'Target: Ingestion of a 50-page text PDF to indexed, p95 90 s or less. The bad-event ratio over 6h and 30m is above 6 x 0.05 (budget = 1 - 0.95). At this rate the 30-day budget is gone in 120.0 hours. Current 6h ratio: {{ $value | humanizePercentage }}.'
+      runbook: docs/12_EVALUATION_AND_MONITORING.md#slo-rules-and-burn-rate-alerts-080
+- name: rudix-slo-burn-api-availability-monthly
+  rules:
+  - alert: RudixSloAvailabilityBurnRatePage
+    expr: |-
+      slo:rudix_http_requests:error_ratio_rate1h > (14.4 * 0.001)
+      and
+      slo:rudix_http_requests:error_ratio_rate5m > (14.4 * 0.001)
+    for: 2m
+    labels:
+      severity: critical
+      service: api
+      slo: api_availability_monthly
+    annotations:
+      summary: 'SLO api_availability_monthly: error budget burning at 14.4x (1h and 5m windows)'
+      description: 'Target: API availability 99.9% monthly. The bad-event ratio over 1h and 5m is above 14.4 x 0.001 (budget = 1 - 0.999). At this rate the 30-day budget is gone in 50.0 hours. Current 1h ratio: {{ $value | humanizePercentage }}.'
+      runbook: docs/12_EVALUATION_AND_MONITORING.md#slo-rules-and-burn-rate-alerts-080
+  - alert: RudixSloAvailabilityBurnRateTicket
+    expr: |-
+      slo:rudix_http_requests:error_ratio_rate6h > (6 * 0.001)
+      and
+      slo:rudix_http_requests:error_ratio_rate30m > (6 * 0.001)
+    for: 15m
+    labels:
+      severity: warning
+      service: api
+      slo: api_availability_monthly
+    annotations:
+      summary: 'SLO api_availability_monthly: error budget burning at 6x (6h and 30m windows)'
+      description: 'Target: API availability 99.9% monthly. The bad-event ratio over 6h and 30m is above 6 x 0.001 (budget = 1 - 0.999). At this rate the 30-day budget is gone in 120.0 hours. Current 6h ratio: {{ $value | humanizePercentage }}.'
+      runbook: docs/12_EVALUATION_AND_MONITORING.md#slo-rules-and-burn-rate-alerts-080
+- name: rudix-slo-burn-celery-queue-wait-p95
+  rules:
+  - alert: RudixSloQueueWaitBurnRatePage
+    expr: |-
+      slo:rudix_celery_queue_wait_seconds:slow_ratio_le300_rate1h > (14.4 * 0.05)
+      and on (queue)
+      slo:rudix_celery_queue_wait_seconds:slow_ratio_le300_rate5m > (14.4 * 0.05)
+    for: 2m
+    labels:
+      severity: critical
+      service: worker
+      slo: celery_queue_wait_p95
+    annotations:
+      summary: 'SLO celery_queue_wait_p95 on {{ $labels.queue }}: error budget burning at 14.4x (1h and 5m windows)'
+      description: 'Target: Celery queue wait p95 5 minutes or less per queue. The bad-event ratio over 1h and 5m is above 14.4 x 0.05 (budget = 1 - 0.95). At this rate the 30-day budget is gone in 50.0 hours. Current 1h ratio: {{ $value | humanizePercentage }}.'
+      runbook: docs/12_EVALUATION_AND_MONITORING.md#slo-rules-and-burn-rate-alerts-080
+  - alert: RudixSloQueueWaitBurnRateTicket
+    expr: |-
+      slo:rudix_celery_queue_wait_seconds:slow_ratio_le300_rate6h > (6 * 0.05)
+      and on (queue)
+      slo:rudix_celery_queue_wait_seconds:slow_ratio_le300_rate30m > (6 * 0.05)
+    for: 15m
+    labels:
+      severity: warning
+      service: worker
+      slo: celery_queue_wait_p95
+    annotations:
+      summary: 'SLO celery_queue_wait_p95 on {{ $labels.queue }}: error budget burning at 6x (6h and 30m windows)'
+      description: 'Target: Celery queue wait p95 5 minutes or less per queue. The bad-event ratio over 6h and 30m is above 6 x 0.05 (budget = 1 - 0.95). At this rate the 30-day budget is gone in 120.0 hours. Current 6h ratio: {{ $value | humanizePercentage }}.'
+      runbook: docs/12_EVALUATION_AND_MONITORING.md#slo-rules-and-burn-rate-alerts-080
