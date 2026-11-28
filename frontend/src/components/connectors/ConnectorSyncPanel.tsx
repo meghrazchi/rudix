@@ -19,6 +19,7 @@ import {
 } from "@/lib/api/connector-sync";
 import { getPermissionReview } from "@/lib/api/connectors";
 import { queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 
 const RUN_STATUS_BADGE: Record<string, string> = {
   queued: "bg-amber-100 text-amber-800",
@@ -72,6 +73,16 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
   const [createJobOpen, setCreateJobOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const runsInterval = useRealtimeAwareInterval(
+    (query: { state: { data?: { items?: { status: string }[] } } }) => {
+      const items = query.state.data?.items;
+      const hasActive =
+        Array.isArray(items) &&
+        items.some((r) => r.status === "queued" || r.status === "running");
+      return hasActive ? 4000 : false;
+    },
+  );
+
   const jobsQuery = useQuery({
     queryKey: queryKeys.connectorSyncJobs(connectionId),
     queryFn: () => listSyncJobs(connectionId),
@@ -80,13 +91,8 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
   const runsQuery = useQuery({
     queryKey: queryKeys.connectorSyncRuns(connectionId),
     queryFn: () => listSyncRuns(connectionId, 10),
-    refetchInterval: (data) => {
-      const items = data?.state?.data?.items;
-      const hasActive =
-        Array.isArray(items) &&
-        items.some((r) => r.status === "queued" || r.status === "running");
-      return hasActive ? 4000 : false;
-    },
+    refetchInterval: runsInterval,
+    refetchIntervalInBackground: false,
   });
 
   const triggerMutation = useMutation({

@@ -4,11 +4,18 @@ import { useQuery } from "@tanstack/react-query";
 
 import { listDocuments } from "@/lib/api/documents";
 import { queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 
 import type { IndexingStatusSummary } from "@/components/documents/list/documents-list-format";
 
 /** Organisation-wide document counts per status, from `total` of one-row pages. */
 export function useIndexingStatusSummary() {
+  const refetchInterval = useRealtimeAwareInterval(
+    (query: { state: { data: unknown } }) => {
+      const data = query.state.data as IndexingStatusSummary | undefined;
+      return data && data.processing > 0 ? 4_000 : false;
+    },
+  );
   return useQuery({
     queryKey: queryKeys.documentViews.indexingStatusSummary,
     queryFn: async (): Promise<IndexingStatusSummary> => {
@@ -28,10 +35,7 @@ export function useIndexingStatusSummary() {
         failed: failed.total ?? 0,
       };
     },
-    refetchInterval: (query) => {
-      const data = query.state.data as IndexingStatusSummary | undefined;
-      return data && data.processing > 0 ? 4_000 : false;
-    },
-    refetchIntervalInBackground: true,
+    refetchInterval,
+    refetchIntervalInBackground: false,
   });
 }

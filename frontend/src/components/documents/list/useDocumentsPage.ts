@@ -143,7 +143,6 @@ export function useDocumentsPage() {
   const statusQuery = useDocumentStatusPolling(selectedDocumentId, {
     enabled: Boolean(selectedDocumentId),
     initialStatus: detailQuery.data?.status ?? null,
-    refetchInBackground: true,
   });
 
   const chunksQuery = useQuery({

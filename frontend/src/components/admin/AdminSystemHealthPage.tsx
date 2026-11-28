@@ -14,6 +14,7 @@ import {
   type HealthResponse,
 } from "@/lib/api/health";
 import { queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 import { canViewAdminUsage } from "@/lib/dashboard";
 import { useAuthSession } from "@/lib/use-auth-session";
 
@@ -346,15 +347,18 @@ export function AdminSystemHealthPage() {
   const role = state.session?.role;
   const isAdminUser = canViewAdminUsage(role);
 
-  const refetchInterval =
-    REFRESH_INTERVAL_MS > 0 ? REFRESH_INTERVAL_MS : (false as const);
+  // Health checks have no realtime event: poll while visible, never in a hidden tab.
+  const refetchInterval = useRealtimeAwareInterval(
+    REFRESH_INTERVAL_MS > 0 ? REFRESH_INTERVAL_MS : false,
+    { covered: false },
+  );
 
   const healthQuery = useQuery<HealthResponse>({
     queryKey: queryKeys.health.status,
     queryFn: getHealth,
     enabled: isAdminUser,
     refetchInterval,
-    refetchIntervalInBackground: REFRESH_INTERVAL_MS > 0,
+    refetchIntervalInBackground: false,
   });
 
   const readinessQuery = useQuery<HealthResponse>({
@@ -362,7 +366,7 @@ export function AdminSystemHealthPage() {
     queryFn: getReadiness,
     enabled: isAdminUser,
     refetchInterval,
-    refetchIntervalInBackground: REFRESH_INTERVAL_MS > 0,
+    refetchIntervalInBackground: false,
   });
 
   async function refreshAllChecks(): Promise<void> {

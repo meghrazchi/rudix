@@ -81,6 +81,14 @@ export async function clearAuthSensitiveQueryState(): Promise<void> {
 
 export const queryKeys = {
   // anchor: C
+  // R07-07 (C3): prefixes the realtime invalidation map refetches.
+  realtime: {
+    agentRuns: ["agent", "runs"] as const,
+    agentApprovals: ["agent", "approvals"] as const,
+    topBarNotifications: ["top-bar", "notifications"] as const,
+    connectors: ["connectors"] as const,
+    adminIncidents: ["admin", "incidents"] as const,
+  },
   documentViews: {
     indexingStatusSummary: ["documents", "indexing-status-summary"] as const,
     collectionPicker: (search: string, offset: number) =>

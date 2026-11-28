@@ -12,6 +12,8 @@ import {
   type AgentRunDetailResponse,
 } from "@/lib/api/agent";
 import { queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
+import { useAgentRunStream } from "@/components/chat/hooks/useAgentRunStream";
 
 export function useAgentRunTimeline({
   selectedCitationTurn,
@@ -21,18 +23,34 @@ export function useAgentRunTimeline({
   const queryClient = useQueryClient();
   const selectedAgentRunId =
     selectedCitationTurn?.response.agent_run_id ?? null;
-  const selectedAgentRunQuery = useQuery({
-    queryKey: queryKeys.agent.run(selectedAgentRunId ?? ""),
-    queryFn: () => getAgentRun(selectedAgentRunId ?? ""),
-    enabled: Boolean(selectedAgentRunId),
-    refetchInterval: (query) => {
+  const runKey = queryKeys.agent.run(selectedAgentRunId ?? "");
+  const cachedRun = queryClient.getQueryData<AgentRunDetailResponse>(runKey);
+  // R07-07: follow the run's SSE stream while it is not terminal; poll only when the
+  // stream is not available (or realtime is off), and never in a hidden tab.
+  const streamState = useAgentRunStream(
+    selectedAgentRunId,
+    Boolean(cachedRun) && !isTerminalAgentRunStatus(cachedRun?.status ?? ""),
+  );
+  const refetchInterval = useRealtimeAwareInterval(
+    (query: { state: { data: unknown } }) => {
       const data = query.state.data as AgentRunDetailResponse | undefined;
-      if (!data || isTerminalAgentRunStatus(data.status)) {
+      if (
+        streamState === "streaming" ||
+        !data ||
+        isTerminalAgentRunStatus(data.status)
+      ) {
         return false;
       }
       return AGENT_RUN_POLL_INTERVAL_MS;
     },
-    refetchIntervalInBackground: true,
+    { covered: false },
+  );
+  const selectedAgentRunQuery = useQuery({
+    queryKey: runKey,
+    queryFn: () => getAgentRun(selectedAgentRunId ?? ""),
+    enabled: Boolean(selectedAgentRunId),
+    refetchInterval,
+    refetchIntervalInBackground: false,
   });
 
   const decideApprovalMutation = useMutation({

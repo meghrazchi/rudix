@@ -32,6 +32,7 @@ import {
 import type { ChatSourceScopeRequest } from "@/lib/api/chat";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 import { SourceScopeSelector } from "@/components/chat/SourceScopeSelector";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -503,14 +504,20 @@ function RunDetailPane({ runId }: { runId: string }) {
     "reasoning",
   );
 
-  const runQuery = useQuery({
-    queryKey: queryKeys.agent.run(runId),
-    queryFn: () => getAgentRun(runId),
-    refetchInterval: (query) => {
+  // Step progress has no realtime event (only run-level status): keep polling.
+  const runInterval = useRealtimeAwareInterval(
+    (query: { state: { data?: { status: string } } }) => {
       const data = query.state.data;
       if (!data) return POLL_INTERVAL_MS;
       return isTerminal(data.status) ? false : POLL_INTERVAL_MS;
     },
+    { covered: false },
+  );
+  const runQuery = useQuery({
+    queryKey: queryKeys.agent.run(runId),
+    queryFn: () => getAgentRun(runId),
+    refetchInterval: runInterval,
+    refetchIntervalInBackground: false,
   });
 
   const cancelMutation = useMutation({
@@ -1553,10 +1560,12 @@ export function AgentWorkspacePage() {
   >(null);
   const detailRef = useRef<HTMLDivElement>(null);
 
+  const runsInterval = useRealtimeAwareInterval(POLL_INTERVAL_MS);
   const runsQuery = useQuery({
     queryKey: queryKeys.agent.runs({ limit: RUN_LIST_LIMIT }),
     queryFn: () => listAgentRuns({ limit: RUN_LIST_LIMIT }),
-    refetchInterval: POLL_INTERVAL_MS,
+    refetchInterval: runsInterval,
+    refetchIntervalInBackground: false,
   });
 
   const handleRunCreated = useCallback((runId: string) => {

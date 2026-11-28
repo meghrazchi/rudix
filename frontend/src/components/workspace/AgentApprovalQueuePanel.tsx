@@ -16,6 +16,7 @@ import {
 } from "@/lib/api/agent";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -345,6 +346,7 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
 
 export function AgentApprovalQueuePanel() {
   const t = useTranslations("agentWorkspace");
+  const queueInterval = useRealtimeAwareInterval(QUEUE_POLL_INTERVAL_MS);
   const queueQuery = useQuery({
     queryKey: queryKeys.agent.approvals({
       status: "pending",
@@ -352,7 +354,8 @@ export function AgentApprovalQueuePanel() {
     }),
     queryFn: () =>
       listAgentApprovals({ status: "pending", limit: QUEUE_LIMIT }),
-    refetchInterval: QUEUE_POLL_INTERVAL_MS,
+    refetchInterval: queueInterval,
+    refetchIntervalInBackground: false,
   });
 
   const items = queueQuery.data?.approvals ?? [];

@@ -73,6 +73,7 @@ import {
 } from "@/components/layout/NotificationCenter";
 import { trackPageView } from "@/lib/analytics";
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
+import { RealtimeProvider } from "@/lib/realtime/RealtimeProvider";
 
 const BRAND_LOGO_SRC = "/brand/rudix-mark.svg";
 
@@ -1273,7 +1274,7 @@ export function AppShell({
             <HelpCenterContext.Provider
               value={{ openHelpCenter, openKeyboardShortcuts }}
             >
-              {children}
+              <RealtimeProvider>{children}</RealtimeProvider>
             </HelpCenterContext.Provider>
           </main>
         </div>

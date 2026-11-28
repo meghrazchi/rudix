@@ -9,6 +9,7 @@ import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { isApiClientError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 import {
   getVectorIndexStatus,
   progressFraction,
@@ -165,11 +166,18 @@ export function AdminVectorIndexPage() {
   const { state } = useAuthSession();
   const isAdminUser = canViewAdminUsage(state.session?.role);
 
+  const statusInterval = useRealtimeAwareInterval(
+    (query: {
+      state: { data?: Parameters<typeof vectorIndexRefetchInterval>[0] };
+    }) => vectorIndexRefetchInterval(query.state.data),
+    { covered: false },
+  );
   const statusQuery = useQuery({
     queryKey: queryKeys.admin.vectorIndexStatus,
     queryFn: getVectorIndexStatus,
     enabled: isAdminUser,
-    refetchInterval: (query) => vectorIndexRefetchInterval(query.state.data),
+    refetchInterval: statusInterval,
+    refetchIntervalInBackground: false,
   });
 
   const error = statusQuery.error;

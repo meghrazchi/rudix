@@ -18,6 +18,7 @@ import {
 } from "@/lib/api/documents";
 import type { DocumentStatus } from "@/lib/api/documents";
 import { queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 import { canViewAdminUsage } from "@/lib/dashboard";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import { useAuthSession } from "@/lib/use-auth-session";
@@ -85,6 +86,8 @@ export function AdminDeletionStatusPage() {
     offset,
   };
 
+  // Under `documents`, so `documents.changed` events refetch it (R07-07).
+  const listInterval = useRealtimeAwareInterval(8_000);
   const listQuery = useQuery({
     queryKey: [
       ...queryKeys.documents.all,
@@ -93,8 +96,8 @@ export function AdminDeletionStatusPage() {
     ] as const,
     queryFn: () => listAdminDocumentDeletion(queryOpts),
     enabled: canView,
-    refetchInterval: 8_000,
-    refetchIntervalInBackground: true,
+    refetchInterval: listInterval,
+    refetchIntervalInBackground: false,
   });
 
   const retryMutation = useMutation({

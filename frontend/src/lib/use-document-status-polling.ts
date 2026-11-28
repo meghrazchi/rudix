@@ -9,6 +9,7 @@ import type {
 import { getDocumentStatus } from "@/lib/api/documents";
 import { queryKeys } from "@/lib/api/query";
 import { shouldPollDocumentStatus } from "@/lib/documents-ui";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 
 const DEFAULT_STATUS_POLL_INTERVAL_MS = 4_000;
 
@@ -16,7 +17,6 @@ type UseDocumentStatusPollingOptions = {
   enabled?: boolean;
   initialStatus?: DocumentStatus | null;
   pollIntervalMs?: number;
-  refetchInBackground?: boolean;
 };
 
 export function getDocumentStatusRefetchInterval(
@@ -39,23 +39,23 @@ export function useDocumentStatusPolling(
     options.pollIntervalMs ?? DEFAULT_STATUS_POLL_INTERVAL_MS;
   const initialStatus = options.initialStatus ?? null;
 
+  // R07-07: no polling while the realtime stream is connected or the tab is hidden.
+  const refetchInterval = useRealtimeAwareInterval(
+    (query: { state: { data: unknown } }) => {
+      const data = query.state.data as DocumentStatusResponse | undefined;
+      return getDocumentStatusRefetchInterval(
+        data?.status ?? initialStatus,
+        data?.graph_extraction_status ?? null,
+        pollIntervalMs,
+      );
+    },
+  );
+
   return useQuery({
     queryKey: queryKeys.documents.status(documentId ?? ""),
     queryFn: () => getDocumentStatus(documentId ?? ""),
     enabled: Boolean(documentId) && enabled,
-    refetchInterval: (query) => {
-      const liveStatus = (
-        query.state.data as DocumentStatusResponse | undefined
-      )?.status;
-      const graphStatus = (
-        query.state.data as DocumentStatusResponse | undefined
-      )?.graph_extraction_status;
-      return getDocumentStatusRefetchInterval(
-        liveStatus ?? initialStatus,
-        graphStatus ?? null,
-        pollIntervalMs,
-      );
-    },
-    refetchIntervalInBackground: options.refetchInBackground ?? false,
+    refetchInterval,
+    refetchIntervalInBackground: false,
   });
 }

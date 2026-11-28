@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { getStatusBanner } from "@/lib/api/incidents";
 import { queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -17,11 +18,14 @@ export function ServiceStatusBanner() {
   const { state } = useAuthSession();
   const isAuthenticated = state.status === "authenticated";
 
+  // Incidents and maintenance windows publish `incident` events (R07-07).
+  const bannerInterval = useRealtimeAwareInterval(120_000);
   const bannerQuery = useQuery({
     queryKey: queryKeys.statusBanner,
     queryFn: getStatusBanner,
     enabled: isAuthenticated,
-    refetchInterval: 120_000,
+    refetchInterval: bannerInterval,
+    refetchIntervalInBackground: false,
     staleTime: 60_000,
   });
 

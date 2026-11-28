@@ -165,7 +165,6 @@ export function useDocumentDetail(documentId: string) {
   const statusQuery = useDocumentStatusPolling(documentId, {
     enabled: detailQuery.isSuccess,
     initialStatus: detailQuery.data?.status ?? null,
-    refetchInBackground: true,
   });
   const detailData = detailQuery.data;
   const isDetailFetching = detailQuery.isFetching;

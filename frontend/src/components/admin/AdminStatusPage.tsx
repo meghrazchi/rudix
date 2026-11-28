@@ -25,6 +25,7 @@ import {
   type UpdateIncidentRequest,
 } from "@/lib/api/incidents";
 import { queryKeys } from "@/lib/api/query";
+import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 import { canViewAdminUsage } from "@/lib/dashboard";
 import { useAuthSession } from "@/lib/use-auth-session";
 
@@ -527,10 +528,13 @@ function CreateIncidentModal({
 
 function SnapshotSummary() {
   const t = useTranslations("adminStatus");
+  // The snapshot also reports health checks and failed jobs, which have no event.
+  const snapshotInterval = useRealtimeAwareInterval(60_000, { covered: false });
   const snapshotQuery = useQuery({
     queryKey: queryKeys.admin.statusSnapshot,
     queryFn: getStatusSnapshot,
-    refetchInterval: 60_000,
+    refetchInterval: snapshotInterval,
+    refetchIntervalInBackground: false,
   });
 
   if (snapshotQuery.isLoading) {
