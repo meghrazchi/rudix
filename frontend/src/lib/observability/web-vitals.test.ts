@@ -87,6 +87,15 @@ describe("toWebVitalSample", () => {
       toWebVitalSample({ name: "LCP", value: Number.NaN }, "/"),
     ).toBeNull();
   });
+
+  it("drops values above the limits the API accepts", () => {
+    expect(
+      toWebVitalSample({ name: "TTFB", value: 60_000 }, "/"),
+    ).not.toBeNull();
+    expect(toWebVitalSample({ name: "LCP", value: 60_001 }, "/")).toBeNull();
+    expect(toWebVitalSample({ name: "CLS", value: 10 }, "/")).not.toBeNull();
+    expect(toWebVitalSample({ name: "CLS", value: 10.5 }, "/")).toBeNull();
+  });
 });
 
 function sample(index: number): WebVitalSample {

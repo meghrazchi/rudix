@@ -32,6 +32,14 @@ export type ReportedWebVital = {
 
 export const MAX_BATCH_SIZE = 10;
 
+/**
+ * Upper bounds the backend accepts (`WebVitalSample` in
+ * app/domains/analytics/schemas/web_vitals.py). One value over them would
+ * make the API reject the whole batch, so such samples are dropped here.
+ */
+export const MAX_TIMING_VALUE_MS = 60_000;
+export const MAX_CLS_VALUE = 10;
+
 const ID_SEGMENT = "[id]";
 const MAX_ROUTE_LENGTH = 121;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -96,6 +104,10 @@ export function toWebVitalSample(
     return null;
   }
   if (!Number.isFinite(metric.value) || metric.value < 0) {
+    return null;
+  }
+  const limit = metric.name === "CLS" ? MAX_CLS_VALUE : MAX_TIMING_VALUE_MS;
+  if (metric.value > limit) {
     return null;
   }
   const rating = RATINGS.includes(metric.rating ?? "")
