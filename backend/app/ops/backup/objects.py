@@ -7,14 +7,21 @@ self-hosted MinIO and providers without replication.
 Each run lists the application bucket (``MINIO_BUCKET``) and copies only objects whose ETag
 or size changed since the previous run, according to the previous run's manifest. Every copy
 is encrypted client-side and stored under ``<prefix>/objects/data/<sha256 of the source
-key>.rbk``, so the backup bucket's listing reveals no object names. The new manifest
-(source key, ETag, size, backup key, ciphertext hash) is itself encrypted and the
-``objects`` marker points at it.
+key>/<hash of ETag, size, and key id>.rbk``, so the backup bucket's listing reveals no object
+names, and a changed object or a new key never overwrites a copy that the current marker's
+manifest still references: a run that fails half-way leaves the previous backup restorable,
+and a retry of the same version writes the same key. The new manifest (source key, ETag,
+size, backup key, ciphertext hash) is itself encrypted and the ``objects`` marker points at
+it.
 
-Objects removed from the application bucket are removed from the mirror in the same run, so
-data deletion (F143) reaches the backup; the backup bucket's versioning and noncurrent-version
-expiry decide how long a removed copy stays recoverable. A source listing that comes back
-empty while the previous manifest is not is treated as an error, never as "delete all".
+After the marker is written, every copy under ``data/`` that the new manifest does not
+reference and that is older than the run's start is pruned: objects removed from the
+application bucket (data deletion, F143, reaches the backup), superseded versions, and
+copies left by a failed run or made with a rotated key. The backup bucket's versioning and
+noncurrent-version expiry decide how long a pruned copy stays recoverable. A prune the
+credentials may not perform (no delete permission) is logged and leaves the copy. A source
+listing that comes back empty while the previous manifest is not is treated as an error,
+never as "delete all".
 """
 
 from __future__ import annotations
@@ -26,6 +33,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
+
+from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
 from app.core.logging import get_logger
 from app.ops.backup.crypto import BackupKey, BackupWrongKeyError
@@ -61,25 +70,24 @@ class MirrorStats:
     unchanged: int
     removed: int
     total: int
+    pruned: int = 0
+    prune_failed: int = 0
 
 
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
-def list_source_objects(client: Any, bucket: str) -> Iterator[SourceObject]:
+def _list_pages(client: Any, bucket: str, prefix: str | None) -> Iterator[dict[str, Any]]:
     token: str | None = None
     while True:
         kwargs: dict[str, Any] = {"Bucket": bucket}
+        if prefix:
+            kwargs["Prefix"] = prefix
         if token:
             kwargs["ContinuationToken"] = token
         page = client.list_objects_v2(**kwargs)
-        for item in page.get("Contents") or []:
-            yield SourceObject(
-                key=str(item["Key"]),
-                etag=str(item.get("ETag", "")).strip('"'),
-                size=int(item.get("Size", 0)),
-            )
+        yield from page.get("Contents") or []
         if not page.get("IsTruncated"):
             return
         token = page.get("NextContinuationToken")
@@ -87,9 +95,24 @@ def list_source_objects(client: Any, bucket: str) -> Iterator[SourceObject]:
             return
 
 
-def mirror_key(store: BackupStore, source_key: str) -> str:
-    digest = hashlib.sha256(source_key.encode("utf-8")).hexdigest()
-    return f"{kind_prefix(store.prefix, KIND)}data/{digest}.rbk"
+def list_source_objects(client: Any, bucket: str) -> Iterator[SourceObject]:
+    for item in _list_pages(client, bucket, None):
+        yield SourceObject(
+            key=str(item["Key"]),
+            etag=str(item.get("ETag", "")).strip('"'),
+            size=int(item.get("Size", 0)),
+        )
+
+
+def data_prefix(store: BackupStore) -> str:
+    return f"{kind_prefix(store.prefix, KIND)}data/"
+
+
+def mirror_key(store: BackupStore, item: SourceObject, key: BackupKey) -> str:
+    """Backup key of one version of a source object under one encryption key."""
+    name = hashlib.sha256(item.key.encode("utf-8")).hexdigest()
+    version = hashlib.sha256(f"{item.etag}:{item.size}:{key.key_id_hex}".encode()).hexdigest()
+    return f"{data_prefix(store)}{name}/{version[:32]}.rbk"
 
 
 def load_previous_manifest(
@@ -125,7 +148,7 @@ def _copy_one(
     try:
         source_client.download_file(Bucket=source_bucket, Key=item.key, Filename=str(local))
         uploaded = encrypt_and_upload(
-            store, key, local, object_key=mirror_key(store, item.key), work_dir=work_dir
+            store, key, local, object_key=mirror_key(store, item, key), work_dir=work_dir
         )
     finally:
         local.unlink(missing_ok=True)
@@ -201,13 +224,18 @@ def mirror_objects(
         sha256=uploaded.sha256,
     )
     store.write_marker(marker)
-    # Removed only after the new manifest and marker no longer reference them.
-    for source_key in removed_keys:
-        backup_key = str(previous[source_key].get("backup_key", ""))
-        if backup_key.startswith(f"{kind_prefix(store.prefix, KIND)}data/"):
-            store.delete(backup_key)
+    # Pruned only after the new manifest and marker no longer reference them.
+    keep = {str(entry.get("backup_key", "")) for entry in current.values()}
+    # An empty manifest prunes nothing: with an unreadable previous manifest (key rotated)
+    # an empty listing must not read as "delete every copy".
+    pruned, prune_failed = prune_unreferenced(store, keep, before=started) if keep else (0, 0)
     stats = MirrorStats(
-        copied=copied, unchanged=unchanged, removed=len(removed_keys), total=len(current)
+        copied=copied,
+        unchanged=unchanged,
+        removed=len(removed_keys),
+        total=len(current),
+        pruned=pruned,
+        prune_failed=prune_failed,
     )
     logger.info(
         "backup.objects.completed",
@@ -215,9 +243,45 @@ def mirror_objects(
         unchanged=stats.unchanged,
         removed=stats.removed,
         total=stats.total,
+        pruned=stats.pruned,
+        prune_failed=stats.prune_failed,
         duration_seconds=round((marker.completed_at - started).total_seconds(), 3),
     )
     return marker, stats
+
+
+def _modified_before(item: dict[str, Any], before: datetime) -> bool:
+    modified = item.get("LastModified")
+    if not isinstance(modified, datetime):
+        return False  # unknown age: keep it
+    if modified.tzinfo is None:
+        modified = modified.replace(tzinfo=UTC)
+    return modified < before
+
+
+def prune_unreferenced(store: BackupStore, keep: set[str], *, before: datetime) -> tuple[int, int]:
+    """Delete copies under ``data/`` not in ``keep`` and older than ``before``.
+
+    Copies written after ``before`` belong to this or a concurrent run and are kept. A delete
+    the credentials may not perform is counted and logged (error code only), never raised:
+    the backup itself is complete.
+    """
+    pruned = failed = 0
+    error_code = ""
+    for item in list(_list_pages(store.client, store.bucket, data_prefix(store))):
+        backup_key = str(item["Key"])
+        if backup_key in keep or not _modified_before(item, before):
+            continue
+        try:
+            store.delete(backup_key)
+        except ClientError as exc:
+            failed += 1
+            error_code = str(exc.response.get("Error", {}).get("Code", ""))
+            continue
+        pruned += 1
+    if failed:
+        logger.warning("backup.objects.prune_failed", failed=failed, error_code=error_code)
+    return pruned, failed
 
 
 def safe_relative_path(source_key: str) -> Path:

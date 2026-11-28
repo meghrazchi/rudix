@@ -22,6 +22,8 @@ KEY_BYTES = bytes(range(32))
 OTHER_KEY_BYTES = bytes(range(32, 64))
 BUCKET = "rudix-backups"
 PREFIX = "rudix"
+# Default LastModified of fake objects: older than any run, so prunable when unreferenced.
+OLD = datetime(2000, 1, 1, tzinfo=UTC)
 
 
 def make_key(material: bytes = KEY_BYTES) -> BackupKey:
@@ -43,6 +45,8 @@ class FakeS3:
     def __init__(self, *, page_size: int = 1000) -> None:
         self.objects: dict[tuple[str, str], bytes] = {}
         self.extra: dict[tuple[str, str], dict[str, Any]] = {}
+        # LastModified of every object: OLD unless a test sets it (the mirror's prune guard).
+        self.modified: dict[tuple[str, str], datetime] = {}
         self.page_size = page_size
         self.calls: list[str] = []
         self.fail_on: set[str] = set()
@@ -89,10 +93,13 @@ class FakeS3:
         self,
         *,
         Bucket: str,
+        Prefix: str = "",
         ContinuationToken: str | None = None,
     ) -> dict[str, Any]:
         self._check("list_objects_v2")
-        keys = sorted(key for bucket, key in self.objects if bucket == Bucket)
+        keys = sorted(
+            key for bucket, key in self.objects if bucket == Bucket and key.startswith(Prefix)
+        )
         start = int(ContinuationToken or 0)
         page = keys[start : start + self.page_size]
         contents = [
@@ -100,6 +107,7 @@ class FakeS3:
                 "Key": key,
                 "ETag": '"' + hashlib.md5(self.objects[(Bucket, key)]).hexdigest() + '"',
                 "Size": len(self.objects[(Bucket, key)]),
+                "LastModified": self.modified.get((Bucket, key), OLD),
             }
             for key in page
         ]
@@ -150,6 +158,7 @@ def backup_config(tmp_path: Path, **overrides: Any) -> SimpleNamespace:
         "qdrant_url": "http://qdrant:6333",
         "qdrant_api_key": SecretStr("qdrant-api-key"),
         "qdrant_collection": "documents",
+        "backup_qdrant_timeout_seconds": 1800,
         "minio_bucket": "documents",
     }
     values.update(overrides)

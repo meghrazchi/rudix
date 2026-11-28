@@ -18,7 +18,7 @@
 |---|---|---|---|
 | `postgres` | `pg_dump -Fc` (postgres:16 image) then `scripts/backup_run.py --kind postgres` | `<prefix>/postgres/<run>/postgres.dump.rbk` | `backup_restore.py --kind postgres`, then `pg_restore` |
 | `qdrant` | `scripts/backup_run.py --kind qdrant` (one snapshot per deployment collection) | `<prefix>/qdrant/<run>/<collection>.snapshot.rbk` and `manifest.json.rbk` | `backup_restore.py --kind qdrant`, then snapshot upload |
-| `objects` | `scripts/backup_run.py --kind objects` (incremental mirror of `MINIO_BUCKET`) | `<prefix>/objects/data/<sha256 of key>.rbk` and `<run>/manifest.json.rbk` | `backup_restore.py --kind objects`, then copy back |
+| `objects` | `scripts/backup_run.py --kind objects` (incremental mirror of `MINIO_BUCKET`) | `<prefix>/objects/data/<sha256 of key>/<version hash>.rbk` and `<run>/manifest.json.rbk` | `backup_restore.py --kind objects`, then copy back |
 | `neo4j` | not built (Community edition has no online dump); an operator backup may write a marker | operator-defined | rebuild the graph from documents |
 
 Qdrant cluster caveat: a collection snapshot is taken by the node that answers
@@ -29,7 +29,13 @@ Qdrant documentation for the deployed server version.
 
 Each successful run writes `<prefix>/<kind>/latest.json`: `completed_at`, `object_key`,
 `size_bytes`, `sha256` (of the ciphertext), `format_version`. A failed run leaves the previous
-marker, so a stuck job shows up as a stale marker.
+marker, so a stuck job shows up as a stale marker. The `objects` mirror writes a changed
+object or a copy under a new key to a new versioned key, so a failed run never overwrites a
+copy that the current marker's manifest references; after the marker is written it prunes
+copies the new manifest no longer references (removed or superseded objects, leftovers of a
+failed run, copies under a rotated key). With credentials that may not delete, the prune is
+skipped and logged (`backup.objects.prune_failed`); the bucket's lifecycle rules then decide
+when those copies go.
 
 Every artifact is encrypted client-side (`RUDIXBK1`: AES-256-GCM, 4 MiB chunks, each bound
 to the header, its index, and the final flag). Restore detects tampering, reordering,
@@ -152,6 +158,7 @@ provider-independent copy.
    `backup_restore.py` uses to pick the matching `--key-file`.
 3. The next `objects` run cannot read the previous manifest with the new key and copies every
    object again (logged as `backup.objects.previous_manifest_unreadable`); expect a larger run.
+   The copies made with the old key are pruned after that run's marker is written.
 4. Run one backup of each kind and a restore with only the new key, then a restore of an
    older backup with `--key-file <old key>`.
 5. On suspected key exposure, follow [DR_CREDENTIAL_COMPROMISE.md](./DR_CREDENTIAL_COMPROMISE.md):
