@@ -92,7 +92,8 @@ def test_monitoring_reaches_metrics_ports_only_when_metrics_enabled() -> None:
     assert not any("monitoring" in name for name in _policies(render_chart()))
     policies = _policies(render_chart([CI_VALUES]))
     web = policies["rudix-metrics-from-monitoring"]["spec"]
-    assert _in_values(web["podSelector"]) == {"api", "mcp"}
+    # mcp is enabled in the CI values but serves no /metrics: its port stays closed.
+    assert _in_values(web["podSelector"]) == {"api"}
     assert web["ingress"][0]["ports"] == [{"port": "http", "protocol": "TCP"}]
     workers = policies["rudix-worker-metrics-from-monitoring"]["spec"]
     assert _in_values(workers["podSelector"]) == {f"worker-{name}" for name in POOL_NAMES}

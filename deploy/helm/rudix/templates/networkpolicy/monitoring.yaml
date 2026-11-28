@@ -1,6 +1,7 @@
 {{- /*
-The monitoring namespace may scrape the metrics ports when metrics are enabled: the api (and
-mcp) `http` port serves /metrics, each worker pool serves port `metrics`.
+The monitoring namespace may scrape the metrics ports when metrics are enabled: the api `http`
+port serves /metrics, each worker pool serves port `metrics`. The mcp server has no /metrics
+route, so its port stays closed to the monitoring namespace.
 */ -}}
 {{- if and .Values.networkPolicy.enabled .Values.metrics.enabled }}
 {{- $selector := .Values.networkPolicy.monitoringNamespaceSelector -}}
@@ -10,10 +11,7 @@ mcp) `http` port serves /metrics, each worker pool serves port `metrics`.
 {{- $workers = append $workers (printf "worker-%s" $name) -}}
 {{- end -}}
 {{- end -}}
-{{- $web := list "api" -}}
-{{- if .Values.mcp.enabled -}}
-{{- $web = append $web "mcp" -}}
-{{- end }}
+{{- $web := list "api" }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

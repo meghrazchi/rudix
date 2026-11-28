@@ -134,6 +134,13 @@ def test_keda_requires_a_prometheus_server_address(tmp_path: Path) -> None:
     assert "autoscaling.prometheus.serverAddress is required" in message
 
 
+def test_keda_requires_metrics(tmp_path: Path) -> None:
+    override = tmp_path / "keda-no-metrics.yaml"
+    override.write_text("metrics:\n  enabled: false\n")
+    message = render_failure([CI_VALUES, str(override)])
+    assert "autoscaling.mode keda needs metrics.enabled" in message
+
+
 @pytest.mark.parametrize(
     ("text", "message"),
     [

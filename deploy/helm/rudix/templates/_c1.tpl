@@ -114,6 +114,9 @@ Worst-case PostgreSQL connections of the release, during a rolling update (docs/
 {{- end -}}
 {{- if include "rudix.c1.kedaEnabled" . -}}
 {{- $_ := required "rudix: autoscaling.prometheus.serverAddress is required when autoscaling.mode is keda" .Values.autoscaling.prometheus.serverAddress -}}
+{{- if not .Values.metrics.enabled -}}
+{{- fail "rudix: autoscaling.mode keda needs metrics.enabled; without scraped api and worker metrics every Prometheus trigger reads 0 and the pools never scale out" -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 {{- if and .Values.migrations.enabled .Values.migrations.useMigrationUrl (not .Values.secrets.existingSecret) -}}

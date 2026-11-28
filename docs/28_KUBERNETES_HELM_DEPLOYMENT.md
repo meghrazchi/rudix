@@ -247,7 +247,11 @@ helm upgrade --install rudix deploy/helm/rudix --namespace rudix --create-namesp
 
 `<registry>` is the operator's registry; the chart's `registry.invalid/rudix` is a
 placeholder. `--wait` makes Helm wait for the migrate hook and for every Deployment to become
-ready; a failed hook or readiness timeout leaves the previous pods serving.
+ready; a failed hook or readiness timeout leaves the previous pods serving. Keep `--timeout`
+above the migration's expected run time: a Helm timeout marks the release failed but does not
+stop the Job (it runs until `migrations.activeDeadlineSeconds`, 3600 s), and re-running the
+upgrade while it still runs deletes it (`before-hook-creation`) in the middle of a migration.
+Check `kubectl get job <fullname>-migrate` before retrying.
 
 **Rollback.** `helm history rudix -n rudix`, then `helm rollback rudix <revision> -n rudix
 --wait`. A rollback runs no `pre-upgrade` hook, so it never runs migrations and never
@@ -279,6 +283,10 @@ migrate     = 1                                                           alembi
   a second pool in the same process.
 - `DB_POOL_SIZE` and `DB_MAX_OVERFLOW` are read from `config.env` (else
   `connectionBudget.defaultPoolSize` / `defaultMaxOverflow`).
+- Surge counts the pods a rollout adds, not pods still terminating: a Deployment starts the
+  next new pod as soon as an old one is told to stop, and that old pod keeps its pool for up
+  to its grace period (api 60 s, workers 120 s). A rollout with several replicas per tier can
+  briefly exceed the computed number; leave headroom below `max_connections` for it.
 
 The defaults give 481 (api 45, workers 420, beat 15, migrate 1). Set
 `maxDatabaseConnections` to the server's `max_connections` minus `superuser_reserved_connections`
@@ -291,9 +299,11 @@ process holds its own pool.
 
 **Autoscaling (`R08-07`).** `autoscaling.enabled` is off: fixed replicas. When on, the
 Deployments it scales leave `replicas` unset so `helm upgrade` never resets the autoscaler.
+The first upgrade that turns autoscaling on removes the field, so those Deployments drop to 1
+replica until the autoscaler applies its minimum (seconds); do it outside peak traffic.
 
-- `mode: keda` (KEDA installed by the operator; `autoscaling.prometheus.serverAddress` is
-  required): ScaledObject for the api with Prometheus triggers on in-flight requests per
+- `mode: keda` (KEDA installed by the operator; `autoscaling.prometheus.serverAddress` and
+  `metrics.enabled` are required, or the render fails): ScaledObject for the api with Prometheus triggers on in-flight requests per
   replica (`sum(rudix_http_requests_in_progress{...})`, target 40) and open streams per
   replica (`sum(rudix_realtime_connections) + sum(rudix_chat_ws_connections)`, target 150,
   below the 200-streams-per-replica goal), plus CPU and memory; `minReplicaCount` 2 (a cold
@@ -322,7 +332,8 @@ Deployments it scales leave `replicas` unset so `helm upgrade` never resets the 
   `/api/v1` to the in-cluster api Service (`NEXT_PUBLIC_PROXY_TARGET` at build time). Otherwise
   the browser reaches the API through the ingress.
 - With `metrics.enabled`, the monitoring namespace (`networkPolicy.monitoringNamespaceSelector`,
-  default `monitoring`) may reach the api and mcp `http` port and each worker's `metrics` port.
+  default `monitoring`) may reach the api `http` port and each worker's `metrics` port. The mcp
+  server serves no `/metrics`, so its port stays closed to that namespace.
 - `networkPolicy.dataStores` (empty by default: managed stores are outside the cluster): each
   entry (`name`, `podSelector`, `ports`, optional `namespace`) renders `datastore-<name>`, which
   allows ingress to those pods only from api, mcp, worker pools, beat, migrate, and `backup-*`
