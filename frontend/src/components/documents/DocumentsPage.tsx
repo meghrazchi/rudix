@@ -29,8 +29,8 @@ export function DocumentsPage() {
     setAssignDocumentName,
     assignSaveError,
     setAssignSaveError,
-    allCollectionsQuery,
-    assignCollectionsListQuery,
+    uploadCollections,
+    assignCollections,
     docCollectionsQuery,
     assignCollectionsMutation,
     capabilities,
@@ -56,7 +56,8 @@ export function DocumentsPage() {
         canUpload={capabilities.canUpload}
         isUploading={isUploading}
         acceptedTypesLabel={ACCEPTED_UPLOAD_TYPES_LABEL}
-        collections={allCollectionsQuery.data?.items ?? []}
+        collections={uploadCollections.items}
+        collectionSearch={uploadCollections}
         onRequestClose={handleUploadModalClose}
         onCancelAll={cancelAllUploads}
         onCancelItem={cancelUploadAtIndex}
@@ -70,10 +71,10 @@ export function DocumentsPage() {
       {assignDocumentId ? (
         <AssignCollectionsDialog
           documentName={assignDocumentName}
-          collectionList={assignCollectionsListQuery.data?.items ?? []}
+          collectionList={assignCollections.items}
+          collectionSearch={assignCollections}
           loadingCollections={
-            assignCollectionsListQuery.isLoading ||
-            docCollectionsQuery.isLoading
+            assignCollections.query.isLoading || docCollectionsQuery.isLoading
           }
           currentCollectionIds={(docCollectionsQuery.data?.items ?? []).map(
             (c) => c.collection_id,

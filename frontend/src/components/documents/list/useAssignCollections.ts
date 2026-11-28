@@ -5,12 +5,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   getDocumentCollections,
-  listCollections,
   setDocumentCollections,
 } from "@/lib/api/collections";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 
+import { useCollectionSearchList } from "@/components/collections/useCollectionSearchList";
 import type { DocumentsPageTranslator } from "@/components/documents/list/documents-list-format";
 
 type UseAssignCollectionsArgs = {
@@ -32,15 +32,13 @@ export function useAssignCollections({
   const [assignDocumentName, setAssignDocumentName] = useState<string>("");
   const [assignSaveError, setAssignSaveError] = useState<string | null>(null);
 
-  const allCollectionsQuery = useQuery({
-    queryKey: queryKeys.collectionViews.forUpload,
-    queryFn: () => listCollections({ limit: 200 }),
+  // Server-side name search with load more; neither selector truncates at 200.
+  const uploadCollections = useCollectionSearchList({
+    scope: queryKeys.collectionViews.forUpload[1],
     enabled: isUploadModalOpen,
   });
-
-  const assignCollectionsListQuery = useQuery({
-    queryKey: queryKeys.collectionViews.forAssign,
-    queryFn: () => listCollections({ limit: 200 }),
+  const assignCollections = useCollectionSearchList({
+    scope: queryKeys.collectionViews.forAssign[1],
     enabled: Boolean(assignDocumentId),
   });
 
@@ -75,8 +73,8 @@ export function useAssignCollections({
     setAssignDocumentName,
     assignSaveError,
     setAssignSaveError,
-    allCollectionsQuery,
-    assignCollectionsListQuery,
+    uploadCollections,
+    assignCollections,
     docCollectionsQuery,
     assignCollectionsMutation,
   };

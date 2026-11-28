@@ -7,6 +7,9 @@ import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/states/EmptyState";
 import { LoadingState } from "@/components/states/LoadingState";
 import type { CollectionListItemResponse } from "@/lib/api/collections";
+import { LoadMoreFooter } from "@/components/pagination/LoadMoreFooter";
+import { PickerSearchInput } from "@/components/pagination/PickerSearchInput";
+import type { CollectionSearchList } from "@/components/collections/useCollectionSearchList";
 
 import {
   accessPolicyBadgeClass,
@@ -17,6 +20,7 @@ import {
 
 export function AssignCollectionsDialog({
   collectionList,
+  collectionSearch,
   loadingCollections,
   documentName,
   currentCollectionIds,
@@ -26,6 +30,8 @@ export function AssignCollectionsDialog({
   onClose,
 }: {
   collectionList: CollectionListItemResponse[];
+  /** Server-side name search and load more; selections outside the loaded rows are kept. */
+  collectionSearch?: CollectionSearchList;
   loadingCollections: boolean;
   documentName: string;
   currentCollectionIds: string[];
@@ -35,6 +41,7 @@ export function AssignCollectionsDialog({
   onClose: () => void;
 }) {
   const tc = useTranslations("collections.page");
+  const tCommon = useTranslations("common");
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(currentCollectionIds),
   );
@@ -84,6 +91,16 @@ export function AssignCollectionsDialog({
           </button>
         </div>
 
+        {collectionSearch ? (
+          <PickerSearchInput
+            className="mb-3"
+            value={collectionSearch.search}
+            onChange={collectionSearch.setSearch}
+            placeholder={tc("filterPlaceholder")}
+            ariaLabel={`${tCommon("search")}: ${tc("assignTitle")}`}
+          />
+        ) : null}
+
         {loadingCollections ? (
           <LoadingState compact title={tc("loadingCollections")} />
         ) : collectionList.length === 0 ? (
@@ -121,6 +138,17 @@ export function AssignCollectionsDialog({
             ))}
           </ul>
         )}
+
+        {collectionSearch && !loadingCollections ? (
+          <LoadMoreFooter
+            shown={collectionList.length}
+            total={collectionSearch.total}
+            hasMore={collectionSearch.hasMore}
+            isLoadingMore={collectionSearch.isLoadingMore}
+            onLoadMore={collectionSearch.loadMore}
+            searchHint
+          />
+        ) : null}
 
         {saveError ? (
           <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">

@@ -11,17 +11,45 @@ import {
   listCollectionDocuments,
   refreshCollectionRules,
   removeDocumentFromCollection,
+  type CollectionDocumentItem,
+  type CollectionDocumentsResponse,
 } from "@/lib/api/collections";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
+import { useInfiniteList } from "@/lib/pagination/useInfiniteList";
 
 import { COLLECTION_DOCS_INITIAL_LIMIT } from "@/components/collections/collection-format";
+
+/** Largest page the collection documents endpoint serves (`limit` le=200). */
+const COLLECTION_DOCS_MAX_PAGE = 200;
+
+/**
+ * Every document id in a collection, read page by page so membership diffs are
+ * never cut off at one page.
+ */
+export async function fetchAllCollectionDocuments(
+  collectionId: string,
+): Promise<CollectionDocumentsResponse> {
+  const items: CollectionDocumentItem[] = [];
+  let total = 0;
+  for (let offset = 0; ; offset += COLLECTION_DOCS_MAX_PAGE) {
+    const page = await listCollectionDocuments(collectionId, {
+      limit: COLLECTION_DOCS_MAX_PAGE,
+      offset,
+    });
+    items.push(...page.items);
+    total = page.total ?? items.length;
+    if (page.items.length === 0 || items.length >= total) {
+      break;
+    }
+  }
+  return { items, total } as CollectionDocumentsResponse;
+}
 
 /** Queries, mutations, and local state of the collection detail drawer. */
 export function useCollectionDetailDrawer(collectionId: string) {
   const tc = useTranslations("collections.page");
   const queryClient = useQueryClient();
-  const [docsLimit, setDocsLimit] = useState(COLLECTION_DOCS_INITIAL_LIMIT);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [isDocumentPickerOpen, setIsDocumentPickerOpen] = useState(false);
   const [documentSaveError, setDocumentSaveError] = useState<string | null>(
@@ -33,16 +61,28 @@ export function useCollectionDetailDrawer(collectionId: string) {
     queryFn: () => getCollection(collectionId),
   });
 
-  const docsParams = { limit: docsLimit, offset: 0 };
-  const docsQuery = useQuery({
-    queryKey: queryKeys.collections.documents(collectionId, docsParams),
-    queryFn: () => listCollectionDocuments(collectionId, docsParams),
+  // Offset pages with `total` and load more (R07-06).
+  const docsList = useInfiniteList<
+    CollectionDocumentsResponse,
+    CollectionDocumentItem
+  >({
+    queryKey: queryKeys.collections.documents(collectionId, {
+      limit: COLLECTION_DOCS_INITIAL_LIMIT,
+      pagination: "offset",
+    }),
+    pageSize: COLLECTION_DOCS_INITIAL_LIMIT,
+    fetchPage: ({ offset }) =>
+      listCollectionDocuments(collectionId, {
+        limit: COLLECTION_DOCS_INITIAL_LIMIT,
+        offset,
+      }),
   });
+  const docsQuery = docsList.query;
 
+  // Full membership for the document picker's add/remove diff.
   const allCollectionDocsQuery = useQuery({
     queryKey: queryKeys.collectionViews.allDocuments(collectionId),
-    queryFn: () =>
-      listCollectionDocuments(collectionId, { limit: 200, offset: 0 }),
+    queryFn: () => fetchAllCollectionDocuments(collectionId),
   });
 
   const refreshRulesMutation = useMutation({
@@ -109,13 +149,14 @@ export function useCollectionDetailDrawer(collectionId: string) {
   });
 
   const detail = detailQuery.data;
-  const docs = docsQuery.data;
+  const docs = docsQuery.data
+    ? { items: docsList.items, total: docsList.total ?? docsList.items.length }
+    : undefined;
   const progress =
     detail && detail.document_count > 0
       ? Math.round((detail.indexed_count / detail.document_count) * 100)
       : 0;
-  const canLoadMore =
-    Boolean(docs) && (docs?.items.length ?? 0) < (docs?.total ?? 0);
+  const canLoadMore = Boolean(docs) && docsList.hasMore;
   const existingDocumentIds = (allCollectionDocsQuery.data?.items ?? []).map(
     (doc) => doc.document_id,
   );
@@ -130,8 +171,8 @@ export function useCollectionDetailDrawer(collectionId: string) {
   return {
     tc,
     collectionId,
-    docsLimit,
-    setDocsLimit,
+    loadMoreDocs: docsList.loadMore,
+    isLoadingMoreDocs: docsList.isLoadingMore,
     actionFeedback,
     isDocumentPickerOpen,
     setIsDocumentPickerOpen,

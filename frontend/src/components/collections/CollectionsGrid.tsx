@@ -1,13 +1,13 @@
 "use client";
 
 import { EmptyState } from "@/components/states/EmptyState";
+import { LoadMoreFooter } from "@/components/pagination/LoadMoreFooter";
 import type { CollectionDetailResponse } from "@/lib/api/collections";
 
 import {
   CollectionCard,
   NewCollectionCard,
 } from "@/components/collections/CollectionCards";
-import { COLLECTIONS_PAGE_SIZE } from "@/components/collections/collection-format";
 import type { CollectionsPageController } from "@/components/collections/useCollectionsPage";
 
 /** Collection cards grid, empty state, and page navigation. */
@@ -15,7 +15,8 @@ export function CollectionsGrid({ ctl }: { ctl: CollectionsPageController }) {
   const {
     tc,
     capabilities,
-    setOffset,
+    collectionsList,
+    allCollections,
     nameSearch,
     setNameSearch,
     accessFilter,
@@ -25,8 +26,6 @@ export function CollectionsGrid({ ctl }: { ctl: CollectionsPageController }) {
     setDialogMode,
     setDialogSaveError,
     visibleCollections,
-    totalPages,
-    currentPage,
     deleteMutation,
     handleDeleteCollection,
     showGrid,
@@ -116,37 +115,15 @@ export function CollectionsGrid({ ctl }: { ctl: CollectionsPageController }) {
         </section>
       ) : null}
 
-      {/* Pagination */}
-      {showGrid && totalPages > 1 ? (
-        <div className="flex items-center justify-between gap-3 pb-4">
-          <button
-            type="button"
-            disabled={currentPage <= 1}
-            onClick={() =>
-              setOffset((p) => Math.max(0, p - COLLECTIONS_PAGE_SIZE))
-            }
-            className="flex items-center gap-1 rounded-xl border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#2f2c45] hover:bg-[#f1eff9] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              chevron_left
-            </span>
-            {tc("previousPage")}
-          </button>
-          <p className="text-sm text-[#68647b]">
-            {tc("pageOf", { page: currentPage, total: totalPages })}
-          </p>
-          <button
-            type="button"
-            disabled={currentPage >= totalPages}
-            onClick={() => setOffset((p) => p + COLLECTIONS_PAGE_SIZE)}
-            className="flex items-center gap-1 rounded-xl border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#2f2c45] hover:bg-[#f1eff9] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {tc("nextPage")}
-            <span className="material-symbols-outlined text-[18px]">
-              chevron_right
-            </span>
-          </button>
-        </div>
+      {showGrid && allCollections.length > 0 ? (
+        <LoadMoreFooter
+          shown={allCollections.length}
+          total={collectionsList.total}
+          hasMore={collectionsList.hasMore}
+          isLoadingMore={collectionsList.isLoadingMore}
+          onLoadMore={collectionsList.loadMore}
+          className="flex flex-wrap items-center justify-between gap-3 pb-4 text-sm text-[#68647b]"
+        />
       ) : null}
     </>
   );

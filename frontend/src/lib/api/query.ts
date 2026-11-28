@@ -89,6 +89,8 @@ export const queryKeys = {
   collectionViews: {
     forUpload: ["collections", "for-upload"] as const,
     forAssign: ["collections", "for-assign"] as const,
+    picker: (scope: string, nameQuery: string) =>
+      ["collections", scope, { name_query: nameQuery }] as const,
     documentMembership: (documentId: string) =>
       ["collections", "doc", documentId] as const,
     allDocuments: (collectionId: string) =>
@@ -101,6 +103,8 @@ export const queryKeys = {
       ] as const,
   },
   teamMemberPolicyPicker: ["team", "members", "policy-picker"] as const,
+  teamMemberPicker: (scope: string, search: string) =>
+    ["team", "members", scope, { search }] as const,
   citationChunk: (documentId: string, chunkId: string) =>
     ["citation-chunk", documentId, chunkId] as const,
   collections: {

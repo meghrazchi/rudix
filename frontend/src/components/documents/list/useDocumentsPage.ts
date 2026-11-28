@@ -116,7 +116,8 @@ export function useDocumentsPage() {
     ],
   );
 
-  const documentsQuery = useDocumentsList(listQueryOptions);
+  const documentsList = useDocumentsList(listQueryOptions);
+  const { documentsQuery, cursorMode } = documentsList;
   const indexingStatusQuery = useIndexingStatusSummary();
 
   const {
@@ -182,7 +183,7 @@ export function useDocumentsPage() {
     setActionRequestId,
   });
 
-  const documents = documentsQuery.data?.items ?? [];
+  const documents = documentsList.documents;
   const selectedDetail = detailQuery.data;
   const selectedStatus = statusQuery.data;
   const selectedChunks = chunksQuery.data;
@@ -213,7 +214,7 @@ export function useDocumentsPage() {
   const canGoPrevDocuments = offset > 0;
   const canGoNextDocuments = Boolean(
     documentsQuery.data &&
-    offset + DOCUMENT_PAGE_SIZE < (documentsQuery.data.total ?? 0),
+    offset + DOCUMENT_PAGE_SIZE < (documentsList.total ?? 0),
   );
 
   const canGoPrevChunks = chunksOffset > 0;
@@ -234,14 +235,22 @@ export function useDocumentsPage() {
     }
     params.set("sort_by", sortBy);
     params.set("sort_order", sortOrder);
-    if (offset > 0) {
+    if (offset > 0 && !cursorMode) {
       params.set("offset", String(offset));
     }
     const serialized = params.toString();
     return serialized ? `/documents?${serialized}` : "/documents";
-  }, [offset, sortBy, sortOrder, statusFilter, freshnessFilter, qualityFilter]);
+  }, [
+    offset,
+    cursorMode,
+    sortBy,
+    sortOrder,
+    statusFilter,
+    freshnessFilter,
+    qualityFilter,
+  ]);
 
-  const totalDocumentsCount = documentsQuery.data?.total ?? documents.length;
+  const totalDocumentsCount = documentsList.total ?? documents.length;
   const uploadedVisibleCount = documents.filter(
     (document) => document.status === "uploaded",
   ).length;
@@ -348,6 +357,8 @@ export function useDocumentsPage() {
     deleteModalState,
     setDeleteModalState,
     documentsQuery,
+    documentsList,
+    cursorMode,
     indexingStatusQuery,
     deleteMutation,
     bulkDeleteMutation,

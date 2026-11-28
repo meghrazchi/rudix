@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 
 import {
@@ -14,6 +14,7 @@ import {
   type CollectionAccessPolicy,
   type CollectionDetailResponse,
   type CollectionListItemResponse,
+  type CollectionListResponse,
 } from "@/lib/api/collections";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
@@ -24,6 +25,7 @@ import {
 } from "@/lib/forbidden";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { useAuthSession } from "@/lib/use-auth-session";
+import { useInfiniteList } from "@/lib/pagination/useInfiniteList";
 
 import type { CollectionFormState } from "@/components/collections/CollectionDialog";
 import {
@@ -40,7 +42,6 @@ export function useCollectionsPage() {
   const collectionsEnabled =
     getFrontendRuntimeConfig().features.collectionsEnabled;
 
-  const [offset, setOffset] = useState(0);
   const [nameSearch, setNameSearch] = useState("");
   const [debouncedNameSearch, setDebouncedNameSearch] = useState("");
   const [accessFilter, setAccessFilter] = useState<
@@ -60,33 +61,35 @@ export function useCollectionsPage() {
   useEffect(() => {
     const t = setTimeout(() => {
       setDebouncedNameSearch(nameSearch);
-      setOffset(0);
     }, 300);
     return () => clearTimeout(t);
   }, [nameSearch]);
 
-  const listQueryOptions = useMemo(
-    () => ({
+  // Offset pages with `total`, appended with "Load more" (R07-06).
+  const collectionsList = useInfiniteList<
+    CollectionListResponse,
+    CollectionListItemResponse
+  >({
+    queryKey: queryKeys.collections.list({
       limit: COLLECTIONS_PAGE_SIZE,
-      offset,
       name_query: debouncedNameSearch || undefined,
+      pagination: "offset",
     }),
-    [offset, debouncedNameSearch],
-  );
-
-  const collectionsQuery = useQuery({
-    queryKey: queryKeys.collections.list(listQueryOptions),
-    queryFn: () => listCollections(listQueryOptions),
+    pageSize: COLLECTIONS_PAGE_SIZE,
     enabled: collectionsEnabled,
     retry: (failureCount, error) =>
       !isEndpointNotFoundError(error) && failureCount < 2,
+    fetchPage: ({ offset }) =>
+      listCollections({
+        limit: COLLECTIONS_PAGE_SIZE,
+        offset,
+        name_query: debouncedNameSearch || undefined,
+      }),
   });
+  const collectionsQuery = collectionsList.query;
 
-  const allCollections = useMemo(
-    () => collectionsQuery.data?.items ?? [],
-    [collectionsQuery.data?.items],
-  );
-  const total = collectionsQuery.data?.total ?? 0;
+  const allCollections = collectionsList.items;
+  const total = collectionsList.total ?? 0;
   const listForbidden = isForbiddenError(collectionsQuery.error);
 
   // Client-side filter + sort
@@ -108,12 +111,6 @@ export function useCollectionsPage() {
   const restrictedCount = allCollections.filter(
     (c) => c.access_policy !== "org_wide",
   ).length;
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(Math.max(total, 1) / COLLECTIONS_PAGE_SIZE),
-  );
-  const currentPage = Math.floor(offset / COLLECTIONS_PAGE_SIZE) + 1;
 
   const createMutation = useMutation({
     mutationFn: (form: CollectionFormState) =>
@@ -206,8 +203,7 @@ export function useCollectionsPage() {
     tc,
     capabilities,
     collectionsEnabled,
-    offset,
-    setOffset,
+    collectionsList,
     nameSearch,
     setNameSearch,
     accessFilter,
@@ -230,8 +226,6 @@ export function useCollectionsPage() {
     totalDocs,
     indexedDocs,
     restrictedCount,
-    totalPages,
-    currentPage,
     createMutation,
     updateMutation,
     deleteMutation,

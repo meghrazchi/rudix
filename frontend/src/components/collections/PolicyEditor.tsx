@@ -22,9 +22,16 @@ import {
   getTeamCapabilities,
   listTeamMembers,
   type TeamMember,
+  type TeamMemberListResponse,
 } from "@/lib/api/team";
+import { useDebouncedValue } from "@/lib/pagination/useDebouncedValue";
+import { useInfiniteList } from "@/lib/pagination/useInfiniteList";
+import { LoadMoreFooter } from "@/components/pagination/LoadMoreFooter";
+import { PickerSearchInput } from "@/components/pagination/PickerSearchInput";
 
 import { accessPolicyDescription } from "@/components/collections/collection-format";
+
+const MEMBER_PICKER_PAGE_SIZE = 50;
 
 type PolicyEditorProps = {
   collectionId: string;
@@ -45,11 +52,26 @@ export function PolicyEditor({
     queryFn: () => getCollectionPolicy(collectionId),
   });
 
-  const membersQuery = useQuery({
-    queryKey: queryKeys.teamMemberPolicyPicker,
-    queryFn: () => listTeamMembers({ limit: 200 }),
+  // Server-side member search with load more instead of one 200-row page.
+  const tCommon = useTranslations("common");
+  const [memberSearch, setMemberSearch] = useState("");
+  const memberQuery = useDebouncedValue(memberSearch.trim());
+  const membersList = useInfiniteList<TeamMemberListResponse, TeamMember>({
+    queryKey: queryKeys.teamMemberPicker(
+      queryKeys.teamMemberPolicyPicker[2],
+      memberQuery,
+    ),
+    pageSize: MEMBER_PICKER_PAGE_SIZE,
     enabled: teamCapabilities.listMembersEnabled,
+    keepPreviousPages: true,
+    fetchPage: ({ offset }) =>
+      listTeamMembers({
+        limit: MEMBER_PICKER_PAGE_SIZE,
+        offset,
+        search: memberQuery || undefined,
+      }),
   });
+  const membersQuery = membersList.query;
 
   const [policy, setPolicy] = useState<CollectionAccessPolicy | null>(null);
   const [roleGrants, setRoleGrants] = useState<Set<string>>(new Set());
@@ -168,7 +190,7 @@ export function PolicyEditor({
 
   const effectivePolicy =
     policy ?? policyQuery.data?.access_policy ?? "org_wide";
-  const members: TeamMember[] = membersQuery.data?.items ?? [];
+  const members: TeamMember[] = membersList.items;
   const eligibleMembers = members.filter(
     (m) => m.role !== "owner" && m.role !== "admin" && m.user_id,
   );
@@ -265,6 +287,14 @@ export function PolicyEditor({
           <p className="text-[11px] text-[#7a768f]">
             {tc("adminsAlwaysHaveAccess")}
           </p>
+          {teamCapabilities.listMembersEnabled ? (
+            <PickerSearchInput
+              value={memberSearch}
+              onChange={setMemberSearch}
+              placeholder={tCommon("search")}
+              ariaLabel={`${tCommon("search")}: ${tc("membersWithAccess")}`}
+            />
+          ) : null}
           {!teamCapabilities.listMembersEnabled ? (
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
               Configure <code>NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL</code> to enable
@@ -313,6 +343,16 @@ export function PolicyEditor({
               ))}
             </ul>
           )}
+          {teamCapabilities.listMembersEnabled && !membersQuery.isLoading ? (
+            <LoadMoreFooter
+              shown={members.length}
+              total={membersList.total}
+              hasMore={membersList.hasMore}
+              isLoadingMore={membersList.isLoadingMore}
+              onLoadMore={membersList.loadMore}
+              searchHint
+            />
+          ) : null}
           {memberGrants.size === 0 && teamCapabilities.listMembersEnabled ? (
             <p className="text-[11px] text-amber-700">
               {tc("noMembersSelected")}

@@ -74,7 +74,15 @@
     "viewAll": "مشاهده همه",
     "refresh": "تازه‌سازی",
     "noResults": "نتیجه‌ای یافت نشد",
-    "page": "صفحه"
+    "page": "صفحه",
+    "pagination": {
+      "loadMore": "بارگذاری بیشتر",
+      "loadingMore": "در حال بارگذاری بیشتر…",
+      "showingCount": "نمایش {shown} از {total}",
+      "noMore": "همه موارد نمایش داده شده‌اند",
+      "searchToFind": "برای یافتن موارد بیشتر جستجو کنید",
+      "partialSummary": "بر اساس {shown} سند نخست از {total} سند"
+    }
   },
   "navigation": {
     "dashboard": "داشبورد",

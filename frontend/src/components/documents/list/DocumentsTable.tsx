@@ -1,6 +1,11 @@
 "use client";
 
+import { useState } from "react";
+
+import { tableVirtualizeMinRows } from "@/lib/pagination/virtualize";
+
 import { DocumentsTableRow } from "@/components/documents/list/DocumentsTableRow";
+import { DocumentsVirtualRows } from "@/components/documents/list/DocumentsVirtualRows";
 import type { DocumentsPageController } from "@/components/documents/list/useDocumentsPage";
 
 /** Documents table header and rows. */
@@ -13,11 +18,30 @@ export function DocumentsTable({ ctl }: { ctl: DocumentsPageController }) {
     allSelectableSelected,
     documents,
   } = ctl;
+  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const virtualize = documents.length > tableVirtualizeMinRows();
+  const columnCount = capabilities.canDelete ? 12 : 11;
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full border-collapse bg-white text-left">
-        <thead className="border-b border-[#e5e3f1] bg-[#f8f7ff]">
-          <tr className="text-[11px] font-semibold tracking-wide text-[#6a6780] uppercase">
+    <div
+      ref={setScrollElement}
+      className={virtualize ? "max-h-[70vh] overflow-auto" : "overflow-x-auto"}
+      data-testid={virtualize ? "documents-table-virtual" : undefined}
+    >
+      <table
+        className="min-w-full border-collapse bg-white text-left"
+        aria-rowcount={virtualize ? documents.length + 1 : undefined}
+      >
+        <thead
+          className={`border-b border-[#e5e3f1] bg-[#f8f7ff] ${
+            virtualize ? "sticky top-0 z-10" : ""
+          }`}
+        >
+          <tr
+            aria-rowindex={virtualize ? 1 : undefined}
+            className="text-[11px] font-semibold tracking-wide text-[#6a6780] uppercase"
+          >
             {capabilities.canDelete ? (
               <th className="px-4 py-3">
                 <input
@@ -50,13 +74,22 @@ export function DocumentsTable({ ctl }: { ctl: DocumentsPageController }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-[#ece9f6]">
-          {documents.map((document) => (
-            <DocumentsTableRow
-              key={document.document_id}
+          {virtualize ? (
+            <DocumentsVirtualRows
               ctl={ctl}
-              document={document}
+              documents={documents}
+              columnCount={columnCount}
+              scrollElement={scrollElement}
             />
-          ))}
+          ) : (
+            documents.map((document) => (
+              <DocumentsTableRow
+                key={document.document_id}
+                ctl={ctl}
+                document={document}
+              />
+            ))
+          )}
         </tbody>
       </table>
     </div>

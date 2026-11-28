@@ -74,7 +74,15 @@
     "viewAll": "Tout afficher",
     "refresh": "Actualiser",
     "noResults": "Aucun résultat trouvé",
-    "page": "Page"
+    "page": "Page",
+    "pagination": {
+      "loadMore": "Charger plus",
+      "loadingMore": "Chargement…",
+      "showingCount": "{shown} sur {total} affichés",
+      "noMore": "Tous les éléments sont affichés",
+      "searchToFind": "Recherchez pour en trouver davantage",
+      "partialSummary": "Basé sur les {shown} premiers documents sur {total}"
+    }
   },
   "navigation": {
     "dashboard": "Tableau de bord",

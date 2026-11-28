@@ -13,6 +13,8 @@ import { useLocale, useTranslations } from "next-intl";
 
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
 import type { CollectionListItemResponse } from "@/lib/api/collections";
+import type { CollectionSearchList } from "@/components/collections/useCollectionSearchList";
+import { UploadCollectionSelect } from "@/components/documents/list/UploadCollectionSelect";
 import type { UploadDocumentMetadata } from "@/lib/api/documents";
 import {
   UPLOAD_LANGUAGES,
@@ -73,6 +75,8 @@ type DocumentsUploadModalProps = {
   isUploading: boolean;
   acceptedTypesLabel: string;
   collections: CollectionListItemResponse[];
+  /** Server-side collection search and load more for the collection select. */
+  collectionSearch?: CollectionSearchList;
   onRequestClose: () => void;
   onCancelAll: () => void;
   onCancelItem: (index: number) => void;
@@ -134,6 +138,7 @@ export function DocumentsUploadModal({
   isUploading,
   acceptedTypesLabel,
   collections,
+  collectionSearch,
   onRequestClose,
   onCancelAll,
   onCancelItem,
@@ -436,26 +441,13 @@ export function DocumentsUploadModal({
               {metaOpen && (
                 <div className="grid grid-cols-1 gap-3 border-t border-[#e5e3f1] p-4 sm:grid-cols-2">
                   {/* Collection */}
-                  {collections.length > 0 && (
-                    <div className="sm:col-span-2">
-                      <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        {t("collectionLabel")}
-                      </label>
-                      <select
-                        value={collectionId}
-                        onChange={(e) => setCollectionId(e.target.value)}
-                        className="w-full rounded-lg border border-[#d2cee6] bg-white px-3 py-2 text-sm text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
-                        disabled={isUploading}
-                      >
-                        <option value="">{t("collectionNone")}</option>
-                        {collections.map((c) => (
-                          <option key={c.collection_id} value={c.collection_id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+                  <UploadCollectionSelect
+                    collections={collections}
+                    collectionSearch={collectionSearch}
+                    value={collectionId}
+                    onChange={setCollectionId}
+                    disabled={isUploading}
+                  />
 
                   {/* Tags */}
                   <div className="sm:col-span-2">

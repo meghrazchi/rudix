@@ -22,9 +22,17 @@ import type { DocumentsPageController } from "@/components/documents/list/useDoc
 export function DocumentsTableRow({
   ctl,
   document,
+  ariaRowIndex,
+  virtualIndex,
+  measureRef,
 }: {
   ctl: DocumentsPageController;
   document: DocumentListResponse["items"][number];
+  /** 1-based row position including the header row. */
+  ariaRowIndex?: number;
+  /** Set when the row is rendered by the virtualiser. */
+  virtualIndex?: number;
+  measureRef?: (element: Element | null) => void;
 }) {
   const {
     freshnessFilterOptions,
@@ -61,6 +69,9 @@ export function DocumentsTableRow({
   return (
     <tr
       key={document.document_id}
+      ref={measureRef}
+      aria-rowindex={ariaRowIndex}
+      data-index={virtualIndex}
       className="group align-top transition-colors hover:bg-[#faf9ff]"
     >
       {capabilities.canDelete ? (

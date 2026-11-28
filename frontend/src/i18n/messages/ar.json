@@ -74,7 +74,15 @@
     "viewAll": "عرض الكل",
     "refresh": "تحديث",
     "noResults": "لم يتم العثور على نتائج",
-    "page": "صفحة"
+    "page": "صفحة",
+    "pagination": {
+      "loadMore": "تحميل المزيد",
+      "loadingMore": "جارٍ تحميل المزيد…",
+      "showingCount": "عرض {shown} من {total}",
+      "noMore": "تم عرض جميع العناصر",
+      "searchToFind": "ابحث للعثور على المزيد",
+      "partialSummary": "استنادًا إلى أول {shown} من {total} مستندات"
+    }
   },
   "navigation": {
     "dashboard": "لوحة المعلومات",

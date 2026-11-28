@@ -4,7 +4,6 @@ import type { CollectionAccessPolicy } from "@/lib/api/collections";
 import type { AppRole } from "@/lib/auth-session";
 
 const COLLECTIONS_PAGE_SIZE = 20;
-const COLLECTION_DOCS_PAGE_SIZE = 20;
 const COLLECTION_DOCS_INITIAL_LIMIT = 10;
 const COLLECTION_PICKER_PAGE_SIZE = 10;
 
@@ -141,7 +140,6 @@ export {
   CARD_ICONS,
   COLLECTIONS_PAGE_SIZE,
   COLLECTION_DOCS_INITIAL_LIMIT,
-  COLLECTION_DOCS_PAGE_SIZE,
   COLLECTION_PICKER_PAGE_SIZE,
   accessPolicyBadgeClass,
   accessPolicyDescription,

@@ -1,5 +1,6 @@
 "use client";
 
+import { LoadMoreFooter } from "@/components/pagination/LoadMoreFooter";
 import { DOCUMENT_PAGE_SIZE } from "@/components/documents/list/documents-list-format";
 import type { DocumentsPageController } from "@/components/documents/list/useDocumentsPage";
 
@@ -22,6 +23,8 @@ export function DocumentsTableFooter({
     canGoNextDocuments,
     currentPage,
     paginationItems,
+    cursorMode,
+    documentsList,
   } = ctl;
   return (
     <>
@@ -55,62 +58,73 @@ export function DocumentsTableFooter({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5e3f1] bg-[#fcfbff] px-4 py-3">
-        <button
-          type="button"
-          aria-label={tp("previous")}
-          disabled={!canGoPrevDocuments}
-          onClick={() =>
-            setOffset((current) => Math.max(0, current - DOCUMENT_PAGE_SIZE))
-          }
-          className="flex items-center gap-1 rounded-lg border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#2f2c45] hover:bg-[#f1eff9] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <span
-            aria-hidden="true"
-            className="material-symbols-outlined text-[18px]"
+      {cursorMode ? (
+        <LoadMoreFooter
+          shown={documents.length}
+          total={documentsList.total}
+          hasMore={documentsList.hasMore}
+          isLoadingMore={documentsList.isLoadingMore}
+          onLoadMore={documentsList.loadMore}
+          className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5e3f1] bg-[#fcfbff] px-4 py-3 text-sm text-[#68647b]"
+        />
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5e3f1] bg-[#fcfbff] px-4 py-3">
+          <button
+            type="button"
+            aria-label={tp("previous")}
+            disabled={!canGoPrevDocuments}
+            onClick={() =>
+              setOffset((current) => Math.max(0, current - DOCUMENT_PAGE_SIZE))
+            }
+            className="flex items-center gap-1 rounded-lg border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#2f2c45] hover:bg-[#f1eff9] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            chevron_left
-          </span>
-          {tp("previous")}
-        </button>
-        <div className="flex items-center gap-1 text-sm">
-          {paginationItems.map((item, index) =>
-            item === null ? (
-              <span key={`ellipsis-${index}`} className="px-2 text-[#6a6780]">
-                ...
-              </span>
-            ) : (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setOffset((item - 1) * DOCUMENT_PAGE_SIZE)}
-                className={`rounded px-2 py-1 ${
-                  currentPage === item
-                    ? "bg-[#3525cd] text-white"
-                    : "text-[#1b1b24] hover:bg-[#f1eff9]"
-                }`}
-              >
-                {item}
-              </button>
-            ),
-          )}
+            <span
+              aria-hidden="true"
+              className="material-symbols-outlined text-[18px]"
+            >
+              chevron_left
+            </span>
+            {tp("previous")}
+          </button>
+          <div className="flex items-center gap-1 text-sm">
+            {paginationItems.map((item, index) =>
+              item === null ? (
+                <span key={`ellipsis-${index}`} className="px-2 text-[#6a6780]">
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setOffset((item - 1) * DOCUMENT_PAGE_SIZE)}
+                  className={`rounded px-2 py-1 ${
+                    currentPage === item
+                      ? "bg-[#3525cd] text-white"
+                      : "text-[#1b1b24] hover:bg-[#f1eff9]"
+                  }`}
+                >
+                  {item}
+                </button>
+              ),
+            )}
+          </div>
+          <button
+            type="button"
+            aria-label={tp("next")}
+            disabled={!canGoNextDocuments}
+            onClick={() => setOffset((current) => current + DOCUMENT_PAGE_SIZE)}
+            className="flex items-center gap-1 rounded-lg border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#2f2c45] hover:bg-[#f1eff9] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {tp("next")}
+            <span
+              aria-hidden="true"
+              className="material-symbols-outlined text-[18px]"
+            >
+              chevron_right
+            </span>
+          </button>
         </div>
-        <button
-          type="button"
-          aria-label={tp("next")}
-          disabled={!canGoNextDocuments}
-          onClick={() => setOffset((current) => current + DOCUMENT_PAGE_SIZE)}
-          className="flex items-center gap-1 rounded-lg border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#2f2c45] hover:bg-[#f1eff9] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {tp("next")}
-          <span
-            aria-hidden="true"
-            className="material-symbols-outlined text-[18px]"
-          >
-            chevron_right
-          </span>
-        </button>
-      </div>
+      )}
     </>
   );
 }

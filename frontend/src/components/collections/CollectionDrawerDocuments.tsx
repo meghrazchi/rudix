@@ -8,10 +8,7 @@ import { LoadingState } from "@/components/states/LoadingState";
 import type { CollectionDetailResponse } from "@/lib/api/collections";
 import { getApiErrorMessage } from "@/lib/api/errors";
 
-import {
-  COLLECTION_DOCS_PAGE_SIZE,
-  type CollectionCapabilities,
-} from "@/components/collections/collection-format";
+import { type CollectionCapabilities } from "@/components/collections/collection-format";
 import type { CollectionDrawerController } from "@/components/collections/useCollectionDetailDrawer";
 
 /** Drawer document list with manage, remove, and load-more controls. */
@@ -26,7 +23,8 @@ export function CollectionDrawerDocuments({
 }) {
   const {
     tc,
-    setDocsLimit,
+    loadMoreDocs,
+    isLoadingMoreDocs,
     actionFeedback,
     setIsDocumentPickerOpen,
     setDocumentSaveError,
@@ -182,11 +180,9 @@ export function CollectionDrawerDocuments({
               </span>
               <button
                 type="button"
-                onClick={() =>
-                  setDocsLimit((current) =>
-                    Math.min(current + COLLECTION_DOCS_PAGE_SIZE, docs.total),
-                  )
-                }
+                onClick={loadMoreDocs}
+                disabled={isLoadingMoreDocs}
+                aria-busy={isLoadingMoreDocs}
                 className="rounded-lg border border-[#e4e1ee] px-3 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
               >
                 {tc("loadMoreDocs")}
