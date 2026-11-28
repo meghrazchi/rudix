@@ -240,6 +240,40 @@ async def test_document_status_is_published_only_after_commit(
     assert entries[2]["payload"] == {"document_id": str(document.id), "status": "uploaded"}
 
 
+async def test_bulk_change_publishes_one_documents_changed_hint(
+    agent_env: AgentWorkerEnv,  # noqa: F811
+    realtime_redis: FakeRedis,
+) -> None:
+    """Twenty documents in one transaction: twenty status events, one id-free hint."""
+    seeded = await agent_env.aseed()
+    async with agent_env.factory() as session:
+        documents = [_document(seeded.organization_id, seeded.user_id) for _ in range(20)]
+        session.add_all(documents[:10])
+        await session.flush()
+        session.add_all(documents[10:])  # a second flush in the same transaction
+        await session.commit()
+    types = [entry["type"] for entry in buffered(realtime_redis, seeded.organization_id)]
+    assert types.count(DOCUMENT_STATUS) == 20
+    assert types.count(DOCUMENTS_CHANGED) == 1
+    # Another organisation in the same transaction still gets its own hint.
+    other = RealtimeEvent.build(
+        DOCUMENTS_CHANGED,
+        organization_id=seeded.other_organization_id,
+        payload={},
+        audience=Audience.of(all_members=True),
+    )
+    async with agent_env.factory() as session:
+        publisher.record_realtime_event(session, [other, other])
+        session.add(_document(seeded.organization_id, seeded.user_id))
+        await session.commit()
+    assert [e["type"] for e in buffered(realtime_redis, seeded.other_organization_id)] == [
+        DOCUMENTS_CHANGED
+    ]
+    assert types.count(DOCUMENTS_CHANGED) + 1 == [
+        e["type"] for e in buffered(realtime_redis, seeded.organization_id)
+    ].count(DOCUMENTS_CHANGED)
+
+
 async def test_rolled_back_transaction_publishes_nothing(
     agent_env: AgentWorkerEnv,  # noqa: F811
     realtime_redis: FakeRedis,

@@ -96,7 +96,11 @@ make seed-dev
   `REALTIME_MAX_CONNECTIONS_PER_USER` (5). Events are recorded on the session by an ORM
   `after_flush` observer (`app/application/realtime/observers.py`) plus explicit calls at
   Core `UPDATE` sites, and published to Redis in `after_commit`
-  (`app/application/realtime/publisher.py`); workers use a process-local client.
+  (`app/application/realtime/publisher.py`); workers use a process-local client. The
+  per-user cap is an atomic lease semaphore (leases expire a minute after the longest
+  stream), and the endpoint commits the request session before streaming so a stream
+  holds no database connection. `documents.changed` is recorded once per organisation and
+  transaction, so a bulk change publishes one hint.
 
 ## Settings layout and startup behavior
 

@@ -37,6 +37,7 @@ from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.metrics_realtime import record_realtime_published
 from app.domains.realtime.events import (
+    DOCUMENTS_CHANGED,
     RealtimeEvent,
     buffer_key,
     channel_name,
@@ -97,7 +98,15 @@ def record_realtime_event(
         return
     install_realtime_listeners()
     pending: list[RealtimeEvent] = _sync_session(session).info.setdefault(PENDING_INFO_KEY, [])
-    pending.extend(batch)
+    # ``documents.changed`` carries no ids: one per organisation and transaction is enough,
+    # so a bulk change does not flood the replay buffer (or Redis) with identical hints.
+    hinted = {item.organization_id for item in pending if item.type == DOCUMENTS_CHANGED}
+    for item in batch:
+        if item.type == DOCUMENTS_CHANGED:
+            if item.organization_id in hinted:
+                continue
+            hinted.add(item.organization_id)
+        pending.append(item)
 
 
 def _log_failure(item: RealtimeEvent, outcome: str, error: str | None = None) -> None:
