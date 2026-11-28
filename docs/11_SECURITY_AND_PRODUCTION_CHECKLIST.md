@@ -804,12 +804,15 @@ documents and database rows, so they get the same protection as production.
   that can write and read but not delete when the provider allows it. Objects removed from the
   application bucket are removed from the mirror in the next run (data deletion reaches the
   backup); the bucket's noncurrent-version expiry bounds how long a removed copy remains.
+  Credentials without delete permission leave those copies in place (logged as
+  `backup.objects.prune_failed`) until a lifecycle rule removes them.
 - Markers (`<prefix>/<kind>/latest.json`) carry completion time, object key, size, and hash
   only: no hostname, path, URL, or secret. CLIs print kinds, ages, sizes, and table counts only.
 - Scratch restores contain production data: restore only into stores with production access
   controls, never into a developer machine, and mask or drop the data after a drill.
-  `deploy/scripts/restore_drill.sh` refuses a target equal to `DATABASE_URL`,
-  `DATABASE_MIGRATION_URL`, `DATABASE_MAINTENANCE_URL`, or `QDRANT_URL`.
+  `deploy/scripts/restore_drill.sh` refuses a database target on the same server, port, and
+  database as `DATABASE_URL`, `DATABASE_MIGRATION_URL`, or `DATABASE_MAINTENANCE_URL`
+  (whatever role, password, or options it uses), and a Qdrant target equal to `QDRANT_URL`.
 - Deploy gate: `DEPLOY_BACKUP_GATE=ssh` (default) keeps the file-age check over SSH;
   `marker` reads the markers inside the api container. Either mode blocks a production deploy
   when a backup is older than `DEPLOY_BACKUP_MAX_AGE_HOURS` (26).

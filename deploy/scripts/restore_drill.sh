@@ -6,8 +6,9 @@
 # Run from the repository root on an operator machine or a one-off pod that has the backend
 # virtualenv (or the worker image), pg_restore 16, curl, and network access to the backup
 # bucket and the scratch stores. It never touches the live stores: it refuses to run when
-# RESTORE_DATABASE_URL equals DATABASE_URL, DATABASE_MIGRATION_URL, or
-# DATABASE_MAINTENANCE_URL, or RESTORE_QDRANT_URL equals QDRANT_URL.
+# RESTORE_DATABASE_URL names the same server and database as DATABASE_URL,
+# DATABASE_MIGRATION_URL, or DATABASE_MAINTENANCE_URL (whatever the role, password, or
+# options), or RESTORE_QDRANT_URL equals QDRANT_URL.
 #
 # Required:
 #   RESTORE_DATABASE_URL   postgresql:// URL of an EMPTY scratch database. Prefer a URL
@@ -41,15 +42,25 @@ if [ -z "${RESTORE_DATABASE_URL:-}" ]; then
   exit 1
 fi
 
-normalize_url() {
+# libpq form of a SQLAlchemy URL (pg_restore and psql do not take +asyncpg).
+libpq_url() {
   printf '%s' "$1" | sed -e 's#^postgresql+asyncpg://#postgresql://#' \
-    -e 's#^postgres+asyncpg://#postgresql://#' -e 's#^postgres://#postgresql://#' -e 's#/*$##'
+    -e 's#^postgres+asyncpg://#postgresql://#' -e 's#^postgres://#postgresql://#'
 }
 
-restore_db="$(normalize_url "$RESTORE_DATABASE_URL")"
+# Server and database a URL names, without credentials or options: the live database is
+# refused whichever role, password, or connection options the scratch URL uses.
+database_identity() {
+  libpq_url "$1" | sed -e 's#^\(postgresql://\)[^@/]*@#\1#' -e 's#[?].*$##' -e 's#/*$##' \
+    -e 's#^\(postgresql://[^/:]*\)/#\1:5432/#' -e 's#^\(postgresql://[^/:]*\)$#\1:5432#' |
+    tr '[:upper:]' '[:lower:]'
+}
+
+restore_db_url="$(libpq_url "$RESTORE_DATABASE_URL")"
+restore_db="$(database_identity "$RESTORE_DATABASE_URL")"
 for live_var in DATABASE_URL DATABASE_MIGRATION_URL DATABASE_MAINTENANCE_URL; do
   eval "live_value=\${$live_var:-}"
-  if [ -n "$live_value" ] && [ "$(normalize_url "$live_value")" = "$restore_db" ]; then
+  if [ -n "$live_value" ] && [ "$(database_identity "$live_value")" = "$restore_db" ]; then
     echo "Refusing: RESTORE_DATABASE_URL equals $live_var (restore only into a scratch database)" >&2
     exit 2
   fi
@@ -126,14 +137,14 @@ echo "== postgres: download and decrypt ($(now))"
   --out "$work_dir/postgres.dump" $key_args)
 
 echo "== postgres: pg_restore into the scratch database ($(now))"
-pg_restore --no-owner --no-privileges --exit-on-error --dbname "$RESTORE_DATABASE_URL" \
+pg_restore --no-owner --no-privileges --exit-on-error --dbname "$restore_db_url" \
   "$work_dir/postgres.dump"
 postgres_restored="$(now)"
 
 echo "== postgres: verify ($(now))"
 # shellcheck disable=SC2086
 (cd "$backend_dir" && "$python_bin" scripts/verify_postgres_restore.py \
-  --database-url "$RESTORE_DATABASE_URL" $verify_args)
+  --database-url "$restore_db_url" $verify_args)
 
 qdrant_restored="skipped"
 if [ "$skip_qdrant" != "true" ]; then

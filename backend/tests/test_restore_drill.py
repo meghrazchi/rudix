@@ -130,3 +130,32 @@ def test_drill_postgres_only_keeps_files_on_request(tmp_path: Path) -> None:
     assert "--kind qdrant" not in calls and "| Qdrant restored | skipped |" in result.stdout
     assert "not run (RESTORE_API_URL unset)" in result.stdout
     assert (work / "postgres.dump").exists()
+
+
+@pytest.mark.parametrize(
+    "live",
+    [
+        "postgresql+asyncpg://rudix_app:secret@scratch-db.internal/rudix_drill",
+        "postgresql://rudix_maintenance@SCRATCH-DB.internal:5432/rudix_drill?sslmode=require",
+        "postgres://scratch-db.internal/rudix_drill",
+    ],
+)
+def test_drill_refuses_the_live_database_under_another_role_or_options(
+    tmp_path: Path, live: str
+) -> None:
+    result, calls = _drill(tmp_path, DATABASE_URL=live)
+    assert result.returncode == 2 and "DATABASE_URL" in result.stderr
+    assert calls == ""
+
+
+def test_drill_accepts_another_port_or_database_and_passes_a_libpq_url(tmp_path: Path) -> None:
+    for live in (
+        "postgresql://drill@scratch-db.internal:6432/rudix_drill",
+        "postgresql://drill@scratch-db.internal/rudix",
+    ):
+        result, _ = _drill(tmp_path, DATABASE_URL=live, RESTORE_DRILL_DRY_RUN="true")
+        assert result.returncode == 0, result.stderr
+    asyncpg_url = "postgresql+asyncpg://drill@scratch-db.internal/rudix_drill"
+    result, calls = _drill(tmp_path, RESTORE_DATABASE_URL=asyncpg_url, RESTORE_SKIP_QDRANT="true")
+    assert result.returncode == 0, result.stderr
+    assert "+asyncpg" not in calls and calls.count(SCRATCH) == 2
