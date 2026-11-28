@@ -220,11 +220,15 @@ async def revoke_session(
 # ── POST /security/sessions/revoke-all ───────────────────────────────────────
 
 
-@router.post("/sessions/revoke-all")
+class RevokeAllSessionsResponse(BaseModel):
+    revoked_count: int
+
+
+@router.post("/sessions/revoke-all", response_model=RevokeAllSessionsResponse)
 async def revoke_all_other_sessions(
     _principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
-) -> dict:
-    return {"revoked_count": 0}
+) -> RevokeAllSessionsResponse:
+    return RevokeAllSessionsResponse(revoked_count=0)
 
 
 # ── GET /security/login-policy ────────────────────────────────────────────────

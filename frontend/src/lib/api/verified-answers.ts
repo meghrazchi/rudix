@@ -1,4 +1,9 @@
+import type { Served, WithOptional } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 export type VerifiedAnswerStatus =
   | "draft"
@@ -8,107 +13,31 @@ export type VerifiedAnswerStatus =
   | "archived"
   | "deprecated";
 
-export type CitationIn = {
-  document_id: string;
-  chunk_id?: string | null;
-  text_snippet?: string | null;
-  page_number?: number | null;
-  citation_order?: number;
-};
+export type CitationIn = Served<Schemas["CitationIn"]>;
 
-export type CitationResponse = {
-  citation_id: string;
-  document_id: string;
-  chunk_id: string | null;
-  text_snippet: string | null;
-  page_number: number | null;
-  citation_order: number;
-};
+export type CitationResponse = Served<Schemas["CitationResponse"]>;
 
-export type VersionResponse = {
-  version_id: string;
-  version_number: number;
-  title: string;
-  question: string;
-  answer_text: string;
-  tags: string | null;
-  change_reason: string;
-  changed_by_id: string | null;
-  created_at: string;
-};
+export type VersionResponse = Served<Schemas["VersionResponse"]>;
 
-export type VerifiedAnswerResponse = {
-  answer_id: string;
-  organization_id: string;
-  title: string;
-  question: string;
-  answer_text: string;
-  status: VerifiedAnswerStatus;
-  tags: string | null;
-  collection_id: string | null;
-  owner_id: string | null;
-  requires_citations: boolean;
-  review_date: string | null;
-  expiry_date: string | null;
-  approved_by_id: string | null;
-  approved_at: string | null;
-  published_at: string | null;
-  deprecated_at: string | null;
-  restored_at: string | null;
-  rejection_note: string | null;
-  source_message_id: string | null;
-  created_by_id: string | null;
-  is_stale: boolean;
-  citations: CitationResponse[];
-  created_at: string;
-  updated_at: string;
-};
+export type VerifiedAnswerResponse = Served<Schemas["VerifiedAnswerResponse"]>;
 
-export type VerifiedAnswerListResponse = {
-  items: VerifiedAnswerResponse[];
-  total: number;
-  limit: number;
-  offset: number;
-};
+export type VerifiedAnswerListResponse = Served<
+  Schemas["VerifiedAnswerListResponse"]
+>;
 
-export type VerifiedAnswerVersionListResponse = {
-  items: VersionResponse[];
-  total: number;
-};
+export type VerifiedAnswerVersionListResponse = Served<
+  Schemas["VerifiedAnswerVersionListResponse"]
+>;
 
-export type CreateVerifiedAnswerRequest = {
-  title: string;
-  question: string;
-  answer_text: string;
-  tags?: string | null;
-  collection_id?: string | null;
-  requires_citations?: boolean;
-  review_date?: string | null;
-  expiry_date?: string | null;
-  citations?: CitationIn[];
-};
+export type CreateVerifiedAnswerRequest = WithOptional<
+  Schemas["CreateVerifiedAnswerRequest"],
+  "requires_citations"
+>;
 
-export type CreateFromChatRequest = {
-  title: string;
-  question?: string | null;
-  tags?: string | null;
-  collection_id?: string | null;
-  review_date?: string | null;
-  expiry_date?: string | null;
-};
+export type CreateFromChatRequest = Schemas["CreateFromChatRequest"];
 
-export type UpdateVerifiedAnswerRequest = {
-  title?: string;
-  question?: string;
-  answer_text?: string;
-  tags?: string | null;
-  collection_id?: string | null;
-  requires_citations?: boolean;
-  review_date?: string | null;
-  expiry_date?: string | null;
-  citations?: CitationIn[];
-  change_reason?: string;
-};
+export type UpdateVerifiedAnswerRequest =
+  Schemas["UpdateVerifiedAnswerRequest"];
 
 export type ListVerifiedAnswersOptions = {
   status?: VerifiedAnswerStatus;

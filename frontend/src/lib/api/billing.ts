@@ -1,5 +1,10 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
+
+type Schemas = components["schemas"];
 
 function trimToNull(value: string | undefined): string | null {
   const trimmed = value?.trim();
@@ -81,91 +86,23 @@ export function isBillingEndpointUnavailableError(
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type BillingPlanStatus =
-  | "active"
-  | "trialing"
-  | "past_due"
-  | "cancelled"
-  | "free"
-  | "self_hosted"
-  | "unknown";
+export type BillingPlanStatus = Served<Schemas["BillingPlanStatus"]>;
 
-export type BillingCycle = "monthly" | "annual" | null;
+export type BillingCycle = Served<Schemas["BillingCycle"]>;
 
-export type BillingPlanInfo = {
-  plan_name: string;
-  status: BillingPlanStatus;
-  billing_cycle: BillingCycle;
-  renewal_date: string | null;
-  trial_end_date: string | null;
-  seats_used: number | null;
-  seats_included: number | null;
-  storage_used_gb: number | null;
-  storage_included_gb: number | null;
-  monthly_questions_used: number | null;
-  monthly_questions_included: number | null;
-  token_allowance_used: number | null;
-  token_allowance_included: number | null;
-  evaluation_allowance_used: number | null;
-  evaluation_allowance_included: number | null;
-  agent_allowance_used: number | null;
-  agent_allowance_included: number | null;
-  connector_allowance_used: number | null;
-  connector_allowance_included: number | null;
-  can_manage_subscription: boolean;
-  can_cancel_plan: boolean;
-};
+export type BillingPlanInfo = Served<Schemas["BillingPlanInfo"]>;
 
-export type BillingDateRange = "7d" | "30d" | "90d" | "billing_period";
+export type BillingDateRange = Served<Schemas["BillingDateRange"]>;
 
-export type BillingUsageSummary = {
-  range: { from: string; to: string };
-  documents_uploaded: number | null;
-  indexed_documents: number | null;
-  storage_used_gb: number | null;
-  total_chunks: number | null;
-  questions_asked: number | null;
-  avg_confidence: number | null;
-  avg_latency_ms: number | null;
-  input_tokens: number | null;
-  output_tokens: number | null;
-  estimated_llm_cost_usd: number | null;
-  evaluation_runs: number | null;
-  agent_runs: number | null;
-  connector_sync_jobs: number | null;
-  failed_indexing_jobs: number | null;
-};
+export type BillingUsageSummary = Served<Schemas["BillingUsageSummary"]>;
 
-export type BillingQuota = {
-  resource: string;
-  label: string;
-  used: number;
-  limit: number | null;
-  unit: string;
-};
+export type BillingQuota = Served<Schemas["BillingQuota"]>;
 
-export type InvoiceStatus = "paid" | "open" | "void" | "uncollectible";
+export type InvoiceStatus = Served<Schemas["InvoiceStatus"]>;
 
-export type Invoice = {
-  id: string;
-  date: string;
-  amount_usd: number;
-  status: InvoiceStatus;
-  download_url: string | null;
-};
+export type Invoice = Served<Schemas["Invoice"]>;
 
-export type BillingContact = {
-  email: string | null;
-  name: string | null;
-  address_line1: string | null;
-  address_line2: string | null;
-  city: string | null;
-  state: string | null;
-  postal_code: string | null;
-  country: string | null;
-  tax_id: string | null;
-  payment_method_summary: string | null;
-};
+export type BillingContact = Served<Schemas["BillingContact"]>;
 
 // ── Normalization ─────────────────────────────────────────────────────────────
 
@@ -212,7 +149,7 @@ function asPlanStatus(v: unknown): BillingPlanStatus {
     : "unknown";
 }
 
-function asBillingCycle(v: unknown): BillingCycle {
+function asBillingCycle(v: unknown): BillingCycle | null {
   if (v === "monthly" || v === "annual") return v;
   return null;
 }
@@ -403,10 +340,7 @@ export async function updateBillingContact(
   return normalizeBillingContact(payload);
 }
 
-export type BillingPortalSession = {
-  url: string;
-  expires_at: string | null;
-};
+export type BillingPortalSession = Served<Schemas["BillingPortalSession"]>;
 
 export async function createBillingPortalSession(): Promise<BillingPortalSession> {
   const { portalSessionUrl } = getBillingEndpoints();

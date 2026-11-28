@@ -19,6 +19,24 @@ import type {
   EvaluationQuestionListResponse,
 } from "@/lib/api/evaluations";
 
+import type { Served } from "@/lib/api/schema-helpers";
+import type { ApiKey, ApiKeyListResponse } from "@/lib/api/api-keys";
+import type { Webhook, WebhookDeliveryListResponse } from "@/lib/api/webhooks";
+import type { TeamMember } from "@/lib/api/team";
+import type {
+  CitationTrustRecord,
+  RetrievalDiagnosticsRecord,
+  SourceFreshnessRecord,
+  ClaimSupportRecord,
+} from "@/lib/api/trust_metadata";
+import type { KnowledgeGapResponse } from "@/lib/api/query-analytics";
+import type { OrgQuotaPolicyResponse } from "@/lib/api/quotas";
+import type { QuotaType } from "@/lib/api/quotas";
+import type { QualityGateThresholds } from "@/lib/api/quality-gates";
+import type { AuditEvent, SecuritySession } from "@/lib/api/security";
+import type { GovernanceMcpStatus } from "@/lib/api/admin-governance";
+import type { OrganizationSettings } from "@/lib/api/organization";
+
 type Schemas = components["schemas"];
 
 // Verify that the re-exported types from API modules are identical to the
@@ -154,6 +172,82 @@ describe("generated schema types", () => {
     >();
     expectTypeOf<Omit<EvaluationQuestionListResponse, "items">>().toEqualTypeOf<
       Omit<Schemas["EvaluationQuestionListResponse"], "items">
+    >();
+  });
+
+  it("Served makes server-defaulted response fields required", () => {
+    type Served1 = Served<{ a?: string; b?: { c?: number | null }[] }>;
+    expectTypeOf<Served1>().toEqualTypeOf<{
+      a: string;
+      b: { c: number | null }[];
+    }>();
+  });
+
+  it("response types keep the generated fields apart from declared overlays", () => {
+    expectTypeOf<Omit<ApiKey, "status">>().toEqualTypeOf<
+      Omit<Served<Schemas["ApiKeyResponse"]>, "status">
+    >();
+    expectTypeOf<ApiKey["status"]>().toEqualTypeOf<"active" | "revoked">();
+    expectTypeOf<ApiKeyListResponse["items"][number]>().toEqualTypeOf<ApiKey>();
+    expectTypeOf<Webhook["status"]>().toEqualTypeOf<"active" | "disabled">();
+    expectTypeOf<WebhookDeliveryListResponse["next_cursor"]>().toEqualTypeOf<
+      string | null
+    >();
+    expectTypeOf<Omit<TeamMember, "role" | "status">>().toEqualTypeOf<
+      Omit<Served<Schemas["TeamMemberResponse"]>, "role" | "status">
+    >();
+    expectTypeOf<Omit<KnowledgeGapResponse, "gap_type" | "gap_source" | "status" | "converted_to">>()
+      .toEqualTypeOf<
+        Omit<
+          Served<Schemas["KnowledgeGapResponse"]>,
+          "gap_type" | "gap_source" | "status" | "converted_to"
+        >
+      >();
+    expectTypeOf<OrgQuotaPolicyResponse["limits"]>().toEqualTypeOf<
+      Partial<Record<QuotaType, Served<Schemas["QuotaLimitConfig"]>>>
+    >();
+  });
+
+  it("security, governance and organization view types use the schema", () => {
+    expectTypeOf<SecuritySession>().toEqualTypeOf<
+      Served<Schemas["SessionItem"]>
+    >();
+    expectTypeOf<AuditEvent>().toEqualTypeOf<
+      Served<Schemas["AuditEventItem"]>
+    >();
+    expectTypeOf<GovernanceMcpStatus>().toEqualTypeOf<
+      Served<Schemas["GovernanceMCPStatus"]>
+    >();
+    type SettingsOverlay =
+      | "default_member_role"
+      | "default_document_visibility"
+      | "source_download";
+    expectTypeOf<Omit<OrganizationSettings, SettingsOverlay>>().toEqualTypeOf<
+      Omit<Served<Schemas["OrgSettings"]>, SettingsOverlay>
+    >();
+    expectTypeOf<OrganizationSettings["source_download"]>().toEqualTypeOf<
+      "all" | "admins" | "none"
+    >();
+  });
+
+  it("request types come straight from the generated schema", () => {
+    expectTypeOf<QualityGateThresholds>().toEqualTypeOf<
+      Schemas["QualityGateThresholds"]
+    >();
+  });
+
+  it("trust record fields older snapshots lack stay optional", () => {
+    expectTypeOf<CitationTrustRecord["doc_draft_warning"]>().toEqualTypeOf<
+      boolean | undefined
+    >();
+    expectTypeOf<SourceFreshnessRecord["draft_count"]>().toEqualTypeOf<
+      number | undefined
+    >();
+    expectTypeOf<
+      RetrievalDiagnosticsRecord["retrieval_candidate_count"]
+    >().toEqualTypeOf<number | undefined>();
+    expectTypeOf<ClaimSupportRecord["citation_indices"]>().toEqualTypeOf<
+      number[]
     >();
   });
 });

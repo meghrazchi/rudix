@@ -188,6 +188,8 @@ export function AdminGovernancePage() {
                 configured_global_external_servers: 0,
               },
               tool_catalog: [],
+              platform_audit_log_retention_days: null,
+              effective_audit_log_retention_days: null,
               policy_updated_at: response.updated_at,
               policy_updated_by_user_id: response.updated_by_user_id,
             } satisfies GovernancePolicyResponse;

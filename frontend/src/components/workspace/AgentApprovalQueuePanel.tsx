@@ -31,7 +31,7 @@ const RISK_COLORS: Record<string, string> = {
   low: "bg-emerald-100 text-emerald-800 border-emerald-200",
 };
 
-function RiskBadge({ level }: { level: string | null }) {
+function RiskBadge({ level }: { level?: string | null }) {
   const t = useTranslations("agentWorkspace");
   if (!level) return null;
   const cls =
@@ -59,7 +59,7 @@ function useNow(): number {
   return now;
 }
 
-function ExpiryCountdown({ expiresAt }: { expiresAt: string | null }) {
+function ExpiryCountdown({ expiresAt }: { expiresAt?: string | null }) {
   const t = useTranslations("agentWorkspace");
   const now = useNow();
   if (!expiresAt) return null;

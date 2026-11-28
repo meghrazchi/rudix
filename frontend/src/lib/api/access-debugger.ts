@@ -1,44 +1,27 @@
+import type { Overlay, Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 const BASE = "/admin/access-debugger";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type OrgMemberResult = {
-  user_id: string;
-  display_name: string | null;
-  email: string;
-  role: string;
-};
+export type OrgMemberResult = Served<Schemas["OrgMemberResult"]>;
 
-export type OrgMemberListResponse = {
-  items: OrgMemberResult[];
-  total: number;
-};
+export type OrgMemberListResponse = Served<Schemas["OrgMemberListResponse"]>;
 
-export type SimulateAccessRequest = {
-  subject_user_id: string;
-  resource_type: string;
-  action: string;
-  resource_id?: string | null;
-};
+export type SimulateAccessRequest = Schemas["SimulateAccessRequest"];
 
-export type SimulateTraceStep = {
-  rule: string;
-  outcome: "pass" | "allow" | "deny";
-  detail: string | null;
-};
+export type SimulateTraceStep = Served<
+  Schemas["app__interfaces__http__admin_access_debugger__TraceStep"]
+>;
 
-export type ReasonChainEntry = {
-  layer: string;
-  outcome: "pass" | "allow" | "deny";
-  detail: string | null;
-};
+export type ReasonChainEntry = Served<Schemas["ReasonChainEntry"]>;
 
-export type TroubleshootingLink = {
-  label: string;
-  href: string;
-};
+export type TroubleshootingLink = Served<Schemas["TroubleshootingLink"]>;
 
 export type ExtendedStatus =
   | "allowed"
@@ -49,25 +32,10 @@ export type ExtendedStatus =
   | "unavailable"
   | "unknown";
 
-export type SimulateAccessResponse = {
-  decision: "allow" | "deny";
-  extended_status: ExtendedStatus;
-  matched_rule: string;
-  deny_reason: string | null;
-  subject_user_id: string;
-  subject_display_name: string | null;
-  subject_email: string;
-  subject_role: string;
-  resource_type: string;
-  resource_id: string | null;
-  action: string;
-  trace: SimulateTraceStep[];
-  reason_chain: ReasonChainEntry[];
-  effective_permissions: string[];
-  remediation: string[];
-  troubleshooting_links: TroubleshootingLink[];
-  request_id: string;
-};
+export type SimulateAccessResponse = Overlay<
+  Served<Schemas["SimulateAccessResponse"]>,
+  { extended_status: ExtendedStatus }
+>;
 
 // ── Normalizers ────────────────────────────────────────────────────────────────
 

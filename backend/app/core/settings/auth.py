@@ -49,6 +49,13 @@ class AuthSettings(BaseModel):
     supabase_jwks_url: AnyHttpUrl | None = None
     supabase_jwt_issuer: AnyHttpUrl | None = None
     supabase_jwt_audience: str | None = Field(default=None, min_length=1, max_length=255)
+    # R07-09: a non-secret "a session may exist" cookie set and cleared with the refresh
+    # cookie, readable by the frontend proxy route gate. It grants nothing on its own.
+    app_auth_session_hint_cookie_enabled: bool = False
+    app_auth_session_hint_cookie_name: str = Field(
+        default="rudix_session_hint", min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_\-]+$"
+    )
+    app_auth_session_hint_cookie_domain: str | None = Field(default=None, max_length=255)
 
 
 def validate_auth_cookies(settings: Settings) -> None:
@@ -59,6 +66,10 @@ def validate_auth_cookies(settings: Settings) -> None:
     settings.app_auth_cookie_path = settings.app_auth_cookie_path.strip() or "/api/v1/auth"
     if settings.app_auth_cookie_domain is not None:
         settings.app_auth_cookie_domain = settings.app_auth_cookie_domain.strip() or None
+    if settings.app_auth_session_hint_cookie_domain is not None:
+        settings.app_auth_session_hint_cookie_domain = (
+            settings.app_auth_session_hint_cookie_domain.strip() or None
+        )
     if settings.app_auth_cookie_secure is None:
         settings.app_auth_cookie_secure = settings.environment == Environment.production
     if settings.app_auth_cookie_same_site == "none" and not settings.app_auth_cookie_secure:

@@ -49,6 +49,12 @@ from app.domains.auth.schemas.auth import (
 )
 from app.domains.sso.schemas.sso import SSODiscoverRequest, SSODiscoverResponse
 from app.domains.sso.services.sso_service import SSOService
+from app.interfaces.http.auth_cookies import (
+    clear_session_hint_cookie,
+    enforce_cookie_request_origin,
+    set_session_hint_cookie,
+    with_session_hint_cleared,
+)
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
@@ -58,6 +64,10 @@ from app.rate_limit import sliding_window
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 _REFRESH_COOKIE_NAME = "rudix_refresh_token"
+# Refresh failures that end the browser session: invalid, revoked, reused, cross-org.
+_REFRESH_REJECTED_STATUS_CODES = frozenset(
+    {status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN}
+)
 _repository = AuthRepository()
 _session_repository = AuthSessionRepository()
 _permission_service = PermissionService()
@@ -267,6 +277,7 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
         path=settings.app_auth_cookie_path,
         domain=settings.app_auth_cookie_domain,
     )
+    set_session_hint_cookie(response)
 
 
 def _clear_refresh_cookie(response: Response) -> None:
@@ -278,6 +289,7 @@ def _clear_refresh_cookie(response: Response) -> None:
         samesite=settings.app_auth_cookie_same_site,  # type: ignore[arg-type]
         domain=settings.app_auth_cookie_domain,
     )
+    clear_session_hint_cookie(response)
 
 
 def _hash_refresh_token(refresh_token: str) -> str:
@@ -607,6 +619,21 @@ async def refresh_access_token(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     payload: AuthRefreshRequest | None = None,
 ) -> AuthRefreshResponse:
+    enforce_cookie_request_origin(request, endpoint="refresh")
+    try:
+        return await _refresh_access_token(request, response, db_session, payload)
+    except HTTPException as exc:
+        if exc.status_code in _REFRESH_REJECTED_STATUS_CODES:
+            with_session_hint_cleared(exc)
+        raise
+
+
+async def _refresh_access_token(
+    request: Request,
+    response: Response,
+    db_session: AsyncSession,
+    payload: AuthRefreshRequest | None,
+) -> AuthRefreshResponse:
     if settings.auth_provider != AuthProvider.app:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -841,6 +868,7 @@ async def logout(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     payload: AuthLogoutRequest | None = None,
 ) -> AuthLogoutResponse:
+    enforce_cookie_request_origin(request, endpoint="logout")
     raw_refresh_token = _trim_to_none(request.cookies.get(_REFRESH_COOKIE_NAME))
     if raw_refresh_token is None and payload is not None:
         raw_refresh_token = _trim_to_none(payload.refresh_token)

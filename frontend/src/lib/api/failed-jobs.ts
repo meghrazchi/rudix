@@ -1,52 +1,21 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 export type FailedJobStatus = "failed" | "retrying" | "resolved" | "cancelled";
 
-export type FailedJobSummary = {
-  id: string;
-  organization_id: string;
-  task_id: string;
-  task_name: string;
-  job_type: string;
-  status: FailedJobStatus;
-  queue_name: string | null;
-  error_code: string | null;
-  attempt_count: number;
-  is_retryable: boolean;
-  entity_type: string | null;
-  entity_id: string | null;
-  last_attempted_at: string | null;
-  resolved_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type FailedJobSummary = Served<Schemas["FailedJobSummary"]>;
 
-export type FailedJobAuditEntry = {
-  id: string;
-  action: string;
-  performed_by_id: string | null;
-  note: string | null;
-  created_at: string;
-};
+export type FailedJobAuditEntry = Served<Schemas["FailedJobAuditEntry"]>;
 
-export type FailedJobDetail = FailedJobSummary & {
-  error_message: string | null;
-  metadata_json: Record<string, unknown>;
-  audit_log: FailedJobAuditEntry[];
-};
+export type FailedJobDetail = Served<Schemas["FailedJobDetail"]>;
 
-export type FailedJobsListResponse = {
-  items: FailedJobSummary[];
-  total: number;
-  page: number;
-  page_size: number;
-};
+export type FailedJobsListResponse = Served<Schemas["FailedJobsListResponse"]>;
 
-export type BulkRetryResponse = {
-  queued: string[];
-  skipped: string[];
-  skip_reasons: Record<string, string>;
-};
+export type BulkRetryResponse = Served<Schemas["BulkRetryResponse"]>;
 
 export type FailedJobsQuery = {
   job_type?: string;

@@ -304,6 +304,121 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   `robots.txt`, `llms.txt` and `icon.svg` are byte-identical; `sitemap.xml` is identical
   except `<lastmod>` (the build time).
 
+### Token storage and route gate (R07-09)
+
+- The access token is kept only in memory (`src/lib/auth/session-store.ts`, read through
+  `useAuthSession`, which uses `useSyncExternalStore`). Nothing token-bearing is written to
+  `localStorage`. A reload or a new tab calls the refresh endpoint with the HttpOnly refresh
+  cookie (`credentials: "include"`) and is signed out on `401`, so set
+  `NEXT_PUBLIC_AUTH_REFRESH_URL` in every deployment; without it a reload signs the user out.
+- `src/lib/auth-session.ts` keeps its exported names: `readSessionFromStorage()` returns the
+  in-memory session, `writeSessionToStorage()` writes memory, `clearSessionStorage()` clears
+  memory and the legacy keys.
+- Compatibility: a session stored by 0.6.x in `localStorage["rudix.session.v1"]` is loaded
+  once into memory (`NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ`, default on) and removed after the
+  first successful refresh or authenticated response, so signed-in users stay signed in across
+  the deploy. Removed in 0.8.0. Playwright specs still seed that key.
+- The dev-only local fallback (`NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=true` or
+  `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN`) has no refresh cookie and keeps a tab-scoped copy
+  in `sessionStorage["rudix.session.dev.v1"]`.
+- Refreshes across tabs are serial: the token-free lease `rudix.auth.refresh.lock.v1` is held
+  during each refresh, and a waiting tab runs its own refresh after the holder releases
+  (never reusing a rotated refresh token). Sign-out still reaches other tabs through the
+  auth-boundary storage event.
+- The SSO callback page moves the token from the query into memory and replaces the URL.
+- Route gate: with `RUDIX_ROUTE_GATE=enforce` (server env, default `off`), `src/proxy.ts`
+  redirects an app-route request without the `RUDIX_SESSION_HINT_COOKIE_NAME` cookie
+  (default `rudix_session_hint`, set by the backend when
+  `APP_AUTH_SESSION_HINT_COOKIE_ENABLED=true`) with `307` to
+  `/{locale}/login?next=...` before the shell renders. It never reads roles or claims; role
+  checks stay in `ProtectedAppLayout` and the backend. Enable the backend hint for one
+  refresh-token lifetime before enforcing the gate (docs/11 `## Authentication`).
+- `AUTHENTICATED_APP_ROUTE_SEGMENTS` now includes `knowledge`; a test derives the segment list
+  from `src/app/(app)` so new app routes cannot be missed. `robots.txt` now disallows
+  `/knowledge`.
+- E2E: the `chromium-route-gate` project runs `e2e/route-gate.spec.ts` against a third dev
+  server (`PLAYWRIGHT_GATE_FRONTEND_PORT`, default 3103, dist dir `.next-e2e-gate`).
+
+### Generated API client (R07-05)
+
+`npm run api:check-handwritten` (`scripts/check-api-handwritten-types.mjs`, run in CI directly after `api:check`) scans `src/lib/api/*.ts` and fails on an exported type or interface whose name ends in `Response`, `Item`, `Record`, `Summary`, `Detail`, `Entry`, `Result`, `Payload` or `Request` unless its declaration references `Schemas[`, `components[` or `operations[` (directly or through a local alias of the schema).
+
+The check is name-based. A response type with another name (for example `SecuritySession`, an alias of `SessionItem`) must still be derived from the schema; otherwise a backend rename does not fail `npm run typecheck`.
+
+If an endpoint has no typed 2xx schema in the OpenAPI export, or the type is a client-only view model, add its name to `config/api-handwritten-allowlist.json` with a one-line reason. Keep the list as short as possible: give the backend route a Pydantic `response_model` instead whenever the frontend consumes the body. The agent trace, metadata filter-documents and revoke-all routes were typed this way in R07-05 (see `docs/07_API_DESIGN.md`).
+
+See `## API type generation` for the regeneration workflow and the type helpers.
+
+### Component size (R07-10 part 2)
+
+Large components are split behaviour-preservingly: the original module path keeps
+its exports, and the extracted pieces live in sibling folders (each file under 500
+lines). Query keys moved into `queryKeys` in `src/lib/api/query.ts` (after
+`// anchor: D`) and return the same arrays as the former literals.
+
+Split in this part (every resulting file is under 500 lines; the original module
+path keeps its exports):
+
+- `components/connectors/ConnectorSetupPage.tsx` -> `components/connectors/setup/`
+  (config helpers, wizard steps, scope-risk analysis, permission review step, and
+  one setup guide per provider).
+- `components/admin/AdminPermissionsPage.tsx` -> `components/admin/permissions/`
+  (role matrix, resource access, conflicts, conflict drawer, access debugger tabs).
+- `components/settings/OrganizationSettingsTab.tsx` -> `components/settings/organization/`
+  (profile, workspace defaults, ingestion defaults and danger-zone sections plus
+  shared helpers).
+- `components/settings/SecuritySettingsTab.tsx` -> `components/settings/security/`
+  (one component per card plus shared helpers).
+- `components/settings/BillingSettingsTab.tsx` -> `components/settings/billing/`
+  (plan card, usage, quotas, invoices, contact and portal sections).
+- `components/user/UserProfilePage.tsx` -> `components/user/profile/`
+  (`useUserProfileController` hook plus identity, preferences, RAG defaults,
+  dialogs, action bar, account actions and toast views).
+- `components/admin/AdminFeedbackReviewPage.tsx` -> `components/admin/feedback-review/`
+  (controller hook, summary, filters, results, overlays, detail panel, convert modal).
+- `components/admin/AdminTeamPage.tsx` -> `components/admin/team/`
+  (controller hook, members and invitations sections, dialogs, role editor).
+- `components/admin/AdminMCPPage.tsx` -> `components/admin/mcp/`
+  (status card, capability and tag editors, trust controls, policy form, panels).
+- `components/admin/AdminAuditLogsPage.tsx` -> `components/admin/audit-logs/`
+  (controller hook, summary, filters, results table, event drawer).
+- `components/admin/AdminServiceAccountsPage.tsx` -> `components/admin/service-accounts/`
+  (account form, token form, tokens panel, cards, created-token banner).
+- `components/admin/AdminAIResponsePolicyPage.tsx` -> `components/admin/ai-response-policy/`
+  (policy form, preview panel, shared labels and helpers).
+
+Where a page held one large component, the state and mutations moved into a
+`useXxxController` hook and the JSX into view components that receive the
+controller, so behaviour, markup, classes and message keys are unchanged.
+
+Still over 500 lines in `src` after this part (62 files, excluding tests; owned by
+other packages or not in scope for `0.7.0`):
+
+- `components/admin/`: `AdminSecurityCenterPage`, `AdminSourceHealthPage`,
+  `AdminQueryAnalyticsPage`, `AdminWebhooksPage`, `AdminStatusPage`,
+  `AdminGovernancePage`, `AdminLandingPage`, `AdminMonitoringPage`, `AdminQuotasPage`,
+  `AdminAccessDebuggerPage`, `AdminUsagePage`, `AdminPermissionsAccessPage`,
+  `AdminFailedJobsPage`, `AdminSSOPage`, `AdminRolesPage`, `AdminPage`, `AdminSCIMPage`,
+  `AdminSafetyEvalPage`, `AdminApiKeysPage`, `AdminUsageAdoptionPage`,
+  `AdminModelProfilesPage`, `AdminModelProviderPage`, `AdminGraphObservabilityPage`,
+  `AdminTaxonomyPage`, `AdminObservabilityPage`.
+- `components/settings/`: `RagProfilesSection`, `ChunkingProfilesSection`,
+  `PromptTemplatesSection`.
+- `components/connectors/`: `ConnectorConnectionDetailPage`, `ConnectorsPage`.
+- `components/documents/`: `DocumentDetailPage`, `DocumentsPage`,
+  `DocumentsUploadModal`, `DocumentMetadataPanel`.
+- `components/evaluations/`: `EvaluationsPage`, `evaluation-ui`, `dataset-builder`,
+  `ab-test-panel`, `evaluation-view-model`, `run-comparison`, `evaluation-run-detail`,
+  `quality-gate-panel`, `evaluation-dialogs`, `model-profile-comparison`.
+- Other components: `collections/CollectionsPage`, `workspace/AgentWorkspacePage`,
+  `workspace/AgentTraceReplayPage`, `dashboard/DashboardPage`, `layout/AppShell`,
+  `chat/DocumentPreviewModal`, `chat/SourceScopeSelector`, `pipeline/RagPipelinePage`,
+  `graph/GraphExplorerPage`, `graph/GraphEntityDetailPage`,
+  `reports/ReportReferenceDashboards`.
+- Non-component modules: `lib/api/request.ts`, `lib/api/documents.ts`,
+  `lib/api/query.ts`, `lib/api/evaluations.ts`, `lib/public-site/solutions.ts`,
+  `test/msw/fixtures.ts`, `app/[locale]/(public)/organization-onboarding/page.tsx`.
+
 ### Bundle budgets (R07-03)
 
 CI fails when a route's first-load JavaScript grows past its budget.
@@ -616,6 +731,11 @@ NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=true
 NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN=
 NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN=
 NEXT_PUBLIC_AUTH_REFRESH_URL=
+# Read a 0.6.x localStorage session once (removed in 0.8.0)
+NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ=true
+# Server env, read per request by src/proxy.ts: off | enforce
+RUDIX_ROUTE_GATE=off
+RUDIX_SESSION_HINT_COOKIE_NAME=rudix_session_hint
 # Development-only: NEXT_PUBLIC_AUTH_LOCAL_FALLBACK, NEXT_PUBLIC_AUTH_LOCAL_PASSWORD,
 # NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK, NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_PASSWORD,
 # NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN and NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN
@@ -772,18 +892,27 @@ This exports the full schema with `backend/.venv/bin/python scripts/export_opena
 npm run api:check
 ```
 
-API modules such as `src/lib/api/documents.ts` and `src/lib/api/chat.ts` import and re-export types directly from the generated schema:
+Every client module in `src/lib/api` derives its response, item and request types from the generated schema (R07-05); the only exceptions are the infrastructure modules (`request.ts`, `session.ts`, `auth.ts`, `errors.ts`, `query.ts`, `index.ts`) and the few allowlisted view models described in `### Generated API client (R07-05)`:
 
 ```ts
 import type { components } from "@/lib/api/generated/schema";
+import type { Served } from "@/lib/api/schema-helpers";
 type Schemas = components["schemas"];
 
 export type DocumentListResponse = Schemas["DocumentListResponse"];
+export type ApiKey = Served<Schemas["ApiKeyResponse"]>;
 ```
 
-When you add or change a Pydantic model on the backend, run `npm run api:update-schema` and commit both `openapi.json` and the updated `schema.d.ts`.
+When you add or change a Pydantic model on the backend, run `npm run api:update-schema` and commit both `openapi.json` and the updated `schema.d.ts`. A renamed or removed response field then fails `npm run typecheck` in every component that reads it.
 
-`openapi-typescript` marks response fields that have a server default as required. Where the frontend declares a field itself (or keeps a server-defaulted field optional for fixtures and partial objects), the API modules use small type-only helpers: `Overlay<Generated, FrontendFields>` (frontend declarations replace the generated ones) and `WithOptional<Generated, Keys>`. `src/lib/api/generated/schema.test.ts` checks that every other field still matches the generated schema.
+The type-only helpers live in `src/lib/api/schema-helpers.ts`:
+
+- `Served<T>` marks every field of a response type as present (FastAPI serialises defaults), recursively. Use it for response types only. Do not use it for routes that set `response_model_exclude_unset` (the agent trace routes), where optional keys can be absent.
+- `Overlay<Generated, FrontendFields>` replaces fields with the frontend's own declaration, for example a status the schema types as `string` but the UI narrows to a union.
+- `WithOptional<Generated, Keys>` keeps server-defaulted fields optional in request bodies and in fixtures.
+- `WithRequired<Generated, Keys>` keeps list fields the server always sends required.
+
+`src/lib/api/generated/schema.test.ts` checks that every other field still matches the generated schema.
 
 ## Testing
 

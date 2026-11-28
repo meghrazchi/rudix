@@ -1,4 +1,9 @@
+import type { Overlay, Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 // ---------------------------------------------------------------------------
 // Workflow types
@@ -15,73 +20,32 @@ export type WorkflowStatus = "active" | "archived";
 
 export type ScopeMode = "all" | "collection" | "docs" | "none";
 
-export type WorkflowStep = {
-  label: string;
-  query_template: string | null;
-  scope: ScopeMode;
-  collection_ids: string[];
-};
+export type WorkflowStep = Served<Schemas["WorkflowStepResponse"]>;
 
-export type WorkflowResponse = {
-  workflow_id: string;
-  organization_id: string;
-  created_by_id: string | null;
-  name: string;
-  description: string | null;
-  workflow_type: WorkflowType;
-  status: WorkflowStatus;
-  steps: WorkflowStep[];
-  role_scope: string[] | null;
-  collection_scope_ids: string[] | null;
-  verified_knowledge_card_id: string | null;
-  use_count: number;
-  created_at: string;
-  updated_at: string;
-};
+export type WorkflowResponse = Overlay<
+  Served<Schemas["WorkflowResponse"]>,
+  { workflow_type: WorkflowType; status: WorkflowStatus }
+>;
 
-export type WorkflowListResponse = {
-  items: WorkflowResponse[];
-  total: number;
-  limit: number;
-  offset: number;
-};
+export type WorkflowListResponse = Overlay<
+  Served<Schemas["WorkflowListResponse"]>,
+  { items: WorkflowResponse[] }
+>;
 
-export type CreateWorkflowRequest = {
-  name: string;
-  description?: string | null;
-  workflow_type?: WorkflowType;
-  steps?: WorkflowStep[];
-  role_scope?: string[] | null;
-  collection_scope_ids?: string[] | null;
-  verified_knowledge_card_id?: string | null;
-};
+export type CreateWorkflowRequest = Schemas["CreateWorkflowRequest"];
 
-export type UpdateWorkflowRequest = Partial<CreateWorkflowRequest>;
+export type UpdateWorkflowRequest = Schemas["UpdateWorkflowRequest"];
 
 // ---------------------------------------------------------------------------
 // Preference types
 // ---------------------------------------------------------------------------
 
-export type MemoryPreferenceResponse = {
-  preference_id: string;
-  organization_id: string;
-  user_id: string;
-  preferred_scope: ScopeMode | null;
-  preferred_collection_ids: string[] | null;
-  rag_profile_id: string | null;
-  answer_language: string | null;
-  extra_defaults: Record<string, unknown> | null;
-  created_at: string;
-  updated_at: string;
-};
+export type MemoryPreferenceResponse = Served<
+  Schemas["MemoryPreferenceResponse"]
+>;
 
-export type UpsertMemoryPreferenceRequest = {
-  preferred_scope?: ScopeMode | null;
-  preferred_collection_ids?: string[] | null;
-  rag_profile_id?: string | null;
-  answer_language?: string | null;
-  extra_defaults?: Record<string, unknown> | null;
-};
+export type UpsertMemoryPreferenceRequest =
+  Schemas["UpsertMemoryPreferenceRequest"];
 
 // ---------------------------------------------------------------------------
 // Workflow API

@@ -65,6 +65,9 @@ function SSOCallbackContent() {
         accessToken,
         refreshToken: null,
       });
+      // The token now lives in memory only (R07-09); drop it from the URL
+      // and the history entry before navigating away.
+      window.history.replaceState(null, "", window.location.pathname);
       router.replace(
         resolveAuthenticatedNavigationTarget(next, {
           userId,

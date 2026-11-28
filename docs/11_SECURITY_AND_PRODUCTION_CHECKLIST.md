@@ -43,6 +43,52 @@ For app-managed auth, also require:
 - Explicit logout-all support for revoking all active sessions.
 - Safe session listing endpoints that never expose the raw refresh token.
 
+Browser token storage and route gate (R07-09, 0.7.0):
+
+- The access token lives only in JavaScript memory (`src/lib/auth/session-store.ts`). No
+  flow writes it to `localStorage`; a reload or new tab restores the session by calling
+  `POST /auth/token/refresh` with the HttpOnly refresh cookie (needs
+  `NEXT_PUBLIC_AUTH_REFRESH_URL`).
+- Sessions written by 0.6.x under `localStorage["rudix.session.v1"]` are read once as a
+  fallback (`NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ`, default on) and the key is removed after
+  the first successful refresh or authenticated response. The fallback is removed in 0.8.0.
+- The dev-only local sign-in fallback keeps a tab-scoped copy in `sessionStorage`
+  (`rudix.session.dev.v1`); the build refuses that fallback in staging and production.
+- Tabs never refresh concurrently: a rotated refresh token presented twice revokes all of
+  the user's sessions. A token-free lease in `localStorage` (`rudix.auth.refresh.lock.v1`)
+  serialises refreshes; a waiting tab runs its own refresh after the holder releases.
+- Session-hint cookie (`APP_AUTH_SESSION_HINT_COOKIE_ENABLED`, default `false`): value `"1"`,
+  no secret, no claims, no role. It only tells the frontend proxy that a refresh cookie
+  probably exists and grants nothing; every API call still needs a valid bearer token.
+- Cookie flags:
+  - refresh cookie (unchanged): `HttpOnly`, `Secure=APP_AUTH_COOKIE_SECURE` (forced on in
+    production), `SameSite=APP_AUTH_COOKIE_SAME_SITE` (default `lax`),
+    `Path=APP_AUTH_COOKIE_PATH` (default `/api/v1/auth`), `Domain=APP_AUTH_COOKIE_DOMAIN`
+    (default host-only), `Max-Age=APP_AUTH_REFRESH_TOKEN_TTL_SECONDS`.
+  - session hint: `HttpOnly`, same `Secure` and `SameSite` as the refresh cookie, `Path=/`,
+    `Domain=APP_AUTH_SESSION_HINT_COOKIE_DOMAIN` (for example `.getrudix.com` so the
+    frontend host receives it), same `Max-Age`. Set on login, refresh and SSO; cleared on
+    logout, logout-all and every refresh `401` or `403` rejection (invalid, revoked or
+    reused token).
+- CSRF defence: `SameSite=Lax` plus the `CORS_ORIGINS` allowlist with credentials. When
+  `APP_AUTH_COOKIE_SAME_SITE=none`, `POST /auth/token/refresh` and `POST /auth/logout` also
+  reject a missing or foreign `Origin` with `403 csrf_origin_rejected`
+  (`rudix_auth_csrf_origin_rejections_total{endpoint,reason}`, log
+  `auth.csrf_origin_rejected`).
+- Route gate: with `RUDIX_ROUTE_GATE=enforce` (frontend server env, read per request,
+  default `off`), `src/proxy.ts` answers a request for an app route without the hint cookie
+  with a `307` to `/{locale}/login?next=...`, before any shell HTML is rendered. It never
+  reads roles or claims; role and permission checks stay in `ProtectedAppLayout` and the
+  backend.
+- Rollout order: deploy, turn on `APP_AUTH_SESSION_HINT_COOKIE_ENABLED` and leave it on for one
+  refresh-token lifetime (`APP_AUTH_REFRESH_TOKEN_TTL_SECONDS`) so every live session has
+  the hint, then set `RUDIX_ROUTE_GATE=enforce`. Turning the gate on earlier sends users
+  without the hint to the login page once (the login page's refresh then sets the hint).
+  Never enforce the gate while the hint is disabled or its `Domain` does not cover the
+  frontend host: the proxy would then never see the cookie, and a signed-in user would be
+  sent back and forth between the login page and the app. Check with a signed-in browser
+  that the frontend host receives `rudix_session_hint` before enforcing.
+
 Account creation (no self-registration):
 
 - There is no public signup. The backend exposes no register endpoint, and the frontend

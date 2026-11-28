@@ -302,7 +302,7 @@ describe("ChatPage", () => {
         steps_executed: 1,
         tool_calls_executed: 1,
         total_tokens: 20,
-        total_cost_usd: 0.0004,
+        total_cost_usd: "0.0004",
         outcome: {
           answer: "Agent answer",
           citations: [],
@@ -349,7 +349,7 @@ describe("ChatPage", () => {
       costs: {},
       outcome: {},
       observations: {},
-      total_cost_usd: 0.0004,
+      total_cost_usd: "0.0004",
       trace_request_id: "req-1",
       error_message: null,
       error_details: {},
@@ -1681,7 +1681,7 @@ describe("ChatPage", () => {
         steps_executed: 3,
         tool_calls_executed: 2,
         total_tokens: 180,
-        total_cost_usd: 0.0022,
+        total_cost_usd: "0.0022",
         outcome: {
           answer: "Agent generated grounded answer.",
           citations: [
@@ -1723,7 +1723,7 @@ describe("ChatPage", () => {
       costs: {},
       outcome: {},
       observations: {},
-      total_cost_usd: 0.0022,
+      total_cost_usd: "0.0022",
       trace_request_id: "trace-agent",
       error_message: null,
       error_details: {},
@@ -1973,7 +1973,7 @@ describe("ChatPage", () => {
         steps_executed: 1,
         tool_calls_executed: 1,
         total_tokens: 20,
-        total_cost_usd: 0.0002,
+        total_cost_usd: "0.0002",
         outcome: null,
         error: {
           code: "approval_required",
@@ -2002,7 +2002,7 @@ describe("ChatPage", () => {
       costs: {},
       outcome: {},
       observations: {},
-      total_cost_usd: 0.0002,
+      total_cost_usd: "0.0002",
       trace_request_id: "trace-approval",
       error_message: "Tool execution requires human approval.",
       error_details: {},
