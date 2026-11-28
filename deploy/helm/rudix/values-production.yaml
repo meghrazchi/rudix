@@ -34,6 +34,10 @@ config:
     # Readiness gates only on the stores every request needs (contract 5.2.6, B1 setting).
     READINESS_REQUIRED_DEPENDENCIES: postgres,redis
     # v080-C2
+    DB_PGBOUNCER_MODE: "false"
+    DB_REPLICA_MAX_LAG_SECONDS: "30"
+    DB_REPLICA_LAG_CHECK_INTERVAL_SECONDS: "10"
+    DB_REPLICA_LAG_QUERY_TIMEOUT_MS: "500"
     # v080-D1
 
 # owner: S1

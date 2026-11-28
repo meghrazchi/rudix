@@ -61,6 +61,13 @@ config:
     # Readiness gates only on the stores every request needs (contract 5.2.6, B1 setting).
     READINESS_REQUIRED_DEPENDENCIES: postgres,redis
     # v080-C2
+    # Must equal database.pgbouncerMode: true when DATABASE_URL points at a transaction pooler.
+    DB_PGBOUNCER_MODE: "false"
+    # Reporting routes read from DATABASE_REPLICA_URL only while the sampled lag is at most
+    # this many seconds (R08-04); unset replica URL: everything stays on the primary.
+    DB_REPLICA_MAX_LAG_SECONDS: "30"
+    DB_REPLICA_LAG_CHECK_INTERVAL_SECONDS: "10"
+    DB_REPLICA_LAG_QUERY_TIMEOUT_MS: "500"
     # v080-D1
 
 # owner: S1
@@ -432,11 +439,57 @@ connectionBudget:
   enginesPerProcess: 1
 
 # owner: C2
-database: {}
+database:
+  # Key names in secrets.existingSecret, never values (docs/28, "Database"). The chart reads
+  # the Secret with envFrom, so each key arrives under its own name:
+  #   DATABASE_URL              application role (or the PgBouncer Service when pgbouncer is on)
+  #   DATABASE_REPLICA_URL      optional read replica for reporting routes (read-only role)
+  #   DATABASE_MIGRATION_URL    schema owner for the migrate Job (migrations.useMigrationUrl)
+  #   DATABASE_MAINTENANCE_URL  optional BYPASSRLS role for cross-tenant beat tasks
+  secretKeys:
+    url: DATABASE_URL
+    replicaUrl: DATABASE_REPLICA_URL
+    migrationUrl: DATABASE_MIGRATION_URL
+    maintenanceUrl: DATABASE_MAINTENANCE_URL
+  # true when DATABASE_URL goes through PgBouncer in transaction mode (the chart pooler or the
+  # provider's). Must equal config.env.DB_PGBOUNCER_MODE; the render fails when they differ.
+  pgbouncerMode: false
 
 # owner: C2
 pgbouncer:
+  # PgBouncer in transaction mode between the application pods and PostgreSQL (R08-04). Off:
+  # the pods connect to the database (or the managed provider's pooler) directly.
   enabled: false
+  # Required when enabled: an image the operator trusts, by digest; no default is guessed.
+  image: ""
+  imagePullPolicy: IfNotPresent
+  replicas: 2
+  # Container and Service port, named `postgres`.
+  port: 6432
+  # Required when enabled: existing Secret with pgbouncer.ini (pool_mode = transaction,
+  # listen_port = port, no logfile or pidfile) and userlist.txt (or auth_query settings).
+  configSecretName: ""
+  configMountPath: /etc/pgbouncer
+  # Default: run pgbouncer on the mounted ini. Images with their own entrypoint may need [].
+  command: ["pgbouncer"]
+  args: ["/etc/pgbouncer/pgbouncer.ini"]
+  # Mirror of pgbouncer.ini for the connection budget: server connections per pod are
+  # default_pool_size + reserve_pool_size (one database and user pair); max_client_conn
+  # bounds the application side.
+  defaultPoolSize: 20
+  reservePoolSize: 5
+  maxClientConnections: 1000
+  terminationGracePeriodSeconds: 30
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
 
 # owner: B3
 tracing:
