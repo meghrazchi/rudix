@@ -10,14 +10,17 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.realtime.publisher import record_realtime_event
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.documents.repositories.processing_claims import (
+    ClaimOutcome,
     ClaimResult,
     DocumentProcessingClaimRepository,
 )
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
+from app.domains.realtime.events import document_status_events
 from app.models.document import Document
 from app.models.enums import DocumentStatus, EvaluationRunStatus
 from app.workers.async_runtime import run_async
@@ -55,7 +58,7 @@ async def _claim_document_for_processing_async(
     stale_before = now - timedelta(seconds=settings.document_processing_stale_seconds)
     async with SessionLocal() as session:
         async with session.begin():
-            return await _claim_repository.claim_for_processing(
+            result = await _claim_repository.claim_for_processing(
                 session,
                 document_id=parsed_id,
                 task_id=task_id,
@@ -65,6 +68,33 @@ async def _claim_document_for_processing_async(
                 skip_statuses=skip_statuses,
                 forbidden_statuses=forbidden_statuses,
             )
+            if result.outcome == ClaimOutcome.claimed:
+                await _record_processing_event(session, parsed_id)
+            return result
+
+
+async def _record_processing_event(session: AsyncSession, document_id: UUID) -> None:
+    """The claim is a Core ``UPDATE`` the ORM observer cannot see (R07-07)."""
+    if not settings.realtime_events_enabled:
+        return
+    row = (
+        await session.execute(
+            select(Document.organization_id, Document.uploaded_by_user_id).where(
+                Document.id == document_id
+            )
+        )
+    ).first()
+    if row is None:
+        return
+    record_realtime_event(
+        session,
+        document_status_events(
+            organization_id=row[0],
+            document_id=document_id,
+            status=DocumentStatus.processing.value,
+            uploader_id=row[1],
+        ),
+    )
 
 
 async def _set_document_status_async(

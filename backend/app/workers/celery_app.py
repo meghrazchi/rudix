@@ -232,6 +232,10 @@ def _initialize_worker(*_: object, **__: object) -> None:
     from app.db.session import engine
 
     run_async(engine.dispose(close=False))
+    from app.application.realtime.publisher import use_worker_redis
+
+    # R07-07: realtime events from worker transactions use a process-local Redis client.
+    use_worker_redis()
     run_async(init_neo4j())
     _bootstrap_qdrant()
 

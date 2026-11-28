@@ -135,17 +135,47 @@ class NullRunEvents:
         del event, payload
 
 
+# Run-level events also go to the per-user realtime stream (R07-07) as ``agent.run``.
+_RUN_LEVEL_EVENTS = frozenset({RUN_STATUS, RUN_WAITING_APPROVAL}) | TERMINAL_EVENTS
+
+
 class RedisRunEvents:
     """Buffer and publish one run's events; the run's lease holder is the only writer."""
 
-    def __init__(self, redis: Any, *, organization_id: UUID | str, run_id: UUID | str) -> None:
+    def __init__(
+        self,
+        redis: Any,
+        *,
+        organization_id: UUID | str,
+        run_id: UUID | str,
+        user_id: UUID | str | None = None,
+    ) -> None:
         self._redis = redis
         self._organization_id = organization_id
         self._run_id = run_id
+        self._user_id = user_id
         self.failed = False
         self.emitted = 0
 
+    async def _publish_realtime(self, event: str, payload: dict[str, Any]) -> None:
+        status = payload.get("status")
+        if event not in _RUN_LEVEL_EVENTS or not isinstance(status, str):
+            return
+        from app.application.realtime.publisher import publish_now
+        from app.domains.realtime.events import agent_run_event
+
+        await publish_now(
+            agent_run_event(
+                organization_id=self._organization_id,
+                run_id=self._run_id,
+                status=status,
+                user_id=self._user_id,
+            ),
+            redis=self._redis,
+        )
+
     async def emit(self, event: str, payload: dict[str, Any]) -> None:
+        await self._publish_realtime(event, payload)
         if self.failed:
             return
         ttl_ms = settings.agent_stream_buffer_ttl_seconds * 1000
@@ -173,11 +203,15 @@ class RedisRunEvents:
 
 
 def build_run_events(
-    redis: Any, *, organization_id: UUID | str, run_id: UUID | str
+    redis: Any,
+    *,
+    organization_id: UUID | str,
+    run_id: UUID | str,
+    user_id: UUID | str | None = None,
 ) -> RunEventSink:
     if redis is None:
         return NullRunEvents()
-    return RedisRunEvents(redis, organization_id=organization_id, run_id=run_id)
+    return RedisRunEvents(redis, organization_id=organization_id, run_id=run_id, user_id=user_id)
 
 
 def result_event(result: AgentRuntimeResult) -> tuple[str, dict[str, Any]] | None:

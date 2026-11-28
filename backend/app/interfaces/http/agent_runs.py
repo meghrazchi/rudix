@@ -433,7 +433,10 @@ async def create_agent_run(
             request=payload.request,
             request_id=request_id,
             events_factory=lambda run_id: build_run_events(
-                redis_module.redis_client, organization_id=organization_id, run_id=run_id
+                redis_module.redis_client,
+                organization_id=organization_id,
+                run_id=run_id,
+                user_id=user_id,
             ),
         )
     except HTTPException:

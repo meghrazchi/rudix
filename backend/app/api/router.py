@@ -55,6 +55,7 @@ from app.interfaces.http import (
     documents,
     evaluation_sets,
     evaluations,
+    events,
     failed_jobs,
     feature_flags,
     feedback_review,
@@ -191,5 +192,6 @@ protected_router.include_router(admin_chat_tools.router)
 protected_router.include_router(admin_org_memory.router)
 protected_router.include_router(agent_workflows.router)
 protected_router.include_router(org_memory.router)
+protected_router.include_router(events.router)
 
 api_router.include_router(protected_router)

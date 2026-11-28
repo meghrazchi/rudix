@@ -67,6 +67,7 @@ from app.core.settings.rag import (
     RagSettings,
     validate_rag_thresholds,
 )
+from app.core.settings.realtime import RealtimeSettings
 from app.core.settings.redis_rate_limit import (
     RedisRateLimitSettings,
     validate_timeouts,
@@ -122,6 +123,7 @@ class Settings(
     EmailBotsSettings,
     FeaturesSettings,
     WorkersSettings,
+    RealtimeSettings,
     BaseSettings,
 ):
     model_config = SettingsConfigDict(

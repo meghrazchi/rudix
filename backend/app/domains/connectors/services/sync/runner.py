@@ -16,6 +16,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.application.realtime.publisher import record_realtime_event
 from app.core.config import settings
 from app.core.logging import get_logger, log_connector_event
 from app.core.metrics_workers import record_connector_sync_deferred
@@ -31,6 +32,7 @@ from app.domains.connectors.services.sync.context import LoopState, RunContext
 from app.domains.connectors.services.sync.fetcher import RateLimitDeferred, provider_source_id
 from app.domains.connectors.services.sync.pages import SyncPager, is_cancelled_now, load_run
 from app.domains.connectors.services.sync.scope import SessionFactory, SyncScope, make_scope
+from app.domains.realtime.events import connector_sync_event
 from app.models.connector import ConnectorConnection
 from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
 from app.models.enums import (
@@ -85,6 +87,29 @@ def _run_result(
         error_message=error_message,
         requeue_after_seconds=requeue_after_seconds,
         pages_committed=run.pages_committed or 0,
+    )
+
+
+async def _record_sync_status(session: AsyncSession, run: ConnectorSyncRun) -> None:
+    """The lease is a Core ``UPDATE`` the ORM observer cannot see (R07-07)."""
+    if not settings.realtime_events_enabled:
+        return
+    creator_id = (
+        await session.execute(
+            select(ConnectorConnection.created_by_user_id).where(
+                ConnectorConnection.id == run.connection_id
+            )
+        )
+    ).scalar_one_or_none()
+    record_realtime_event(
+        session,
+        connector_sync_event(
+            organization_id=run.organization_id,
+            connection_id=run.connection_id,
+            run_id=run.id,
+            status=run.status,
+            creator_id=creator_id,
+        ),
     )
 
 
@@ -154,6 +179,7 @@ class SyncRunner:
             record_connector_sync_deferred("lease_held")
             return _run_result(run, run.status, error_message="run is leased by another worker")
         await session.refresh(run)
+        await _record_sync_status(session, run)
         if was_queued:
             await engine._audit(
                 session,

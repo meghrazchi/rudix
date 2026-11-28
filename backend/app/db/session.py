@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+from app.application.realtime.publisher import install_realtime_listeners
 from app.core.cache_invalidation import install_cache_invalidation_listeners
 from app.core.config import Settings, settings
 from app.core.db_metrics import TimedAsyncAdaptedQueuePool, install_db_metrics
@@ -20,6 +21,7 @@ from app.db.tenant_context import RLS_MAINTENANCE_INFO_KEY, install_sqlalchemy_t
 
 install_sqlalchemy_tenant_guard()
 install_cache_invalidation_listeners()
+install_realtime_listeners()
 
 
 def _prepared_statement_name() -> str:

@@ -17,6 +17,12 @@ from typing import Any
 # R07-09: refresh/logout with ``SameSite=None`` cookies from a missing or foreign Origin.
 CSRF_ORIGIN_REJECTED = "csrf_origin_rejected"
 CSRF_ORIGIN_REJECTED_MESSAGE = "Request origin is not allowed"
+# R07-07: ``GET /events/stream`` without a reachable Redis (503) or above the per-user
+# connection cap (429).
+REALTIME_UNAVAILABLE = "realtime_unavailable"
+REALTIME_UNAVAILABLE_MESSAGE = "Realtime events are temporarily unavailable"
+REALTIME_CONNECTION_LIMIT = "realtime_connection_limit"
+REALTIME_CONNECTION_LIMIT_MESSAGE = "Too many open realtime streams for this user"
 
 DETAIL_ERROR_CODES: dict[str, str] = {
     "AI response policy not found": "AI_RESPONSE_POLICY_NOT_FOUND",

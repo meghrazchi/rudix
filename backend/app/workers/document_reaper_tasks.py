@@ -26,6 +26,7 @@ from uuid import UUID
 
 from sqlalchemy import and_, delete, func, select
 
+from app.application.realtime.publisher import record_realtime_event
 from app.core.config import settings
 from app.core.document_errors import build_document_error_details, encode_document_error
 from app.core.logging import log_document_event
@@ -34,6 +35,7 @@ from app.db.session import maintenance_session
 from app.domains.documents.repositories.processing_claims import (
     DocumentProcessingClaimRepository,
 )
+from app.domains.realtime.events import document_status_events
 from app.models.document import Document
 from app.models.document_processing import DocumentProcessingStage, DocumentStageArtifact
 from app.models.enums import DocumentStatus
@@ -120,6 +122,16 @@ async def _release_stale_rows(now: datetime) -> tuple[list[_ReapedRow], list[_Re
                     ):
                         exhausted.append(
                             _ReapedRow(row.id, row.organization_id, row.uploaded_by_user_id, 0)
+                        )
+                        # Core UPDATE: the ORM observer cannot see it (R07-07).
+                        record_realtime_event(
+                            session,
+                            document_status_events(
+                                organization_id=row.organization_id,
+                                document_id=row.id,
+                                status=DocumentStatus.failed.value,
+                                uploader_id=row.uploaded_by_user_id,
+                            ),
                         )
                     continue
                 if await _claim_repository.mark_reaped(session, document_id=row.id, now=now):

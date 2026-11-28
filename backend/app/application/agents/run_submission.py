@@ -116,7 +116,9 @@ def queued_result(run: AgentRun) -> AgentRuntimeResult:
 
 async def publish(session: AsyncSession, *, run: AgentRun, redis: Any) -> None:
     """After the commit: tell stream readers the run is queued, then publish the task."""
-    events = build_run_events(redis, organization_id=run.organization_id, run_id=run.id)
+    events = build_run_events(
+        redis, organization_id=run.organization_id, run_id=run.id, user_id=run.user_id
+    )
     await events.emit(RUN_STATUS, {"status": AgentRunStatus.queued.value})
     await outbox.publish_after_commit(session)
     log_agent_event(

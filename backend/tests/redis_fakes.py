@@ -178,6 +178,21 @@ class _Store:
         end = len(items) if stop == -1 else stop + 1
         return list(items[start:end])
 
+    def ltrim(self, key: str, start: int, stop: int) -> None:
+        """Keep ``start..stop`` (inclusive, negative from the end) like Redis (R07-07)."""
+        self._purge(key)
+        items = self.lists.get(key)
+        if items is None:
+            return
+        size = len(items)
+        first = max(0, start + size if start < 0 else start)
+        last = min(size - 1, stop + size if stop < 0 else stop)
+        kept = items[first : last + 1] if first <= last else []
+        if kept:
+            self.lists[key] = kept
+        else:
+            self.delete(key)
+
 
 class FakeRedis:
     def __init__(self, *, clock: Callable[[], int] | None = None) -> None:
@@ -216,6 +231,15 @@ class FakeRedis:
     async def incr(self, key: str) -> int:
         self._count("INCR")
         return self.keyspace.incr(key)
+
+    async def decr(self, key: str) -> int:
+        self._count("DECR")
+        value = int(self.keyspace.get(key) or 0) - 1
+        deadline = self.keyspace.expires_at_ms.get(key)
+        self.keyspace.set(key, str(value))
+        if deadline is not None:
+            self.keyspace.expires_at_ms[key] = deadline
+        return value
 
     async def delete(self, *keys: str) -> int:
         self._count("DEL")
@@ -287,6 +311,11 @@ class FakeRedis:
     async def lrange(self, key: str, start: int, stop: int) -> list[str]:
         self._count("LRANGE")
         return self.keyspace.lrange(key, start, stop)
+
+    async def ltrim(self, key: str, start: int, stop: int) -> bool:
+        self._count("LTRIM")
+        self.keyspace.ltrim(key, start, stop)
+        return True
 
     async def llen(self, key: str) -> int:
         self._count("LLEN")
