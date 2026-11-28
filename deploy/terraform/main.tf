@@ -8,13 +8,18 @@ locals {
   # `depends_on: minio-init: condition: service_completed_successfully`,
   # which Compose enforces via normal dependency resolution (unrelated to
   # `--wait`) the moment the migration step below starts the api container.
-  # Per environment: production compose has no neo4j service, so the default
-  # omits it; staging appends neo4j through TF_VAR_infra_services.
+  # Per environment: neo4j sits behind the `graph` profile in both compose files
+  # (R08-12) and only staging runs it, so the default omits it; staging appends
+  # neo4j through TF_VAR_infra_services (naming a service also enables its profile).
   infra_services = var.infra_services
   # RabbitMQ configuration (R06-03) that the staging and production compose files mount
   # read-only from ./rabbitmq next to them. Without these files Docker creates empty
   # directories at the mount paths and RabbitMQ does not start.
   rabbitmq_config_dir = "${path.module}/../../infra/rabbitmq"
+  # Edge proxy (R08-01): the Caddyfile and its snippets, mounted read-only from ./edge next to
+  # the compose file. Operator TLS files (EDGE_TLS_MODE=files) stay on the host in ./edge/certs.
+  edge_config_dir = "${path.module}/../compose/edge"
+  edge_files      = ["Caddyfile", "tls_acme", "tls_files", "noindex_true", "noindex_false", "matomo_on", "matomo_off"]
   # The remote backup gate runs in the release workflow
   # (deploy/scripts/check_remote_backups.sh) before Terraform starts, so it is
   # no longer repeated here.
@@ -25,6 +30,9 @@ RUDIX_WORKER_IMAGE=${var.worker_image}
 RUDIX_FRONTEND_IMAGE=${var.frontend_image}
 NEO4J_USERNAME=${var.neo4j_username}
 NEO4J_PASSWORD=${var.neo4j_password}
+%{if var.compose_profiles != ""~}
+COMPOSE_PROFILES=${var.compose_profiles}
+%{endif~}
 EOT
   # Kept out of deploy_env_content deliberately: that file is written
   # persistently to the host and consumed by every service on every
@@ -47,6 +55,8 @@ resource "null_resource" "compose_rollout" {
     compose_sha      = filesha256(var.compose_file_path)
     rabbitmq_conf    = filesha256("${local.rabbitmq_config_dir}/rabbitmq.conf")
     rabbitmq_plugins = filesha256("${local.rabbitmq_config_dir}/enabled_plugins")
+    edge_config      = sha256(join(",", [for name in local.edge_files : filesha256("${local.edge_config_dir}/${name}")]))
+    compose_profiles = var.compose_profiles
     env_sha          = sha256(var.env_file_content)
     api_image        = var.api_image
     worker_image     = var.worker_image
@@ -72,6 +82,7 @@ resource "null_resource" "compose_rollout" {
   provisioner "remote-exec" {
     inline = [
       "mkdir -p '${var.app_path}/rabbitmq'",
+      "mkdir -p '${var.app_path}/edge'",
     ]
   }
 
@@ -88,6 +99,41 @@ resource "null_resource" "compose_rollout" {
   provisioner "file" {
     source      = "${local.rabbitmq_config_dir}/enabled_plugins"
     destination = "${var.app_path}/rabbitmq/enabled_plugins"
+  }
+
+  provisioner "file" {
+    source      = "${local.edge_config_dir}/Caddyfile"
+    destination = "${var.app_path}/edge/Caddyfile"
+  }
+
+  provisioner "file" {
+    source      = "${local.edge_config_dir}/tls_acme"
+    destination = "${var.app_path}/edge/tls_acme"
+  }
+
+  provisioner "file" {
+    source      = "${local.edge_config_dir}/tls_files"
+    destination = "${var.app_path}/edge/tls_files"
+  }
+
+  provisioner "file" {
+    source      = "${local.edge_config_dir}/noindex_true"
+    destination = "${var.app_path}/edge/noindex_true"
+  }
+
+  provisioner "file" {
+    source      = "${local.edge_config_dir}/noindex_false"
+    destination = "${var.app_path}/edge/noindex_false"
+  }
+
+  provisioner "file" {
+    source      = "${local.edge_config_dir}/matomo_on"
+    destination = "${var.app_path}/edge/matomo_on"
+  }
+
+  provisioner "file" {
+    source      = "${local.edge_config_dir}/matomo_off"
+    destination = "${var.app_path}/edge/matomo_off"
   }
 
   provisioner "file" {

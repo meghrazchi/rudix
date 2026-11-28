@@ -656,6 +656,8 @@ jobs:
           TF_VAR_backup_check_enabled: "false"
           # Staging compose defines neo4j; production uses the variable default.
           TF_VAR_infra_services: "postgres rabbitmq redis minio qdrant neo4j"
+          # Compose profiles (R08-12): staging keeps running Neo4j.
+          TF_VAR_compose_profiles: graph
           # Optional: creates the first admin account, but only when the
           # database has zero organizations (safe to leave wired in on every
           # deploy). No-ops if these secrets aren't set.
@@ -1046,6 +1048,8 @@ jobs:
           TF_VAR_postgres_backup_path: ${{ secrets.PRODUCTION_POSTGRES_BACKUP_PATH }}
           TF_VAR_minio_backup_path: ${{ secrets.PRODUCTION_MINIO_BACKUP_PATH }}
           TF_VAR_qdrant_backup_path: ${{ secrets.PRODUCTION_QDRANT_BACKUP_PATH }}
+          # Compose profiles (R08-12): production keeps running Matomo.
+          TF_VAR_compose_profiles: analytics
           # Optional: creates the first admin account, but only when the
           # database has zero organizations (safe to leave wired in on every
           # deploy). No-ops if these secrets aren't set.
