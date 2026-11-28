@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import require_roles
+from app.auth.dependencies import get_reporting_db_session, require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.db.session import get_db_session
 from app.domains.reports.schemas.reports import (
@@ -74,7 +74,7 @@ async def create_report_event(
 async def get_report(
     principal: ReportPrincipal,
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
-    session: Annotated[AsyncSession, Depends(get_db_session)],
+    session: Annotated[AsyncSession, Depends(get_reporting_db_session)],
     from_at: Annotated[datetime | None, Query(alias="from")] = None,
     to_at: Annotated[datetime | None, Query(alias="to")] = None,
     category: ReportCategory | None = None,
@@ -121,7 +121,7 @@ async def get_report(
 async def get_answer_quality_report(
     principal: AnswerQualityPrincipal,
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
-    session: Annotated[AsyncSession, Depends(get_db_session)],
+    session: Annotated[AsyncSession, Depends(get_reporting_db_session)],
     from_at: Annotated[datetime | None, Query(alias="from")] = None,
     to_at: Annotated[datetime | None, Query(alias="to")] = None,
     collection_id: UUID | None = None,
