@@ -105,10 +105,13 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: frontend
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Run Playwright tests
         working-directory: frontend
+        env:
+          # Adds the Firefox and WebKit projects (smoke, public SEO, responsive).
+          PLAYWRIGHT_EXTRA_BROWSERS: "true"
         run: npm run test:e2e
 
       - name: Upload Playwright report

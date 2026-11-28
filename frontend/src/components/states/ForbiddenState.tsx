@@ -9,6 +9,10 @@ type ForbiddenStateProps = {
   requestId?: string | null;
   backHref?: string;
   backLabel?: string;
+  /** Overrides for the translated eyebrow, region label and trace label. */
+  eyebrow?: string;
+  ariaLabel?: string;
+  traceIdLabel?: string;
   compact?: boolean;
 };
 
@@ -18,6 +22,9 @@ export function ForbiddenState({
   requestId,
   backHref = "/dashboard",
   backLabel,
+  eyebrow,
+  ariaLabel,
+  traceIdLabel,
   compact = false,
 }: ForbiddenStateProps) {
   const t = useTranslations("states");
@@ -29,10 +36,10 @@ export function ForbiddenState({
       className={`rounded-2xl border border-[#d7d4e8] bg-white ${
         compact ? "p-4" : "p-8"
       } shadow-sm`}
-      aria-label={t("forbidden.aria")}
+      aria-label={ariaLabel ?? t("forbidden.aria")}
     >
       <p className="mb-2 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-        {t("forbidden.eyebrow")}
+        {eyebrow ?? t("forbidden.eyebrow")}
       </p>
       <h1
         className={`${compact ? "text-2xl" : "text-3xl"} mb-2 font-extrabold text-[#2a2640]`}
@@ -45,7 +52,8 @@ export function ForbiddenState({
 
       {safeRequestId ? (
         <p className="mb-5 rounded-lg bg-[#f5f3ff] px-3 py-2 text-sm text-[#4d4880]">
-          {t("traceId")} <span className="font-semibold">{safeRequestId}</span>
+          {traceIdLabel ?? t("traceId")}{" "}
+          <span className="font-semibold">{safeRequestId}</span>
         </p>
       ) : null}
 

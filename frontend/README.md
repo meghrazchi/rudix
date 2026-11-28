@@ -425,6 +425,50 @@ CI fails when a route's first-load JavaScript grows past its budget.
   `class-variance-authority` (no imports in `src`) and five unreferenced default SVGs from
   `public/`. `eslint-config-next` already equals `next` (16.4.6).
 
+### Translation coverage (R07-12)
+
+User-facing text in `src/components/chat`, `src/components/evaluations` and
+`src/components/states` comes from `next-intl` messages in all six locales
+(en, de, es, fr, ar, fa). ESLint enforces it: in those directories the
+`no-restricted-syntax` rule is an error for literal JSX text and for literal
+`aria-label`, `title`, `placeholder` and `alt` attributes (tests, `tests/`
+folders and the files owned by other work packages are excluded: the
+scope selector files, `DocumentPreviewModal*`, `TrustPanelModal*`). Icon-font
+glyph names such as `open_in_new` (lowercase snake case) are not flagged; any
+other non-UI literal needs an `eslint-disable-next-line` with a reason.
+
+- Keys live in the existing namespaces: `chat.trustPanel.*`, `chat.feedback.*`,
+  `chat.share.*`, `chat.activity.*`, `evaluations.<panel>.*` and the new
+  top-level `states` namespace (also in `PUBLIC_NAMESPACES`, because
+  `ForbiddenState` renders on the public `/forbidden` page).
+- English values equal the previous literals, so existing tests assert the same
+  text. Plurals use ICU (`{count, plural, one {...} other {...}}`); rich text
+  uses tags (`<strong>`, `<code>`). `src/i18n/message-keys.test.ts` checks key
+  parity; `src/i18n/message-placeholders.test.ts` checks that every translation
+  keeps the English placeholders and tags.
+- Pure helpers (`trust-badges.ts`, `trust-format.ts`, `trust-warnings.ts`,
+  `agreementLevelLabel`) take a translator argument instead of returning
+  English strings.
+- Dataset builder: the case list pages by offset (`DATASET_CASES_PAGE_SIZE`, 50) with a count and a "Load more" button.
+- Browsers: set `PLAYWRIGHT_EXTRA_BROWSERS=true` (CI does) to add Firefox and
+  WebKit projects that run the smoke, public SEO and responsive specs. Install
+  them once with `npx playwright install firefox webkit`.
+  Some sandboxed macOS environments cannot launch Firefox or WebKit; CI is the
+  reference for those two projects.
+
+What remains untranslated: admin, connectors, settings and verified-answers
+screens (deferred), public marketing and legal pages (owner decision), the scope
+selector and document preview files (other packages), server-supplied text
+(comparison messages from `evaluation-view-model.ts`, release-gate
+recommendations, backend error messages), the percentage placeholder `N/A` in
+`trust-format.ts` (`pct`, `score`), and language names from
+`EVAL_LANGUAGE_OPTIONS`. In the trust panel, preselecting a category in the
+report dialog matches warning text against English keywords, so it only works
+for English warnings.
+
+Automated accessibility checks (`@axe-core/playwright`) are deferred: the
+package is not approved as a dependency.
+
 ## Dashboard Design Sample
 
 ![Rudix Dashboard Sample](../docs/screenshots/dashboard_overview.png)

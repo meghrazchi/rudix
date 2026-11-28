@@ -781,7 +781,7 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     await waitForSessionBootstrap(page);
 
     await expect(
-      page.getByRole("heading", { name: "Chunking Profiles" }),
+      page.getByRole("heading", { name: "Chunking Profiles", exact: true }),
     ).toBeVisible();
     await expect(page.getByLabel("Profile Name")).toHaveValue(
       "Operations Default",

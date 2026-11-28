@@ -64,4 +64,19 @@ describe("ForbiddenState", () => {
       process.env = originalEnv;
     }
   });
+
+  it("lets a page override the translated eyebrow, region and trace labels", () => {
+    render(
+      <ForbiddenState
+        requestId="req-403-abc"
+        eyebrow="Custom eyebrow"
+        ariaLabel="Custom region"
+        traceIdLabel="Trace:"
+      />,
+    );
+
+    expect(screen.getByText("Custom eyebrow")).toBeInTheDocument();
+    expect(screen.getByLabelText("Custom region")).toBeInTheDocument();
+    expect(screen.getByText("Trace:")).toBeInTheDocument();
+  });
 });

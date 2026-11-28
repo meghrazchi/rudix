@@ -20,6 +20,27 @@ const useBundledBrowser =
   process.env.PLAYWRIGHT_USE_BUNDLED_BROWSER === "true" ||
   process.env.CI === "true";
 
+// R07-06: Firefox and WebKit run only the smoke, public-SEO and responsive
+// specs, and only when PLAYWRIGHT_EXTRA_BROWSERS=true (CI sets it). Local
+// default runs stay on Chromium; install the engines first with
+// `npx playwright install firefox webkit`.
+const EXTRA_BROWSER_SPECS = /(smoke|public-site-seo|responsive)\.spec\.ts$/;
+const extraBrowserProjects =
+  process.env.PLAYWRIGHT_EXTRA_BROWSERS === "true"
+    ? [
+        {
+          name: "firefox",
+          testMatch: EXTRA_BROWSER_SPECS,
+          use: { ...devices["Desktop Firefox"] },
+        },
+        {
+          name: "webkit",
+          testMatch: EXTRA_BROWSER_SPECS,
+          use: { ...devices["Desktop Safari"] },
+        },
+      ]
+    : [];
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -39,6 +60,7 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   projects: [
+    ...extraBrowserProjects,
     {
       name: "chromium",
       testIgnore: WS_SPECS,
