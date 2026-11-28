@@ -41,6 +41,8 @@ secrets:
   # owner: D1
   externalSecret:
     enabled: false
+    secretStoreRef: {}
+    data: []
 
 # owner: S1
 serviceAccount: {}
@@ -110,7 +112,11 @@ tracing: {}
 
 # owner: D1
 runtimeConfig:
-  env: {}
+  env:
+    NEXT_PUBLIC_DEPLOYMENT_ENV: staging
+    NEXT_PUBLIC_API_URL: https://api.staging.rudix.invalid/api/v1
+    NEXT_PUBLIC_APP_URL: https://app.staging.rudix.invalid
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: staging
 
 # owner: D1
 cdn: {}
