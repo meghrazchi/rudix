@@ -12,21 +12,6 @@ vi.mock("@/lib/observability", () => ({
   addFrontendBreadcrumb: addBreadcrumb,
   captureFrontendException: captureException,
 }));
-vi.mock("@/i18n/navigation", () => ({
-  Link: ({
-    href,
-    children,
-    ...rest
-  }: {
-    href: string;
-    children: ReactNode;
-  }) => (
-    <a href={`/en${href === "/" ? "" : href}`} {...rest}>
-      {children}
-    </a>
-  ),
-}));
-
 import RouteErrorFallback, {
   SegmentRouteError,
 } from "@/components/errors/RouteErrorFallback";

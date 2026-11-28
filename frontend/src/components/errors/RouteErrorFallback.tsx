@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { useReportRouteError } from "@/components/errors/useReportRouteError";
-import { Link as LocaleLink } from "@/i18n/navigation";
 
 export type RouteErrorVariant = "page" | "segment";
 
@@ -27,6 +26,7 @@ export default function RouteErrorFallback({
   variant = "page",
 }: RouteErrorFallbackProps) {
   const t = useTranslations("errors");
+  const locale = useLocale();
   useReportRouteError(error);
 
   const card = (
@@ -56,9 +56,11 @@ export default function RouteErrorFallback({
             {t("routeBoundary.backToDashboard")}
           </Link>
         ) : (
-          <LocaleLink href="/" className={LINK_CLASS}>
+          // Public routes always carry a locale prefix; a plain link keeps
+          // the next-intl navigation helpers out of every route bundle.
+          <Link href={`/${locale}`} className={LINK_CLASS}>
             {t("routeBoundary.backHome")}
-          </LocaleLink>
+          </Link>
         )}
       </div>
     </section>

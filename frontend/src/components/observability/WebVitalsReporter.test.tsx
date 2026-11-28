@@ -1,4 +1,4 @@
-import { act, render } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { consent, reportHook, postWebVitals } = vi.hoisted(() => ({
@@ -33,6 +33,11 @@ type Callback = (metric: {
 function lastCallback(): Callback {
   const calls = reportHook.mock.calls;
   return calls[calls.length - 1][0] as Callback;
+}
+
+async function reportFunction(): Promise<Callback> {
+  await waitFor(() => expect(reportHook).toHaveBeenCalled());
+  return lastCallback();
 }
 
 function setVisibility(state: "visible" | "hidden") {
@@ -92,9 +97,9 @@ describe("WebVitalsReporter", () => {
     expect(reportHook).not.toHaveBeenCalled();
   });
 
-  it("batches samples and flushes when the page becomes hidden", () => {
+  it("batches samples and flushes when the page becomes hidden", async () => {
     render(<WebVitalsReporter />);
-    const report = lastCallback();
+    const report = await reportFunction();
 
     act(() => {
       report({ name: "LCP", value: 1200, rating: "good" });
@@ -109,9 +114,9 @@ describe("WebVitalsReporter", () => {
     expect(sent.map((s) => s.name)).toEqual(["LCP", "CLS"]);
   });
 
-  it("sends a full batch of 10 immediately", () => {
+  it("sends a full batch of 10 immediately", async () => {
     render(<WebVitalsReporter />);
-    const report = lastCallback();
+    const report = await reportFunction();
     act(() => {
       for (let i = 0; i < 10; i += 1) {
         report({ name: "INP", value: i, rating: "good" });
@@ -121,9 +126,9 @@ describe("WebVitalsReporter", () => {
     expect(postWebVitals.mock.calls[0][0]).toHaveLength(10);
   });
 
-  it("drops pending samples when consent is withdrawn", () => {
+  it("drops pending samples when consent is withdrawn", async () => {
     const { rerender } = render(<WebVitalsReporter />);
-    const report = lastCallback();
+    const report = await reportFunction();
     act(() => report({ name: "LCP", value: 10, rating: "good" }));
 
     consent.current = {
