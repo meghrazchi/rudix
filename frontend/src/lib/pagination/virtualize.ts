@@ -1,3 +1,5 @@
+import { publicEnv } from "@/lib/public-env";
+
 const DEFAULT_TABLE_VIRTUALIZE_MIN_ROWS = 200;
 
 /** Parses a positive row threshold; anything else falls back to the default. */
@@ -18,6 +20,9 @@ export function parseVirtualizeMinRows(value: string | undefined): number {
  */
 export function tableVirtualizeMinRows(): number {
   return parseVirtualizeMinRows(
-    process.env.NEXT_PUBLIC_TABLE_VIRTUALIZE_MIN_ROWS,
+    publicEnv(
+      "NEXT_PUBLIC_TABLE_VIRTUALIZE_MIN_ROWS",
+      process.env.NEXT_PUBLIC_TABLE_VIRTUALIZE_MIN_ROWS,
+    ),
   );
 }

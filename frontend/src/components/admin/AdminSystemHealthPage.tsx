@@ -17,6 +17,7 @@ import { queryKeys } from "@/lib/api/query";
 import { useRealtimeAwareInterval } from "@/lib/realtime/polling";
 import { canViewAdminUsage } from "@/lib/dashboard";
 import { useAuthSession } from "@/lib/use-auth-session";
+import { publicEnv } from "@/lib/public-env";
 
 type DependencyKey =
   | "postgresql"
@@ -34,7 +35,10 @@ type DependencyDescriptor = {
 };
 
 const REFRESH_INTERVAL_MS = (() => {
-  const raw = process.env.NEXT_PUBLIC_ADMIN_HEALTH_REFRESH_INTERVAL_MS?.trim();
+  const raw = publicEnv(
+    "NEXT_PUBLIC_ADMIN_HEALTH_REFRESH_INTERVAL_MS",
+    process.env.NEXT_PUBLIC_ADMIN_HEALTH_REFRESH_INTERVAL_MS,
+  )?.trim();
   if (!raw) {
     return 0;
   }

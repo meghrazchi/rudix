@@ -117,6 +117,62 @@ schemas); that step is first exercised in CI, not on a development machine.
 
 <!-- v080-A1 -->
 
+`templates/ingress.yaml` (values key `ingress`, owner A1) renders one `networking.k8s.io/v1`
+Ingress per host for an operator-installed NGINX ingress controller (`R08-01`). It is off in
+`values.yaml` and on in the staging, production, and CI values files. Compose uses a Caddy
+edge instead ([docs/10](./10_DEPLOYMENT_DOCKER.md), "Edge proxy, scaling, and environment
+parity").
+
+| Ingress | Host | Path | Backend (C1 Service, port `http`) |
+| --- | --- | --- | --- |
+| `<fullname>-frontend` | `ingress.app.host` | `/` | `<fullname>-frontend` |
+| `<fullname>-api` | `ingress.api.host` | `/` | `<fullname>-api` |
+| `<fullname>-mcp` (only when `mcp.enabled`) | `ingress.mcp.host`, or the API host when empty | `ingress.mcp.path` (`/mcp`) | `<fullname>-mcp` |
+
+- `ingress.className` (`nginx`) sets `ingressClassName`. Hosts are `.invalid` placeholders and
+  TLS secret names are placeholders; each Ingress has one TLS entry for its host. MCP on the API
+  host reuses the API secret; with its own host it uses `ingress.mcp.tlsSecretName` (falling
+  back to the API secret). An empty host or secret name stops the render.
+- `cert-manager.io/cluster-issuer` is added only when `ingress.certManager.clusterIssuer` is
+  set (empty by default); otherwise the operator provides the TLS secrets.
+- `nginx.ingress.kubernetes.io/proxy-body-size` comes from `ingress.maxBodySize` (`26m`,
+  `MAX_UPLOAD_SIZE_MB` 25 plus headroom; raise both together).
+- The API and MCP ingresses set `proxy-read-timeout` and `proxy-send-timeout` to
+  `ingress.streamTimeoutSeconds` (3600) and `proxy-buffering: "off"`, for WebSockets and
+  server-sent events. The frontend ingress keeps the controller defaults.
+- `ingress.noindex: true` (staging) renders a `<fullname>-ingress-headers` ConfigMap with
+  `X-Robots-Tag: noindex, nofollow` and points every Ingress at it with
+  `nginx.ingress.kubernetes.io/custom-headers`. The controller must allow that header
+  (`global-allowed-response-headers: "X-Robots-Tag"` in its ConfigMap). No snippet annotation
+  is used.
+- `ingress.annotations` adds extra annotations to every Ingress.
+
+Controller settings the chart cannot set. Access logs without query strings (share links and
+tokens can travel in them) and no trust in client-sent forwarded headers belong to the
+ingress-nginx controller ConfigMap, which the operator owns:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+data:
+  # $uri is the path without the query string; $request (which includes it) is not logged.
+  log-format-escape-json: "true"
+  log-format-upstream: >-
+    {"time":"$time_iso8601","request_id":"$req_id","remote_addr":"$remote_addr",
+    "method":"$request_method","host":"$host","path":"$uri","status":$status,
+    "bytes_sent":$bytes_sent,"request_time":$request_time,"upstream":"$upstream_addr"}
+  # Keep the default: client X-Forwarded-* headers are not trusted.
+  use-forwarded-headers: "false"
+  # Needed only when ingress.noindex is true.
+  global-allowed-response-headers: "X-Robots-Tag"
+```
+
+`backend/tests/test_helm_chart_ingress.py` renders every values file with `mcp.enabled=true`
+and checks hosts, backends, TLS, annotations, and the noindex ConfigMap.
+
 ## Data stores, backups, and restore
 
 <!-- v080-A2 -->
@@ -516,9 +572,151 @@ requests.
 
 <!-- v080-C2 -->
 
+Added in `0.8.0` C2 (`R08-04`, `R08-08`). Helpers in `templates/_c2.tpl`; the pooler lives
+under `templates/pgbouncer/`.
+
+**Decision: managed PostgreSQL with point-in-time recovery** (plan section 2). The provider
+runs the primary, the streaming replica, WAL archiving, PITR, and failover; the chart deploys no
+database. Record the provider's RPO (the WAL archive interval) and failover behaviour in the
+operator steps below. Restore verification is A2's `backend/scripts/verify_postgres_restore.py`
+(contract 5.2.10): it checks the schema head, RLS policies, indexes, and row-count floors of a
+restored instance; restore drills are logged in `docs/runbooks/RESTORE_DRILL_LOG.md`.
+
+**Self-hosted fallback (documented, not built).** Without a managed provider: one primary and
+one streaming replica (physical replication, `hot_standby = on`), continuous WAL archiving to
+versioned object storage with a WAL archiving and base backup tool (the pgBackRest or WAL-G
+class), and a failover manager (the Patroni class) or a documented manual promotion. The
+local and Compose `postgres` service stays a single instance; nothing in this repository
+provisions the fallback.
+
+**Connection strings come only from the Secret.** `database.secretKeys` names the keys of
+`secrets.existingSecret`; values never appear in a values file or ConfigMap:
+
+| Key | Role | Used by |
+|---|---|---|
+| `DATABASE_URL` | application role (`rudix_app`, no `BYPASSRLS`); the PgBouncer Service when the pooler is on | api, mcp, workers, beat |
+| `DATABASE_REPLICA_URL` | read-only role on the replica (optional) | api reporting routes only |
+| `DATABASE_MIGRATION_URL` | schema owner, direct (never through the pooler) | migrate Job (`migrations.useMigrationUrl`) |
+| `DATABASE_MAINTENANCE_URL` | `BYPASSRLS` maintenance role (optional) | beat cross-tenant tasks |
+
+**Read replica for reports.** With `DATABASE_REPLICA_URL` unset everything stays on the
+primary (the behaviour before 0.8.0). When set, `get_reporting_db_session` (contract 5.2.11)
+gives these routes a read-only replica session and nothing else:
+
+- `GET /api/v1/admin/usage/dashboard` (F153)
+- `GET /api/v1/admin/usage-adoption/summary`, `/charts`, `/funnel`, `/users`, `/export` (F353)
+- `GET /api/v1/reports`, `GET /api/v1/reports/answer-quality`
+
+`POST /reports/events`, the onboarding-reminder POST, the per-message answer-quality detail,
+authentication and authorization lookups, and every other route stay on the primary, so a
+request that reads its own writes never sees a stale replica.
+
+- *Staleness.* The lag is sampled on demand: when a reporting session is requested and the last
+  sample is older than `DB_REPLICA_LAG_CHECK_INTERVAL_SECONDS` (10), one query runs on the
+  replica (`pg_last_xact_replay_timestamp()`, 0 when the replica has replayed everything it
+  received, 0 on a primary) with `DB_REPLICA_LAG_QUERY_TIMEOUT_MS` (500) covering checkout and
+  query. The route uses the replica only while the fresh sample is at most
+  `DB_REPLICA_MAX_LAG_SECONDS` (30); a failed, timed-out, or stale sample, or a larger lag,
+  sends it to the primary until the next sample. Reports can therefore be up to the limit plus
+  one interval behind.
+- *Read-only.* The replica engine sets `default_transaction_read_only=on` on its connections;
+  in PgBouncer mode (`DB_PGBOUNCER_MODE=true`, startup parameters ignored) every replica
+  transaction runs `SET TRANSACTION READ ONLY` instead. Use a read-only database role anyway.
+- *Tenant.* The replica session is bound to the same organization as the request's primary
+  session and runs the same RLS session-context statement (`app.current_organization_id`,
+  `app.rls_mode`), so strict RLS applies on the replica too; `set_config` works on a hot
+  standby.
+- *Pool.* `DB_REPLICA_POOL_SIZE` and `DB_REPLICA_MAX_OVERFLOW` (5 and 10) per api process;
+  the engine is built on first use, so workers never open it.
+- *Metrics and alerts.* `rudix_db_replica_lag_seconds` (last sample) and
+  `rudix_db_replica_routed_total{target,reason}` (`reason`: `ok`, `replica_unset`,
+  `lag_exceeded`, `sample_failed`). `infra/observability/prometheus/rules/database.yml`:
+  `RudixDbReplicaLagHigh` (lag above 30 s for 5 m) and `RudixDbReplicaFallbacks` (fallbacks
+  for 15 m), both `warning`.
+- *Failover.* When the provider promotes the replica, the old replica URL stops answering or
+  points at the new primary: samples fail (fallback to the primary, alert after 15 m) or read 0
+  (`pg_is_in_recovery()` false). Point `DATABASE_URL` at the new primary through the
+  provider's endpoint, and `DATABASE_REPLICA_URL` at the new replica when one exists, then roll
+  the api. The replica connection is checked out before the handler runs, within
+  `DB_REPLICA_LAG_QUERY_TIMEOUT_MS`: a replica that stops answering between two samples sends
+  the request to the primary (`sample_failed`) and marks the sample failed for the rest of
+  the interval. Only a replica that fails in the middle of a report query fails that request.
+
+**Pooler (`pgbouncer.enabled`, off).** PgBouncer in transaction mode between the application
+pods and PostgreSQL, or the managed provider's pooler instead (then leave `pgbouncer.enabled`
+off and set only the mode).
+
+- `database.pgbouncerMode` must equal `config.env.DB_PGBOUNCER_MODE` (render failure
+  otherwise); `pgbouncer.enabled` requires both true, `migrations.useMigrationUrl` (migrations
+  connect directly), `pgbouncer.image` (no default image is guessed; pin a digest), and
+  `pgbouncer.configSecretName`: an existing Secret with `pgbouncer.ini` (`pool_mode =
+  transaction`, `listen_port` = `pgbouncer.port`, no `logfile` or `pidfile`) and
+  `userlist.txt` or `auth_query` settings, mounted read-only at `/etc/pgbouncer`.
+- Renders a Deployment (`pgbouncer.replicas`, 2; rolling update with `maxUnavailable: 0`;
+  non-root, read-only root filesystem, `/tmp` writable; TCP readiness and liveness on port
+  `postgres`), a ClusterIP Service `<fullname>-pgbouncer:6432`, a PDB when replicas > 1, and a
+  NetworkPolicy that accepts the port only from api, mcp, worker pools, beat, migrate, and
+  `backup-*` pods. The pooler joins the clients of every `networkPolicy.dataStores` policy so
+  it can reach an in-cluster PostgreSQL. Point `DATABASE_URL` in the Secret at the Service.
+- Connection budget: without the pooler C1's worst case counts application connections. With
+  it, `rudix.io/database-connections-worst-case` on the api Deployment becomes the pooler's
+  server side, `(replicas + surge) x (defaultPoolSize + reservePoolSize) + 1` (migrate), and
+  `connectionBudget.maxDatabaseConnections` applies to that. The application side (C1's
+  formula) is written to `rudix.io/pooler-client-connections-worst-case` on the pooler and the
+  render fails when it exceeds `pgbouncer.replicas x pgbouncer.maxClientConnections`. Keep
+  `defaultPoolSize`, `reservePoolSize`, and `maxClientConnections` equal to `pgbouncer.ini`.
+
+**Migration safety (`R08-08`).** `backend/scripts/check_migration_safety.py` runs in the CI
+job `backend-alembic` (`--all`, and `--base-ref origin/<base>` on pull requests) and locally
+with `make check-migration-safety`. The expand-contract policy, the rules, the override marker,
+and the allowlist are in `docs/CONTRIBUTING.md`, "Database migrations". The migrate Job runs
+before traffic (pre-install and pre-upgrade hook, C1); a failed migration stops the release and
+nothing downgrades automatically.
+
+**Checked here and staging-only.** `tests/test_helm_chart_database.py` renders the pooler and
+the failures; `tests/test_db_replica_routing.py` covers the routing decisions;
+`tests/test_db_replica_pg.py` (Postgres lane, `TEST_DATABASE_URL` as the replica) proves
+read-only sessions in both modes, the tenant binding under strict RLS, and identical report
+bodies through the replica and the primary. A failover drill and a point-in-time restore
+against a real scratch instance are staging-only (plan section 9).
+
 ## Secrets and runtime configuration
 
 <!-- v080-D1 -->
+
+Secrets (R08-11). Pods read one existing Kubernetes Secret, named by `secrets.existingSecret`,
+with `envFrom`; values files hold only its name and the chart never renders a `Secret` with
+values (`secrets.create` must stay `false`). Optionally set `secrets.externalSecret.enabled:
+true` to render an External Secrets Operator `ExternalSecret`
+(`templates/externalsecret.yaml`, `external-secrets.io/v1`) that writes that Secret from a
+secret manager: `secretStoreRef` (`name`, `kind` `SecretStore` or `ClusterSecretStore`),
+`refreshInterval` (default `1h`), and `data` items mapping an environment variable name
+(`secretKey`) to a `remoteRef` (`key`, optional `property` and `version`). The operator and the
+store are not part of the chart. Rendering fails when the ExternalSecret is enabled without
+`secrets.existingSecret`, a store name and kind, or at least one complete `data` item. To
+rotate `APP_AUTH_SECRET`, add `APP_AUTH_SECRET_PREVIOUS` to the Secret or the `data` list; see
+`docs/11` `### Rotation`.
+
+Runtime configuration (R08-11). `runtimeConfig.env` renders into the `<fullname>-frontend`
+ConfigMap, which the frontend Deployment reads with `envFrom`. It holds
+`NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE` (default `build`) and allowlisted public names
+(`frontend/config/public-runtime-keys.mjs`) with placeholder values. The values reach the
+browser only when the image was built with `NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE=request`;
+`backend/tests/test_helm_chart_secrets.py` fails when a values file lists a name outside the
+allowlist. Build-time names (`NEXT_PUBLIC_ASSET_PREFIX`, `PUBLIC_ASSET_CACHE_CONTROL`,
+`NEXT_PUBLIC_PUBLIC_SITE_URL`) are refused in `runtimeConfig.env`.
+
+CDN (R08-12). `cdn.assetPrefix` and `cdn.publicAssetCacheControl` record the build-time values
+the frontend image was built with; the chart checks their shape (`https://` prefix, no
+`immutable`) and renders nothing from them, because they cannot change after `next build`.
+
+Canonical URL decision for one image (plan section 6). Prerendered public pages bake
+`metadataBase`, canonical and hreflang URLs from `NEXT_PUBLIC_PUBLIC_SITE_URL` at build. One
+frontend image for staging and production therefore needs the owner to accept the production
+canonical URL on staging, served with `X-Robots-Tag: noindex` (`EDGE_NOINDEX=true` on the
+staging edge, A1), and one CDN host for both. Until that decision, the release workflow builds
+one image per environment (the default); `RUDIX_FRONTEND_IMAGE_MODE=single` is the switch
+(docs/14).
 
 ## Operator steps
 
@@ -557,3 +755,6 @@ Not done in the repository (plan section 8):
   checks; empty sections for A1, A2, B1, B2, B3, C1, C2, and D1.
 - 2026-11-28: `0.8.0` C1: workloads, probes, shutdown and connection budgets, migrate hook Job,
   rollout rules, KEDA and HPA autoscaling, network policies.
+- 2026-11-28: `0.8.0` C2: database Secret keys, read replica for reporting routes with lag
+  sampling and fallback, optional PgBouncer Deployment and pooler-aware connection budget,
+  migration safety check.

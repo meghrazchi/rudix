@@ -253,7 +253,8 @@ def test_replicas_and_spread_across_nodes() -> None:
 
 def test_pod_disruption_budgets_cover_web_tiers_but_never_beat() -> None:
     pdbs = _by_kind(render_chart([CI_VALUES]), "PodDisruptionBudget")
-    assert sorted(pdbs) == sorted(f"rudix-{name}" for name in WEB)
+    # all-features also turns on the PgBouncer pooler (C2), which has two replicas.
+    assert sorted(pdbs) == sorted(f"rudix-{name}" for name in (*WEB, "pgbouncer"))
     for name, pdb in pdbs.items():
         assert pdb["spec"]["maxUnavailable"] == 1
         selector = pdb["spec"]["selector"]["matchLabels"]

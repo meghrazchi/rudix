@@ -1,0 +1,9 @@
+# Imported when EDGE_MATOMO=on: the Matomo site (compose profile `analytics`). Set
+# RUDIX_MATOMO_HOST before switching this on; an empty host leaves no valid site address and
+# the edge does not start.
+{$RUDIX_MATOMO_HOST} {
+	import tls_{$EDGE_TLS_MODE:acme}
+	import noindex_true
+	import access_log
+	reverse_proxy matomo:80
+}

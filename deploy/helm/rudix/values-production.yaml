@@ -36,6 +36,10 @@ config:
     # Readiness gates only on the stores every request needs (contract 5.2.6, B1 setting).
     READINESS_REQUIRED_DEPENDENCIES: postgres,redis
     # v080-C2
+    DB_PGBOUNCER_MODE: "false"
+    DB_REPLICA_MAX_LAG_SECONDS: "30"
+    DB_REPLICA_LAG_CHECK_INTERVAL_SECONDS: "10"
+    DB_REPLICA_LAG_QUERY_TIMEOUT_MS: "500"
     # v080-D1
 
 # owner: S1
@@ -45,6 +49,8 @@ secrets:
   # owner: D1
   externalSecret:
     enabled: false
+    secretStoreRef: {}
+    data: []
 
 # owner: S1
 serviceAccount: {}
@@ -68,7 +74,17 @@ metrics:
     enabled: false
 
 # owner: A1
-ingress: {}
+ingress:
+  enabled: true
+  noindex: false
+  certManager:
+    clusterIssuer: ""
+  app:
+    host: app.rudix.invalid
+    tlsSecretName: rudix-production-app-tls
+  api:
+    host: api.rudix.invalid
+    tlsSecretName: rudix-production-api-tls
 
 # owner: A2
 backup: {}
@@ -128,7 +144,11 @@ tracing: {}
 
 # owner: D1
 runtimeConfig:
-  env: {}
+  env:
+    NEXT_PUBLIC_DEPLOYMENT_ENV: production
+    NEXT_PUBLIC_API_URL: https://api.rudix.invalid/api/v1
+    NEXT_PUBLIC_APP_URL: https://app.rudix.invalid
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: production
 
 # owner: D1
 cdn: {}

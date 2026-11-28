@@ -1,6 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 
 import { isApiClientError } from "@/lib/api/errors";
+import { publicEnv } from "@/lib/public-env";
 
 function parseIntegerEnv(value: string | undefined, fallback: number): number {
   if (!value) {
@@ -17,7 +18,10 @@ function parseIntegerEnv(value: string | undefined, fallback: number): number {
 function parseRetryCountFromEnv(): number {
   const defaultValue = process.env.NODE_ENV === "production" ? 2 : 1;
   return parseIntegerEnv(
-    process.env.NEXT_PUBLIC_QUERY_RETRY_COUNT,
+    publicEnv(
+      "NEXT_PUBLIC_QUERY_RETRY_COUNT",
+      process.env.NEXT_PUBLIC_QUERY_RETRY_COUNT,
+    ),
     defaultValue,
   );
 }
@@ -25,7 +29,10 @@ function parseRetryCountFromEnv(): number {
 function parseStaleTimeFromEnv(): number {
   const defaultMs = process.env.NODE_ENV === "production" ? 30_000 : 10_000;
   return parseIntegerEnv(
-    process.env.NEXT_PUBLIC_QUERY_STALE_TIME_MS,
+    publicEnv(
+      "NEXT_PUBLIC_QUERY_STALE_TIME_MS",
+      process.env.NEXT_PUBLIC_QUERY_STALE_TIME_MS,
+    ),
     defaultMs,
   );
 }

@@ -101,6 +101,30 @@ make seed-dev
   stream), and the endpoint commits the request session before streaming so a stream
   holds no database connection. `documents.changed` is recorded once per organisation and
   transaction, so a bulk change publishes one hint.
+- Read replica for reports (0.8.0, R08-04): `DATABASE_REPLICA_URL` (unset: everything on the
+  primary), `DB_REPLICA_MAX_LAG_SECONDS` (30), `DB_REPLICA_LAG_CHECK_INTERVAL_SECONDS` (10),
+  `DB_REPLICA_LAG_QUERY_TIMEOUT_MS` (500), `DB_REPLICA_POOL_SIZE` (5),
+  `DB_REPLICA_MAX_OVERFLOW` (10). `get_reporting_db_session` (`app/auth/dependencies.py`)
+  serves `GET /admin/usage/dashboard`, `GET /admin/usage-adoption/{summary,charts,funnel,users,export}`,
+  `GET /reports`, and `GET /reports/answer-quality` from a read-only replica session
+  (`app/db/replica.py`) bound to the request's tenant while the lag sampled on demand is
+  within the limit; otherwise it yields the primary session itself, so tests that override
+  `get_db_session` are unaffected. Metrics `rudix_db_replica_lag_seconds` and
+  `rudix_db_replica_routed_total{target,reason}`; details in docs/28.
+- Migration safety (0.8.0, R08-08): `make check-migration-safety` runs
+  `scripts/check_migration_safety.py --all`; CI also runs `--base-ref origin/<base>`. Rules,
+  the `# migration-safety: allow=<rule> reason="..."` marker, and
+  `scripts/migration_safety_allowlist.json` are described in docs/CONTRIBUTING.md.
+
+- Signing-key rotation (R08-11): `APP_AUTH_SECRET_PREVIOUS` (unset by default) is tried after
+  `APP_AUTH_SECRET` when verifying access and refresh tokens and the Slack OAuth state; signing
+  always uses `APP_AUTH_SECRET`. Startup refuses an empty previous secret or one equal to the
+  current. `rudix_auth_token_verified_by_previous_key_total{kind}` counts verifications that
+  needed it; remove it when the counter stops growing (at least the access-token TTL, the
+  refresh TTL to keep sessions signed in). It is never used for connector credential
+  encryption. The snapshot shows only `infrastructure.app_auth_secret_previous_set`. Runbook:
+  `docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md` `### Rotation`.
+
 - Stateless API replicas (0.8.0, R08-03, R08-02, R08-05; details in
   `docs/28_KUBERNETES_HELM_DEPLOYMENT.md`, "Stateless replicas and shutdown"):
   - `WS_CHAT_CONNECTION_LIMIT_BACKEND` (`memory`, default; or `redis`): `redis` counts

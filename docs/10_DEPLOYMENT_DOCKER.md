@@ -424,6 +424,21 @@ build's chunk hashes, so a CDN or caching proxy placed in front of the frontend 
 the public HTML on every deploy. Without one, nothing extra is needed: each image carries its
 own prerendered pages.
 
+CDN and request-time configuration (0.8.0, R08-11, R08-12): `NEXT_PUBLIC_ASSET_PREFIX` (unset by
+default) sets Next.js `assetPrefix`, so `/_next/static` is loaded from that CDN origin, which
+is then added to the CSP `script-src`, `style-src`, `font-src`, and `img-src`. Upload the
+image's `.next/static` to the CDN as `_next/static` (or point the CDN origin at the frontend);
+those files are content-hashed and already `Cache-Control: public, max-age=31536000,
+immutable`. `PUBLIC_ASSET_CACHE_CONTROL` (unset = the Next.js default `public, max-age=0`)
+sets `Cache-Control` for `/brand`, `/fonts`, and `/images`, which are not content-hashed, so
+the build refuses `immutable` there; a value such as `public, max-age=3600` is safe. Both are
+fixed at `next build`: one image for several environments needs one CDN host for all of them.
+`NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE=request` (default `build`) makes the browser read the
+allowlisted `NEXT_PUBLIC_*` values from `/runtime-config.js` at request time and moves the CSP
+to the proxy, so the container's runtime environment wins over the build values; canonical
+URLs, `metadataBase`, and the public links stay build-time (`NEXT_PUBLIC_PUBLIC_SITE_URL`).
+See `frontend/README.md` "Request-time configuration and CDN".
+
 ## Backend deployment options
 
 ### Option A: Single VM with Docker Compose
@@ -543,6 +558,135 @@ Before deployment:
 - Verify Sentry events.
 - Verify structured logs.
 - Run sample RAG evaluation set.
+
+## Edge proxy, scaling, and environment parity (0.8.0)
+
+Staging and production compose run a Caddy edge proxy (`R08-01`). Compose stays the supported
+fallback to the Helm chart ([docs/28](./28_KUBERNETES_HELM_DEPLOYMENT.md)).
+
+### Edge and ports
+
+- `edge` (`${CADDY_IMAGE:-caddy:2}`) is the only service with published ports: `80`, `443`,
+  and `443/udp` (HTTP/3; harmless when the host firewall drops UDP). `frontend` (3000), `api`
+  (8000), `mcp` (8010), and `matomo` (8081 in `0.7.0`) are no longer published; they are
+  reached only on the compose network. Open only 80 and 443 in the host firewall.
+- Configuration: `deploy/compose/edge/Caddyfile` plus snippet files, mounted read-only from
+  `./edge` next to the compose file. Terraform and `deploy_compose_remote.sh` copy the
+  directory; certificates and ACME state live in the `edge_data` and `edge_config` volumes.
+- Sites: `RUDIX_APP_HOST` to `frontend:3000`; `RUDIX_API_HOST` to `api:8000`, with `/mcp*` to
+  `mcp:${MCP_HTTP_PORT}` (profile `mcp`); `RUDIX_MATOMO_HOST` to `matomo:80` when
+  `EDGE_MATOMO=on`. Host defaults are the hosts each file already uses
+  (`staging.getrudix.com`, `api-staging.getrudix.com`, `getrudix.com`, `api.getrudix.com`).
+- TLS: `EDGE_TLS_MODE=acme` (default) obtains certificates automatically, with
+  `EDGE_ACME_EMAIL` as the optional account contact; `EDGE_TLS_MODE=files` reads
+  `./edge/certs/cert.pem` and `./edge/certs/key.pem`, which the operator places on the host
+  (git-ignored; one certificate must cover every edge host).
+- `EDGE_NOINDEX` (staging default `true`, production `false`) adds
+  `X-Robots-Tag: noindex, nofollow` on every edge host. Security headers stay with the
+  frontend and the API (both already send HSTS in staging and production), so the edge does not repeat them.
+- `EDGE_MAX_REQUEST_BODY` (default `26MiB`) caps request bodies on the API host. It is coupled to
+  the backend `MAX_UPLOAD_SIZE_MB` (default 25) plus headroom for multipart framing: raise both
+  together, or uploads fail at the edge with `413` before the API can answer. Use binary units
+  (`MiB`): Caddy reads `MB` as 1,000,000 bytes, so `26MB` is smaller than the backend's 25 MiB.
+- Access logs are JSON on stdout with the query string replaced by `?redacted` and the
+  `Authorization`, `Proxy-Authorization`, `Cookie`, `X-Api-Key`, and `Set-Cookie` headers
+  deleted.
+- Forwarded headers: the edge sets `X-Forwarded-For`, `-Proto`, and `-Host` itself and ignores
+  values a client sends (no `trusted_proxies`). The API and MCP set
+  `FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-*}`: only containers on the compose network can
+  reach them once their ports are closed. When that network is shared with other workloads,
+  set `FORWARDED_ALLOW_IPS` to the compose subnet (for example the `docker network inspect`
+  subnet of the project network) instead of `*`.
+- Matomo: browsers reach it only through the edge. Set `EDGE_MATOMO=on` and
+  `RUDIX_MATOMO_HOST` (DNS pointing at the host), and `NEXT_PUBLIC_MATOMO_URL` to
+  `https://<that host>`. An empty `RUDIX_MATOMO_HOST` with `EDGE_MATOMO=on` leaves the edge
+  without a valid site and it does not start.
+
+The Caddyfile is validated in CI (`deploy-config`, step "Validate Caddyfile", every TLS,
+noindex, and Matomo variant); Caddy is not needed locally. The external reachability check and
+the TLS scan are operator steps on staging ([docs/11](./11_SECURITY_AND_PRODUCTION_CHECKLIST.md),
+"Edge and TLS").
+
+### Scaling behind the edge (Compose fallback, R08-02)
+
+No service sets `container_name`, and the edge resolves `frontend`, `api`, and `mcp` with
+`dynamic a` upstreams (`least_conn`, passive health: a replica that refuses connections or
+answers `502`/`503`/`504` three times is skipped for 30 seconds, and a request is retried on
+another replica for up to 5 seconds). Server-sent events flush immediately; WebSockets and long
+streams close after 24 hours and stay open for 5 minutes across an edge config reload.
+
+```bash
+docker compose -f docker-compose.production.yml up -d --scale api=3 --scale frontend=2
+```
+
+Never scale `beat` (one per deployment). Workers scale per pool (`--scale worker-ingest=2`).
+`api` stops with `stop_grace_period: 45s`, above
+`UVICORN_TIMEOUT_GRACEFUL_SHUTDOWN` (default 20) plus `API_SHUTDOWN_DRAIN_SECONDS` (default 0)
+plus margin; raise the grace period together with either value.
+
+### Profiles and COMPOSE_PROFILES
+
+Both files define the same services (`R08-12`); optional services sit behind profiles, and
+`COMPOSE_PROFILES` (written to the host `.env`, which `docker compose` reads) chooses them per
+environment:
+
+| Profile | Services | Release default |
+| --- | --- | --- |
+| `graph` | `neo4j` | staging (`TF_VAR_compose_profiles: graph`) |
+| `analytics` | `matomo-db`, `matomo` | production (`TF_VAR_compose_profiles: analytics`) |
+| `mcp` | `mcp` | off |
+| `pooler` | `pgbouncer` | off |
+| `redis-split` | `redis-cache` | off |
+
+Terraform writes `COMPOSE_PROFILES=<compose_profiles>` when the variable is not empty (an
+empty value leaves a `COMPOSE_PROFILES` line in the env file in charge).
+`deploy_compose_remote.sh` uses `DEPLOY_COMPOSE_PROFILES` when set, otherwise a
+`COMPOSE_PROFILES` line in the env file, otherwise the release defaults above. Dependencies on
+`neo4j` are `required: false`, so an inactive `graph` profile does not break `up`. Set several
+profiles with a comma: `COMPOSE_PROFILES=analytics,pooler`.
+
+- `pooler`: `pgbouncer` (`${PGBOUNCER_IMAGE:-edoburu/pgbouncer:latest}`; pin it) in
+  transaction mode, configured from environment (`DB_HOST`, `DB_NAME`, `DB_USER`,
+  `DB_PASSWORD`, `POOL_MODE`, `AUTH_TYPE` default `scram-sha-256`, `MAX_CLIENT_CONN` default
+  500, `DEFAULT_POOL_SIZE` default 20; names follow that image), no host ports. The application
+  uses it only when the operator sets `DATABASE_URL` to `pgbouncer:5432` and
+  `DB_PGBOUNCER_MODE=true`; `DATABASE_MIGRATION_URL` must keep pointing at `postgres:5432`,
+  because migrations need a session-mode connection.
+- `redis-split`: `redis-cache` (`${REDIS_IMAGE:-redis:7}`, `--maxmemory
+  ${REDIS_CACHE_MAXMEMORY:-256mb} --maxmemory-policy allkeys-lru`, no persistence, the same
+  `requirepass` rule as `redis`). Cached values move there only when the operator sets
+  `REDIS_CACHE_URL=redis://:<password>@redis-cache:6379/0` in the env file (contract 5.2.7):
+  rate limits, tickets, pub/sub, and cache version keys stay on `REDIS_URL`. The main `redis`
+  now runs with an explicit `--maxmemory-policy noeviction`, the Redis default, so state keys
+  are never evicted.
+- MinIO versioning: `MINIO_BUCKET_VERSIONING=true` (default `false`) makes `minio-init` run
+  `mc version enable` on the bucket. Old versions of overwritten and deleted objects are kept
+  until a lifecycle rule expires them, so storage grows.
+
+### Environment parity
+
+| Service | Development (`docker-compose.yml`) | Staging | Production |
+| --- | --- | --- | --- |
+| `edge` | not defined (host ports) | on | on |
+| `frontend` | not defined (`npm run dev`) | on | on |
+| `api` | on, port 8000 | on, scaled behind edge | on, scaled behind edge |
+| `worker` / `worker-<pool>` | `worker`; pools under `pools` | five pools | five pools |
+| `beat` | on | on (one) | on (one) |
+| `mcp` | profile `mcp`, port 8010 | profile `mcp` | profile `mcp` |
+| `postgres`, `qdrant`, `minio`, `minio-init`, `rabbitmq`, `redis` | on, host ports | on | on |
+| `clamav` | on, port 3310 | on | on |
+| `neo4j` | profile `enterprise-graph` | profile `graph` (enabled) | profile `graph` |
+| `matomo-db`, `matomo` | on, Matomo on port 8081 | profile `analytics` | profile `analytics` (enabled) |
+| `pgbouncer` | not defined | profile `pooler` | profile `pooler` |
+| `redis-cache` | not defined | profile `redis-split` | profile `redis-split` |
+| `ollama`, `vllm`, `litellm` | profiles | not defined | not defined |
+
+Staging and production may differ only in environment identity and public URLs
+(`ENVIRONMENT`, `API_BASE_URL`, `FRONTEND_BASE_URL`, `CORS_ORIGINS`, `NEXT_PUBLIC_*` URLs),
+`ENTERPRISE_GRAPH_ENABLED` and its `NEO4J_*` wiring, the edge host and noindex defaults, and
+scale and resources. `backend/tests/test_compose_parity.py` enforces this, and
+`deploy/scripts/check_compose_config.sh` checks both files with every profile and fails when a
+service other than `edge` publishes a port, or `edge` publishes one other than 80 or 443.
 
 ## Backup strategy
 

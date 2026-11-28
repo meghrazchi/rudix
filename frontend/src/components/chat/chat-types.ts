@@ -9,6 +9,7 @@ import type {
   ChatSessionListResponse,
 } from "@/lib/api/chat";
 import type { AnswerTrustMetadataResponse } from "@/lib/api/trust_metadata";
+import { publicEnv } from "@/lib/public-env";
 
 export const DRAFT_SESSION_KEY = "__draft__";
 
@@ -47,55 +48,100 @@ export function parsePositiveIntegerEnv(
 }
 
 export const MAX_INDEXED_DOCS = parsePositiveIntegerEnv(
-  process.env.NEXT_PUBLIC_CHAT_MAX_INDEXED_DOCS,
+  publicEnv(
+    "NEXT_PUBLIC_CHAT_MAX_INDEXED_DOCS",
+    process.env.NEXT_PUBLIC_CHAT_MAX_INDEXED_DOCS,
+  ),
   200,
 );
 export const SESSION_LIST_LIMIT = parsePositiveIntegerEnv(
-  process.env.NEXT_PUBLIC_CHAT_SESSION_LIST_LIMIT,
+  publicEnv(
+    "NEXT_PUBLIC_CHAT_SESSION_LIST_LIMIT",
+    process.env.NEXT_PUBLIC_CHAT_SESSION_LIST_LIMIT,
+  ),
   10,
 );
 export const CONTEXT_MODAL_PAGE_SIZE = parsePositiveIntegerEnv(
-  process.env.NEXT_PUBLIC_CHAT_CONTEXT_MODAL_PAGE_SIZE,
+  publicEnv(
+    "NEXT_PUBLIC_CHAT_CONTEXT_MODAL_PAGE_SIZE",
+    process.env.NEXT_PUBLIC_CHAT_CONTEXT_MODAL_PAGE_SIZE,
+  ),
   8,
 );
 export const SESSION_TITLE_MAX_LENGTH = 120;
 export const MIN_TOP_K = parsePositiveIntegerEnv(
-  process.env.NEXT_PUBLIC_CHAT_TOP_K_MIN,
+  publicEnv(
+    "NEXT_PUBLIC_CHAT_TOP_K_MIN",
+    process.env.NEXT_PUBLIC_CHAT_TOP_K_MIN,
+  ),
   1,
 );
 export const MAX_TOP_K = parsePositiveIntegerEnv(
-  process.env.NEXT_PUBLIC_CHAT_TOP_K_MAX,
+  publicEnv(
+    "NEXT_PUBLIC_CHAT_TOP_K_MAX",
+    process.env.NEXT_PUBLIC_CHAT_TOP_K_MAX,
+  ),
   20,
 );
 export const SCOPE_DOCUMENT_PICKER_LIMIT = 30;
 export const DEFAULT_TOP_K = Math.min(
   Math.max(
-    parsePositiveIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_DEFAULT, 5),
+    parsePositiveIntegerEnv(
+      publicEnv(
+        "NEXT_PUBLIC_CHAT_TOP_K_DEFAULT",
+        process.env.NEXT_PUBLIC_CHAT_TOP_K_DEFAULT,
+      ),
+      5,
+    ),
     MIN_TOP_K,
   ),
   MAX_TOP_K,
 );
 export const AGENT_RUN_POLL_INTERVAL_MS = parsePositiveIntegerEnv(
-  process.env.NEXT_PUBLIC_AGENT_RUN_POLL_INTERVAL_MS,
+  publicEnv(
+    "NEXT_PUBLIC_AGENT_RUN_POLL_INTERVAL_MS",
+    process.env.NEXT_PUBLIC_AGENT_RUN_POLL_INTERVAL_MS,
+  ),
   3_000,
 );
 export const AGENTIC_CHAT_ENABLED =
-  process.env.NEXT_PUBLIC_CHAT_AGENTIC_ENABLED !== "false";
+  publicEnv(
+    "NEXT_PUBLIC_CHAT_AGENTIC_ENABLED",
+    process.env.NEXT_PUBLIC_CHAT_AGENTIC_ENABLED,
+  ) !== "false";
 export const DEFAULT_AGENTIC_MODE =
-  process.env.NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT === "true";
+  publicEnv(
+    "NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT",
+    process.env.NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT,
+  ) === "true";
 export const CHAT_SETTINGS_STORAGE_KEY = "rudix.chat.settings.v1";
 export const STREAMING_PLACEHOLDER_ENABLED =
-  process.env.NEXT_PUBLIC_CHAT_STREAMING_ENABLED === "true";
+  publicEnv(
+    "NEXT_PUBLIC_CHAT_STREAMING_ENABLED",
+    process.env.NEXT_PUBLIC_CHAT_STREAMING_ENABLED,
+  ) === "true";
 export const CHAT_WEBSOCKET_ENABLED =
-  process.env.NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED === "true";
+  publicEnv(
+    "NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED",
+    process.env.NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED,
+  ) === "true";
 /** Threads with more turns than this are virtualised (R05-11). */
 export const CHAT_VIRTUALIZE_MIN_TURNS = parsePositiveIntegerEnv(
-  process.env.NEXT_PUBLIC_CHAT_VIRTUALIZE_MIN_TURNS,
+  publicEnv(
+    "NEXT_PUBLIC_CHAT_VIRTUALIZE_MIN_TURNS",
+    process.env.NEXT_PUBLIC_CHAT_VIRTUALIZE_MIN_TURNS,
+  ),
   50,
 );
 /** Messages per history page, newest page first (R05-11). */
 export const CHAT_HISTORY_PAGE_SIZE = Math.min(
-  parsePositiveIntegerEnv(process.env.NEXT_PUBLIC_CHAT_HISTORY_PAGE_SIZE, 100),
+  parsePositiveIntegerEnv(
+    publicEnv(
+      "NEXT_PUBLIC_CHAT_HISTORY_PAGE_SIZE",
+      process.env.NEXT_PUBLIC_CHAT_HISTORY_PAGE_SIZE,
+    ),
+    100,
+  ),
   500,
 );
 

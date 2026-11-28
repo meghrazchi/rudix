@@ -51,7 +51,7 @@ Contracts: docs/roadmap/V0_8_0_IMPLEMENTATION_PLAN.md 5.2.2, 5.2.5, 5.2.6; docs/
 {{- end -}}
 
 {{/*
-Worst-case PostgreSQL connections of the release, during a rolling update (docs/28):
+Worst-case connections the application pods open, during a rolling update (docs/28):
   per process = (DB_POOL_SIZE + DB_MAX_OVERFLOW) x enginesPerProcess
   api     = (max replicas + surge) x per process          (one uvicorn process per pod)
   mcp     = (replicas + surge) x per process              (when enabled)
@@ -59,8 +59,10 @@ Worst-case PostgreSQL connections of the release, during a rolling update (docs/
             (each prefork child builds its own pool after fork; the main process has one too)
   beat    = 1 x per process
   migrate = 1                                             (alembic uses NullPool)
+Without a pooler these are PostgreSQL connections; with pgbouncer.enabled they are PgBouncer
+client connections (C2).
 */}}
-{{- define "rudix.c1.connectionWorstCase" -}}
+{{- define "rudix.c1.clientConnectionsWorstCase" -}}
 {{- $env := .Values.config.env -}}
 {{- $budget := .Values.connectionBudget -}}
 {{- $poolSize := int (default $budget.defaultPoolSize (index $env "DB_POOL_SIZE")) -}}
@@ -87,6 +89,19 @@ Worst-case PostgreSQL connections of the release, during a rolling update (docs/
 {{- end -}}
 {{- $total = add $total $perProcess 1 -}}
 {{- $total -}}
+{{- end -}}
+
+{{/*
+Worst-case PostgreSQL connections of the release. Without a pooler: every application
+connection. With pgbouncer.enabled (C2): PgBouncer's server pools during its rolling update
+plus the migrate Job, which connects directly through DATABASE_MIGRATION_URL.
+*/}}
+{{- define "rudix.c1.connectionWorstCase" -}}
+{{- if .Values.pgbouncer.enabled -}}
+{{- add (int (include "rudix.c2.poolerServerConnections" .)) 1 -}}
+{{- else -}}
+{{- include "rudix.c1.clientConnectionsWorstCase" . -}}
+{{- end -}}
 {{- end -}}
 
 {{/* Cross-key checks for C1; included once by api/deployment.yaml. */}}
@@ -121,6 +136,13 @@ Worst-case PostgreSQL connections of the release, during a rolling update (docs/
 {{- end -}}
 {{- if and .Values.migrations.enabled .Values.migrations.useMigrationUrl (not .Values.secrets.existingSecret) -}}
 {{- fail "rudix: migrations.useMigrationUrl needs secrets.existingSecret holding migrations.migrationUrlSecretKey" -}}
+{{- end -}}
+{{- if .Values.pgbouncer.enabled -}}
+{{- $clients := int (include "rudix.c1.clientConnectionsWorstCase" .) -}}
+{{- $clientLimit := int (include "rudix.c2.poolerClientLimit" .) -}}
+{{- if gt $clients $clientLimit -}}
+{{- fail (printf "rudix: worst-case pooler client connections %d exceed pgbouncer.replicas x pgbouncer.maxClientConnections %d (docs/28)" $clients $clientLimit) -}}
+{{- end -}}
 {{- end -}}
 {{- $limit := int .Values.connectionBudget.maxDatabaseConnections -}}
 {{- if gt $limit 0 -}}
@@ -199,6 +221,10 @@ progressDeadlineSeconds: {{ .root.Values.rollout.progressDeadlineSeconds }}
 {{- end -}}
 {{- range $kind := list "postgres" "qdrant" "objects" "neo4j" -}}
 {{- $components = append $components (printf "backup-%s" $kind) -}}
+{{- end -}}
+{{- if .Values.pgbouncer.enabled -}}
+{{- /* C2: the pooler connects to PostgreSQL on behalf of the application pods. */ -}}
+{{- $components = append $components "pgbouncer" -}}
 {{- end -}}
 {{- $components | toJson -}}
 {{- end -}}

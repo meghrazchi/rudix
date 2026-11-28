@@ -14,6 +14,7 @@ import { WorkspaceDefaultsSection } from "@/components/settings/organization/Wor
 import { isAdminLikeRole } from "@/components/settings/organization/orgSettingsShared";
 import { getOrganizationCapabilities } from "@/lib/api/organization";
 import { useAuthSession } from "@/lib/use-auth-session";
+import { publicEnv } from "@/lib/public-env";
 
 export function OrganizationSettingsTab() {
   const t = useTranslations("settings.organization");
@@ -26,7 +27,10 @@ export function OrganizationSettingsTab() {
   const capabilities = useMemo(() => getOrganizationCapabilities(), []);
 
   const billingHref =
-    process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL?.trim() || "/admin";
+    publicEnv(
+      "NEXT_PUBLIC_SETTINGS_BILLING_URL",
+      process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL,
+    )?.trim() || "/admin";
 
   return (
     <div className="space-y-6">

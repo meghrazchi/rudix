@@ -7,6 +7,7 @@ import {
   type UpdateProfileFormValues,
   type UpdatePreferencesFormValues,
 } from "@/lib/schemas/settings";
+import { publicEnv } from "@/lib/public-env";
 
 function trimToNull(value: string | undefined): string | null {
   const trimmed = value?.trim();
@@ -42,15 +43,41 @@ export function isProfileEndpointUnavailableError(
 
 function getProfileEndpoints() {
   return {
-    meUrl: trimToNull(process.env.NEXT_PUBLIC_PROFILE_ME_URL),
-    preferencesUrl: trimToNull(process.env.NEXT_PUBLIC_PROFILE_PREFERENCES_URL),
-    signOutAllUrl: trimToNull(process.env.NEXT_PUBLIC_PROFILE_SIGN_OUT_ALL_URL),
-    deleteAccountUrl: trimToNull(
-      process.env.NEXT_PUBLIC_PROFILE_DELETE_ACCOUNT_URL,
+    meUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_PROFILE_ME_URL",
+        process.env.NEXT_PUBLIC_PROFILE_ME_URL,
+      ),
     ),
-    avatarUrl: trimToNull(process.env.NEXT_PUBLIC_PROFILE_AVATAR_URL),
+    preferencesUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_PROFILE_PREFERENCES_URL",
+        process.env.NEXT_PUBLIC_PROFILE_PREFERENCES_URL,
+      ),
+    ),
+    signOutAllUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_PROFILE_SIGN_OUT_ALL_URL",
+        process.env.NEXT_PUBLIC_PROFILE_SIGN_OUT_ALL_URL,
+      ),
+    ),
+    deleteAccountUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_PROFILE_DELETE_ACCOUNT_URL",
+        process.env.NEXT_PUBLIC_PROFILE_DELETE_ACCOUNT_URL,
+      ),
+    ),
+    avatarUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_PROFILE_AVATAR_URL",
+        process.env.NEXT_PUBLIC_PROFILE_AVATAR_URL,
+      ),
+    ),
     changePasswordUrl: trimToNull(
-      process.env.NEXT_PUBLIC_SECURITY_CHANGE_PASSWORD_URL,
+      publicEnv(
+        "NEXT_PUBLIC_SECURITY_CHANGE_PASSWORD_URL",
+        process.env.NEXT_PUBLIC_SECURITY_CHANGE_PASSWORD_URL,
+      ),
     ),
   };
 }

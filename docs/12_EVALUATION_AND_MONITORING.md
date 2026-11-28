@@ -977,6 +977,31 @@ outbound request: the browser posts to our own API.
   multiprocess mode (0.8.0, R08-09; same rule as the worker counters above).
 - No measured baseline exists yet; the end-to-end check with Redis is a staging step.
 
+### Read replica routing and migration safety (R08-04, R08-08)
+
+| Metric | Labels | Meaning |
+|---|---|---|
+| `rudix_db_replica_lag_seconds` | | Last successful lag sample of `DATABASE_REPLICA_URL` (0 when caught up or on a primary). |
+| `rudix_db_replica_routed_total` | `target` (`replica`, `primary`), `reason` (`ok`, `replica_unset`, `lag_exceeded`, `sample_failed`) | Reporting sessions by where they went and why. |
+
+- Alerts (`infra/observability/prometheus/rules/database.yml`): `RudixDbReplicaLagHigh`
+  (`max(rudix_db_replica_lag_seconds) > 30` for 5 m, warning) and `RudixDbReplicaFallbacks`
+  (any `lag_exceeded` or `sample_failed` routing for 15 m, warning). A fallback is safe (the
+  report reads the primary) but moves reporting load back to it.
+- Logs: `db.replica.lag_sample_failed` (warning, error class only, or `unknown_lag` when the
+  standby has not replayed a transaction yet), `db.replica.connect_failed` (warning, error
+  class only: the replica refused or timed out after a good sample; the request used the
+  primary), and `db.replica.fallback` (debug, reason and lag).
+  No URL, query text, or row data is logged.
+- Lag is sampled on demand by API processes that serve reports, at most once per
+  `DB_REPLICA_LAG_CHECK_INTERVAL_SECONDS`; a process that serves no report never samples, so
+  the gauge can be stale or absent between reports. Read `routed_total` together with it.
+- Migration safety is a CI gate, not a metric: the "Check migration safety" step in
+  `backend-alembic` fails a pull request whose migrations drop or rename what the base
+  branch's models use, or take long locks on a large table without a reviewed marker.
+- No measured baseline exists yet; replica lag under load and a failover drill are staging
+  steps (plan section 9).
+
 ### Chat WebSocket connections and shutdown drain (R08-03, R08-02)
 
 - `rudix_chat_ws_connections` (gauge, `livesum`): accepted `/chat/ws` sockets open in the

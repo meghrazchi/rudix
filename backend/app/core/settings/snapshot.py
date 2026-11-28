@@ -347,6 +347,9 @@ def sanitized_snapshot(settings: Settings) -> dict[str, Any]:
             "beat_heartbeat_interval_seconds": settings.beat_heartbeat_interval_seconds,
             # anchor: v080-B3
             # anchor: v080-C2
+            "database_replica_url_set": settings.database_replica_url is not None,
+            "db_replica_max_lag_seconds": settings.db_replica_max_lag_seconds,
             # anchor: v080-D1
+            "app_auth_secret_previous_set": settings.app_auth_secret_previous is not None,
         },
     }

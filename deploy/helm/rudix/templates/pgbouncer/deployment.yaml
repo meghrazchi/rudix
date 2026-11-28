@@ -1,0 +1,76 @@
+{{- include "rudix.c2.validate" . -}}
+{{- if .Values.pgbouncer.enabled -}}
+{{- $ctx := dict "root" . "component" "pgbouncer" -}}
+{{- $pgbouncer := .Values.pgbouncer -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rudix.componentName" $ctx }}
+  labels:
+    {{- include "rudix.labels" $ctx | nindent 4 }}
+  annotations:
+    # Application-side connections the pooler must accept (docs/28, connection budget).
+    rudix.io/pooler-client-connections-worst-case: {{ include "rudix.c1.clientConnectionsWorstCase" . | quote }}
+spec:
+  replicas: {{ int $pgbouncer.replicas }}
+  selector:
+    matchLabels:
+      {{- include "rudix.selectorLabels" $ctx | nindent 6 }}
+  {{- include "rudix.c1.rollingStrategy" (dict "root" . "kind" "web") | nindent 2 }}
+  template:
+    metadata:
+      labels:
+        {{- include "rudix.labels" $ctx | nindent 8 }}
+      {{- with $pgbouncer.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- include "rudix.c1.podCommon" $ctx | nindent 6 }}
+      terminationGracePeriodSeconds: {{ int $pgbouncer.terminationGracePeriodSeconds }}
+      {{- with include "rudix.c1.spread" $ctx | trim }}{{ . | nindent 6 }}{{ end }}
+      {{- with include "rudix.c1.scheduling" (dict "values" $pgbouncer) | trim }}{{ . | nindent 6 }}{{ end }}
+      containers:
+        - name: pgbouncer
+          image: {{ $pgbouncer.image | quote }}
+          imagePullPolicy: {{ $pgbouncer.imagePullPolicy }}
+          {{- with $pgbouncer.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $pgbouncer.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: postgres
+              containerPort: {{ int $pgbouncer.port }}
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: postgres
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: postgres
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml $pgbouncer.resources | nindent 12 }}
+          securityContext:
+            {{- include "rudix.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            {{- include "rudix.tmpVolumeMount" . | nindent 12 }}
+            - name: config
+              mountPath: {{ $pgbouncer.configMountPath }}
+              readOnly: true
+      volumes:
+        {{- include "rudix.tmpVolume" . | nindent 8 }}
+        - name: config
+          secret:
+            secretName: {{ $pgbouncer.configSecretName }}
+            defaultMode: 0440
+{{- end }}

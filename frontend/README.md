@@ -644,6 +644,47 @@ package is not approved as a dependency.
   within 2 s), `useAgentRunTimeline.sse.test.tsx`, and `e2e/realtime-fallback.spec.ts`
   (hidden tab stops polling).
 
+### Request-time configuration and CDN (R08-11, R08-12)
+
+- `NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE` is `build` (default) or `request`. Build mode is
+  unchanged: every `NEXT_PUBLIC_*` value is inlined at `next build`, and the prerendered HTML
+  and headers are what they were before.
+- Request mode: the proxy (`src/proxy.ts`) serves `/runtime-config.js`, which sets
+  `window.__RUDIX_RUNTIME_CONFIG__` (frozen) to the allowlisted names of the server's runtime
+  environment, with `Cache-Control: no-store` and `nosniff`; the root document loads it with
+  `next/script` `beforeInteractive`, so it runs before any app module and pages stay
+  prerendered. In build mode the path answers 404. It is served by the proxy and not by an app
+  route because a new top-level route segment would change the RSC payload of every
+  prerendered page.
+- Allowlist: `config/public-runtime-keys.mjs` (`PUBLIC_RUNTIME_KEYS`: URLs, deployment
+  environment, feature flags, limits, Sentry, Matomo/GA ids, support and help links). Every
+  other `NEXT_PUBLIC_*` name read in `src/` is listed in `BUILD_ONLY_PUBLIC_KEYS` with a reason:
+  development-only flags and secrets (never allowlisted), the public-page links and
+  `NEXT_PUBLIC_PUBLIC_SITE_URL` (prerendered), the `NEXT_PUBLIC_CONTACT_*` contact-form
+  settings (the prerendered contact page renders them, so a served value would break
+  hydration), `NEXT_PUBLIC_ASSET_PREFIX`, CSP inputs.
+  `src/lib/public-env.test.ts` fails on a name in neither list.
+- Code reads allowlisted names with
+  `publicEnv("NEXT_PUBLIC_X", process.env.NEXT_PUBLIC_X)` (`src/lib/public-env.ts`). The
+  second argument is the literal read Next inlines; it keeps each bundle as small as before
+  (a shared map of all names would ship to every route and exceed the marketing budget). In
+  request mode the served value wins in the browser and the runtime env on the server.
+  `src/lib/runtime-config.ts` parses `publicEnvSource()`, which is `process.env` in build mode.
+- CSP in request mode: `next.config.ts` leaves the CSP out of its build-time headers and the
+  proxy sets it per response with the same `buildSecurityHeaders`, from the runtime env.
+- CDN: `NEXT_PUBLIC_ASSET_PREFIX` (unset = same origin) sets `assetPrefix` and adds the origin
+  to `script-src`, `style-src`, `font-src`, `img-src`. `PUBLIC_ASSET_CACHE_CONTROL` (unset =
+  Next default) sets `Cache-Control` for `/brand`, `/fonts`, `/images`; `immutable` is refused
+  because those files are not content-hashed (`/_next/static` already is immutable). Both are
+  build-time, so one image across environments needs one CDN host.
+- Tests: `src/lib/public-env*.test.ts`, `src/lib/runtime-config-script.test.ts`,
+  `src/proxy-runtime-config.test.ts`, `config/next-config.test.ts`, and the Playwright project
+  `chromium-runtime-config` (`e2e/runtime-config.spec.ts`): it builds into `.next-e2e-runtime`
+  in request mode with one API URL, starts the standalone server with another, and checks that
+  the login page, `/runtime-config.js`, and the CSP use the runtime one and that
+  `node scripts/check-prerendered-routes.mjs --dist-dir .next-e2e-runtime` passes. That build
+  takes a few minutes the first time the suite starts.
+
 ## Dashboard Design Sample
 
 ![Rudix Dashboard Sample](../docs/screenshots/dashboard_overview.png)

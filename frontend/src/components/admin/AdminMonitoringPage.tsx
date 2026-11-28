@@ -27,6 +27,7 @@ import {
 } from "@/lib/dashboard";
 import { resolveNotificationsEndpoint, isExternalHref } from "@/lib/top-bar";
 import { useAuthSession } from "@/lib/use-auth-session";
+import { publicEnv } from "@/lib/public-env";
 
 type MonitoringSeverity = "critical" | "high" | "medium" | "low" | "info";
 
@@ -99,27 +100,46 @@ function resolveMonitoringPanels(): MonitoringPanel[] {
     {
       key: "monitoring",
       title: "Monitoring dashboard",
-      href: resolveConfiguredHref(process.env.NEXT_PUBLIC_ADMIN_MONITORING_URL),
+      href: resolveConfiguredHref(
+        publicEnv(
+          "NEXT_PUBLIC_ADMIN_MONITORING_URL",
+          process.env.NEXT_PUBLIC_ADMIN_MONITORING_URL,
+        ),
+      ),
     },
     {
       key: "sentry",
       title: "Sentry",
-      href: resolveConfiguredHref(process.env.NEXT_PUBLIC_SENTRY_URL),
+      href: resolveConfiguredHref(
+        publicEnv("NEXT_PUBLIC_SENTRY_URL", process.env.NEXT_PUBLIC_SENTRY_URL),
+      ),
     },
     {
       key: "logs",
       title: "Logs",
-      href: resolveConfiguredHref(process.env.NEXT_PUBLIC_LOGS_URL),
+      href: resolveConfiguredHref(
+        publicEnv("NEXT_PUBLIC_LOGS_URL", process.env.NEXT_PUBLIC_LOGS_URL),
+      ),
     },
     {
       key: "metrics",
       title: "Metrics",
-      href: resolveConfiguredHref(process.env.NEXT_PUBLIC_METRICS_URL),
+      href: resolveConfiguredHref(
+        publicEnv(
+          "NEXT_PUBLIC_METRICS_URL",
+          process.env.NEXT_PUBLIC_METRICS_URL,
+        ),
+      ),
     },
     {
       key: "tracing",
       title: "Tracing",
-      href: resolveConfiguredHref(process.env.NEXT_PUBLIC_TRACING_URL),
+      href: resolveConfiguredHref(
+        publicEnv(
+          "NEXT_PUBLIC_TRACING_URL",
+          process.env.NEXT_PUBLIC_TRACING_URL,
+        ),
+      ),
     },
   ];
 }
@@ -306,11 +326,17 @@ export function AdminMonitoringPage() {
   );
   const usageRange = useMemo(() => resolveUsageDateRange("30d"), []);
   const lowConfidenceThreshold = parseFloatEnv(
-    process.env.NEXT_PUBLIC_MONITORING_LOW_CONFIDENCE_THRESHOLD,
+    publicEnv(
+      "NEXT_PUBLIC_MONITORING_LOW_CONFIDENCE_THRESHOLD",
+      process.env.NEXT_PUBLIC_MONITORING_LOW_CONFIDENCE_THRESHOLD,
+    ),
     0.65,
   );
   const highLatencyThresholdMs = parseIntEnv(
-    process.env.NEXT_PUBLIC_MONITORING_HIGH_LATENCY_MS_THRESHOLD,
+    publicEnv(
+      "NEXT_PUBLIC_MONITORING_HIGH_LATENCY_MS_THRESHOLD",
+      process.env.NEXT_PUBLIC_MONITORING_HIGH_LATENCY_MS_THRESHOLD,
+    ),
     2000,
   );
 

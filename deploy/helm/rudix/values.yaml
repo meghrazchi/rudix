@@ -66,6 +66,13 @@ config:
     # Readiness gates only on the stores every request needs (contract 5.2.6, B1 setting).
     READINESS_REQUIRED_DEPENDENCIES: postgres,redis
     # v080-C2
+    # Must equal database.pgbouncerMode: true when DATABASE_URL points at a transaction pooler.
+    DB_PGBOUNCER_MODE: "false"
+    # Reporting routes read from DATABASE_REPLICA_URL only while the sampled lag is at most
+    # this many seconds (R08-04); unset replica URL: everything stays on the primary.
+    DB_REPLICA_MAX_LAG_SECONDS: "30"
+    DB_REPLICA_LAG_CHECK_INTERVAL_SECONDS: "10"
+    DB_REPLICA_LAG_QUERY_TIMEOUT_MS: "500"
     # v080-D1
 
 # owner: S1
@@ -76,8 +83,25 @@ secrets:
   # The chart never creates a Secret with values; must stay false.
   create: false
   # owner: D1
+  # Optional External Secrets Operator `ExternalSecret` that writes the Secret named by
+  # `existingSecret` from a secret manager (R08-11). Off by default; the operator must be
+  # installed and a SecretStore or ClusterSecretStore must exist. Only references live here:
+  # each `data` item maps an environment variable name (`secretKey`) to a remote key.
   externalSecret:
     enabled: false
+    refreshInterval: 1h
+    secretStoreRef:
+      # Placeholders: the name and kind of your SecretStore or ClusterSecretStore.
+      name: rudix-secret-store
+      kind: ClusterSecretStore
+    # Example (placeholders only, never values):
+    #   - secretKey: APP_AUTH_SECRET
+    #     remoteRef:
+    #       key: rudix/production/app-auth-secret
+    #   - secretKey: APP_AUTH_SECRET_PREVIOUS
+    #     remoteRef:
+    #       key: rudix/production/app-auth-secret-previous
+    data: []
 
 # owner: S1
 serviceAccount:
@@ -140,7 +164,32 @@ metrics:
 
 # owner: A1
 ingress:
+  # One Ingress each for the app, the API, and (when mcp.enabled) MCP. Needs an
+  # operator-installed controller; written for NGINX ingress (docs/28, "Edge and ingress").
   enabled: false
+  className: nginx
+  # Upload cap: backend MAX_UPLOAD_SIZE_MB (25) plus multipart headroom; raise both together.
+  maxBodySize: 26m
+  # proxy-read/send timeout on the API and MCP ingresses, for WebSocket and SSE streams.
+  streamTimeoutSeconds: 3600
+  # true: X-Robots-Tag "noindex, nofollow" on every host (staging).
+  noindex: false
+  certManager:
+    # Empty: no cert-manager annotation; the TLS secrets are provided another way.
+    clusterIssuer: ""
+  # Extra annotations added to every Ingress.
+  annotations: {}
+  app:
+    host: app.rudix.invalid
+    tlsSecretName: rudix-app-tls
+  api:
+    host: api.rudix.invalid
+    tlsSecretName: rudix-api-tls
+  mcp:
+    # Empty host: MCP is served on the API host under path, with the API certificate.
+    host: ""
+    path: /mcp
+    tlsSecretName: ""
 
 # owner: A2
 backup:
@@ -447,11 +496,57 @@ connectionBudget:
   enginesPerProcess: 1
 
 # owner: C2
-database: {}
+database:
+  # Key names in secrets.existingSecret, never values (docs/28, "Database"). The chart reads
+  # the Secret with envFrom, so each key arrives under its own name:
+  #   DATABASE_URL              application role (or the PgBouncer Service when pgbouncer is on)
+  #   DATABASE_REPLICA_URL      optional read replica for reporting routes (read-only role)
+  #   DATABASE_MIGRATION_URL    schema owner for the migrate Job (migrations.useMigrationUrl)
+  #   DATABASE_MAINTENANCE_URL  optional BYPASSRLS role for cross-tenant beat tasks
+  secretKeys:
+    url: DATABASE_URL
+    replicaUrl: DATABASE_REPLICA_URL
+    migrationUrl: DATABASE_MIGRATION_URL
+    maintenanceUrl: DATABASE_MAINTENANCE_URL
+  # true when DATABASE_URL goes through PgBouncer in transaction mode (the chart pooler or the
+  # provider's). Must equal config.env.DB_PGBOUNCER_MODE; the render fails when they differ.
+  pgbouncerMode: false
 
 # owner: C2
 pgbouncer:
+  # PgBouncer in transaction mode between the application pods and PostgreSQL (R08-04). Off:
+  # the pods connect to the database (or the managed provider's pooler) directly.
   enabled: false
+  # Required when enabled: an image the operator trusts, by digest; no default is guessed.
+  image: ""
+  imagePullPolicy: IfNotPresent
+  replicas: 2
+  # Container and Service port, named `postgres`.
+  port: 6432
+  # Required when enabled: existing Secret with pgbouncer.ini (pool_mode = transaction,
+  # listen_port = port, no logfile or pidfile) and userlist.txt (or auth_query settings).
+  configSecretName: ""
+  configMountPath: /etc/pgbouncer
+  # Default: run pgbouncer on the mounted ini. Images with their own entrypoint may need [].
+  command: ["pgbouncer"]
+  args: ["/etc/pgbouncer/pgbouncer.ini"]
+  # Mirror of pgbouncer.ini for the connection budget: server connections per pod are
+  # default_pool_size + reserve_pool_size (one database and user pair); max_client_conn
+  # bounds the application side.
+  defaultPoolSize: 20
+  reservePoolSize: 5
+  maxClientConnections: 1000
+  terminationGracePeriodSeconds: 30
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
 
 # owner: B3
 tracing:
@@ -460,7 +555,33 @@ tracing:
 # owner: D1
 runtimeConfig:
   # Non-secret frontend environment, rendered into the `<fullname>-frontend` ConfigMap.
-  env: {}
+  # With NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE=request (an image built in request mode) the
+  # frontend serves the allowlisted NEXT_PUBLIC_* names below at request time from
+  # /runtime-config.js and builds the CSP from them (R08-11). With `build` (the default) the
+  # image keeps the values it was built with and these only reach server-side code.
+  # Allowlist: frontend/config/public-runtime-keys.mjs. Never put a credential here.
+  # Build-time only, so not settable here: NEXT_PUBLIC_ASSET_PREFIX, NEXT_PUBLIC_PUBLIC_SITE_URL
+  # and the other NEXT_PUBLIC_PUBLIC_* links, PUBLIC_ASSET_CACHE_CONTROL (see `cdn`).
+  env:
+    NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE: build
+    NEXT_PUBLIC_DEPLOYMENT_ENV: development
+    NEXT_PUBLIC_API_URL: https://api.rudix.invalid/api/v1
+    NEXT_PUBLIC_APP_URL: https://app.rudix.invalid
+    NEXT_PUBLIC_AUTH_PROVIDER: app
+    NEXT_PUBLIC_SENTRY_DSN: ""
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: development
+    NEXT_PUBLIC_SENTRY_RELEASE: ""
+    NEXT_PUBLIC_MATOMO_URL: ""
+    NEXT_PUBLIC_MATOMO_SITE_ID: ""
+    NEXT_PUBLIC_SUPPORT_URL: ""
+    NEXT_PUBLIC_HELP_DOCS_URL: ""
 
 # owner: D1
-cdn: {}
+cdn:
+  # Build-time values the frontend image was built with, recorded here for reference
+  # (R08-12). They cannot change at deploy time: NEXT_PUBLIC_ASSET_PREFIX is Next.js
+  # assetPrefix and PUBLIC_ASSET_CACHE_CONTROL is a build-time response header. The chart
+  # checks their shape only and renders nothing from them.
+  # One image for staging and production needs one CDN host for both.
+  assetPrefix: ""
+  publicAssetCacheControl: ""

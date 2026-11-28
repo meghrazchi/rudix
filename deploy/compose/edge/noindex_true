@@ -1,0 +1,3 @@
+# Imported when EDGE_NOINDEX=true (staging default): asks search engines and AI crawlers not
+# to index a non-production host (docs/roadmap/V0_8_0_IMPLEMENTATION_PLAN.md, section 6).
+header X-Robots-Tag "noindex, nofollow"

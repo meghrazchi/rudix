@@ -1,0 +1,3 @@
+{{- if .Values.pgbouncer.enabled }}
+{{- include "rudix.c1.service" (dict "root" . "component" "pgbouncer" "port" .Values.pgbouncer.port "portName" "postgres") }}
+{{- end }}

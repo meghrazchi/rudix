@@ -50,3 +50,6 @@ dist/
 # uv bootstrap and audit scratch (backend/Makefile)
 backend/.tools/
 backend/.audit-requirements.txt
+
+# Operator-provided edge TLS files (EDGE_TLS_MODE=files, 0.8.0)
+deploy/compose/edge/certs/

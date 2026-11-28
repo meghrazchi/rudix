@@ -4,7 +4,10 @@ import {
   isProductionLikeEnvironment,
   resolveDeploymentEnvironment,
 } from "./deployment-env.mjs";
-import { buildSecurityHeaders } from "./security-headers.mjs";
+import {
+  buildSecurityHeaders,
+  isContentSecurityPolicyHeader,
+} from "./security-headers.mjs";
 
 type Env = Record<string, string | undefined>;
 
@@ -249,5 +252,35 @@ describe("buildSecurityHeaders", () => {
     expect(enforced["Content-Security-Policy"]).toBe(
       def["Content-Security-Policy-Report-Only"],
     );
+  });
+});
+
+describe("CDN asset origin in the CSP (R08-12)", () => {
+  it("adds the asset prefix origin to script, style, font and img sources", () => {
+    const policy = csp({
+      NEXT_PUBLIC_ASSET_PREFIX: "https://cdn.example.com/rudix/",
+    });
+    for (const name of ["script-src", "style-src", "font-src", "img-src"]) {
+      expect(directive(policy, name)).toContain("https://cdn.example.com");
+    }
+    expect(directive(policy, "connect-src")).not.toContain("cdn.example.com");
+    expect(directive(policy, "font-src")).toBe(
+      "font-src 'self' data: https://cdn.example.com",
+    );
+  });
+
+  it("leaves the policy unchanged without a valid asset prefix", () => {
+    const base = csp({});
+    expect(csp({ NEXT_PUBLIC_ASSET_PREFIX: "" })).toBe(base);
+    expect(csp({ NEXT_PUBLIC_ASSET_PREFIX: "not a url" })).toBe(base);
+    expect(directive(base, "font-src")).toBe("font-src 'self' data:");
+  });
+
+  it("names both CSP header keys", () => {
+    expect(isContentSecurityPolicyHeader("Content-Security-Policy")).toBe(true);
+    expect(
+      isContentSecurityPolicyHeader("Content-Security-Policy-Report-Only"),
+    ).toBe(true);
+    expect(isContentSecurityPolicyHeader("X-Frame-Options")).toBe(false);
   });
 });

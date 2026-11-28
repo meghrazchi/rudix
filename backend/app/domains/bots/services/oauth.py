@@ -14,7 +14,9 @@ from uuid import UUID
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.token_codec import verify_signature_with_rotation
 from app.core.config import settings
+from app.core.metrics_auth_rotation import record_verified_by_previous_key
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.bots.repositories.bots import BotRepository
 from app.domains.bots.services.credential_vault import BotCredentialVault
@@ -316,8 +318,8 @@ def _decode_state(state: str) -> dict[str, Any]:
         encoded_payload, signature = state.split(".", 1)
     except ValueError as exc:
         raise BotOAuthError("Invalid Slack OAuth state") from exc
-    expected = _sign(encoded_payload)
-    if not hmac.compare_digest(expected, signature):
+    verified_by_previous = verify_signature_with_rotation(encoded_payload, signature)
+    if verified_by_previous is None:
         raise BotOAuthError("Invalid Slack OAuth state")
     try:
         payload = json.loads(_b64url_decode(encoded_payload))
@@ -328,6 +330,8 @@ def _decode_state(state: str) -> dict[str, Any]:
     exp = payload.get("exp")
     if not isinstance(exp, int) or datetime.now(tz=UTC).timestamp() >= exp:
         raise BotOAuthError("Slack OAuth state expired")
+    if verified_by_previous:
+        record_verified_by_previous_key("bot_oauth_state")
     return payload
 
 

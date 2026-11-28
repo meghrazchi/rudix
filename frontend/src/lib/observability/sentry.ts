@@ -7,6 +7,7 @@ import type {
   FrontendObservabilityContext,
   ObservabilityLevel,
 } from "@/lib/observability/types";
+import { publicEnv } from "@/lib/public-env";
 
 const SENTRY_VERSION = "7";
 const SENTRY_CLIENT = "rudix-frontend/0.1.0";
@@ -45,7 +46,9 @@ function parseRate(value: string | undefined): number {
 }
 
 function parseSentryConfig(): SentryTransportConfig | null {
-  const dsn = trimToNull(process.env.NEXT_PUBLIC_SENTRY_DSN);
+  const dsn = trimToNull(
+    publicEnv("NEXT_PUBLIC_SENTRY_DSN", process.env.NEXT_PUBLIC_SENTRY_DSN),
+  );
   if (!dsn) {
     return null;
   }
@@ -64,10 +67,20 @@ function parseSentryConfig(): SentryTransportConfig | null {
 
     const envelopeUrl = `${url.protocol}//${url.host}${prefixPath}/api/${projectId}/envelope/`;
     const environment =
-      trimToNull(process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT) ??
+      trimToNull(
+        publicEnv(
+          "NEXT_PUBLIC_SENTRY_ENVIRONMENT",
+          process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT,
+        ),
+      ) ??
       trimToNull(process.env.NODE_ENV) ??
       "development";
-    const release = trimToNull(process.env.NEXT_PUBLIC_SENTRY_RELEASE);
+    const release = trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_SENTRY_RELEASE",
+        process.env.NEXT_PUBLIC_SENTRY_RELEASE,
+      ),
+    );
 
     return {
       envelopeUrl,
@@ -75,7 +88,12 @@ function parseSentryConfig(): SentryTransportConfig | null {
       publicKey,
       environment,
       release,
-      sampleRate: parseRate(process.env.NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE),
+      sampleRate: parseRate(
+        publicEnv(
+          "NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE",
+          process.env.NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE,
+        ),
+      ),
     };
   } catch {
     return null;

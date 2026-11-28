@@ -1,0 +1,23 @@
+# Read replica alerts (0.8.0, R08-04; owner C2). Reporting routes read from the replica only
+# while the sampled lag is at most DB_REPLICA_MAX_LAG_SECONDS (default 30); otherwise they
+# fall back to the primary. docs/28 "Database: managed Postgres, replica, pooler".
+groups:
+  - name: rudix-database
+    rules:
+      - alert: RudixDbReplicaLagHigh
+        expr: max(rudix_db_replica_lag_seconds) > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rudix reporting read replica lags the primary by more than 30s"
+          description: "Sampled replica lag is {{ $value | humanizeDuration }}; reporting routes fall back to the primary while it exceeds DB_REPLICA_MAX_LAG_SECONDS."
+
+      - alert: RudixDbReplicaFallbacks
+        expr: sum(rate(rudix_db_replica_routed_total{reason=~"lag_exceeded|sample_failed"}[5m])) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rudix reporting reads keep falling back from the replica to the primary"
+          description: "Reporting sessions went to the primary for 15 minutes because the replica lag was too high or could not be sampled; check replica health and DB_REPLICA_LAG_QUERY_TIMEOUT_MS."

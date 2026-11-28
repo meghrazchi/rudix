@@ -178,8 +178,11 @@
   "frontend_base_url": "http://localhost:3000/",
   "infrastructure": {
     "api_shutdown_drain_seconds": 0.0,
+    "app_auth_secret_previous_set": false,
     "beat_heartbeat_interval_seconds": 60,
     "celery_result_backend_url_set": false,
+    "database_replica_url_set": false,
+    "db_replica_max_lag_seconds": 30.0,
     "redis_cache_url_set": false,
     "worker_metrics_multiprocess": true,
     "ws_chat_connection_limit_backend": "memory"

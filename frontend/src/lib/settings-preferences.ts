@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { apiRequest } from "@/lib/api/request";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
+import { publicEnv } from "@/lib/public-env";
 
 function trimToNull(value: string | null | undefined): string | null {
   if (!value) {
@@ -57,14 +58,32 @@ const SETTINGS_STORAGE_KEY = "rudix.settings.preferences.v1";
 
 const TOP_K_MIN = Math.max(
   1,
-  parseIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_MIN, 1),
+  parseIntegerEnv(
+    publicEnv(
+      "NEXT_PUBLIC_CHAT_TOP_K_MIN",
+      process.env.NEXT_PUBLIC_CHAT_TOP_K_MIN,
+    ),
+    1,
+  ),
 );
 const TOP_K_MAX = Math.max(
   TOP_K_MIN,
-  parseIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_MAX, 20),
+  parseIntegerEnv(
+    publicEnv(
+      "NEXT_PUBLIC_CHAT_TOP_K_MAX",
+      process.env.NEXT_PUBLIC_CHAT_TOP_K_MAX,
+    ),
+    20,
+  ),
 );
 const TOP_K_DEFAULT = clampInteger(
-  parseIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_DEFAULT, 5),
+  parseIntegerEnv(
+    publicEnv(
+      "NEXT_PUBLIC_CHAT_TOP_K_DEFAULT",
+      process.env.NEXT_PUBLIC_CHAT_TOP_K_DEFAULT,
+    ),
+    5,
+  ),
   TOP_K_MIN,
   TOP_K_MAX,
 );
@@ -158,8 +177,18 @@ type SettingsPreferencesConfig = {
 
 function toSettingsPreferencesConfig(): SettingsPreferencesConfig {
   return {
-    loadUrl: trimToNull(process.env.NEXT_PUBLIC_SETTINGS_PREFERENCES_LOAD_URL),
-    saveUrl: trimToNull(process.env.NEXT_PUBLIC_SETTINGS_PREFERENCES_SAVE_URL),
+    loadUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_SETTINGS_PREFERENCES_LOAD_URL",
+        process.env.NEXT_PUBLIC_SETTINGS_PREFERENCES_LOAD_URL,
+      ),
+    ),
+    saveUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_SETTINGS_PREFERENCES_SAVE_URL",
+        process.env.NEXT_PUBLIC_SETTINGS_PREFERENCES_SAVE_URL,
+      ),
+    ),
     localFallbackEnabled:
       parseBooleanEnv(
         process.env.NEXT_PUBLIC_SETTINGS_PREFERENCES_LOCAL_FALLBACK,

@@ -25,3 +25,20 @@ networkPolicy:
 # owner: C1
 podDisruptionBudget:
   enabled: false
+
+# owner: A1
+ingress:
+  enabled: true
+  noindex: true
+  certManager:
+    clusterIssuer: ci-issuer
+  app:
+    host: app.ci.rudix.invalid
+    tlsSecretName: rudix-ci-app-tls
+  api:
+    host: api.ci.rudix.invalid
+    tlsSecretName: rudix-ci-api-tls
+  mcp:
+    host: mcp.ci.rudix.invalid
+    path: /mcp
+    tlsSecretName: rudix-ci-mcp-tls

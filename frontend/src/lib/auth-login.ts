@@ -4,6 +4,7 @@ import { isApiClientError } from "@/lib/api/errors";
 import { apiRequest } from "@/lib/api/request";
 import type { AppRole, AuthenticatedSession } from "@/lib/auth-session";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
+import { publicEnv } from "@/lib/public-env";
 
 const APP_ROLES: AppRole[] = ["owner", "admin", "member", "viewer"];
 
@@ -109,22 +110,39 @@ export function getAuthClientConfig(): AuthClientConfig {
     "member",
   );
   const providerName =
-    trimToNull(process.env.NEXT_PUBLIC_AUTH_PROVIDER) ??
-    runtimeConfig.authProviderRaw;
+    trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_AUTH_PROVIDER",
+        process.env.NEXT_PUBLIC_AUTH_PROVIDER,
+      ),
+    ) ?? runtimeConfig.authProviderRaw;
   const normalizedProvider =
     runtimeConfig.authProvider === "other"
       ? normalizeProviderName(providerName)
       : runtimeConfig.authProvider;
-  const configuredLoginUrl = trimToNull(process.env.NEXT_PUBLIC_AUTH_LOGIN_URL);
+  const configuredLoginUrl = trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_AUTH_LOGIN_URL",
+      process.env.NEXT_PUBLIC_AUTH_LOGIN_URL,
+    ),
+  );
 
   return {
     providerName,
     loginUrl:
       configuredLoginUrl ??
       (normalizedProvider === "app" ? "/auth/login" : null),
-    ssoUrl: trimToNull(process.env.NEXT_PUBLIC_AUTH_SSO_URL),
+    ssoUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_AUTH_SSO_URL",
+        process.env.NEXT_PUBLIC_AUTH_SSO_URL,
+      ),
+    ),
     forgotPasswordUrl: trimToNull(
-      process.env.NEXT_PUBLIC_AUTH_FORGOT_PASSWORD_URL,
+      publicEnv(
+        "NEXT_PUBLIC_AUTH_FORGOT_PASSWORD_URL",
+        process.env.NEXT_PUBLIC_AUTH_FORGOT_PASSWORD_URL,
+      ),
     ),
     localFallbackEnabled:
       trimToNull(process.env.NEXT_PUBLIC_AUTH_LOCAL_FALLBACK) === "true" ||

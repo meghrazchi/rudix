@@ -1,6 +1,15 @@
 import createMiddleware from "next-intl/middleware";
 import { type NextRequest, NextResponse } from "next/server";
 
+import { runtimeConfigSource } from "./lib/public-env";
+import {
+  RUNTIME_CONFIG_PATH,
+  runtimeConfigResponse,
+} from "./lib/runtime-config-script";
+import {
+  buildSecurityHeaders,
+  isContentSecurityPolicyHeader,
+} from "../config/security-headers.mjs";
 import {
   isAuthenticatedAppPath,
   parseLocalePrefixedAppPath,
@@ -51,7 +60,34 @@ function redirectToLogin(request: NextRequest, locale: string): NextResponse {
   });
 }
 
-export function proxy(request: NextRequest): NextResponse {
+// Request mode (R08-11): next.config.ts leaves the CSP out of its build-time
+// headers and the proxy sets it on every matched response from the runtime
+// environment, with the same builder. The proxy runs on the Node.js runtime
+// before filesystem routes, so prerendered pages get it too. Build mode: no-op.
+export function withRequestTimeCsp(response: NextResponse): NextResponse {
+  if (runtimeConfigSource() !== "request") {
+    return response;
+  }
+  const headers = buildSecurityHeaders(process.env, {
+    isDev: process.env.NODE_ENV !== "production",
+  });
+  for (const header of headers) {
+    if (isContentSecurityPolicyHeader(header.key)) {
+      response.headers.set(header.key, header.value);
+    }
+  }
+  return response;
+}
+
+export function proxy(request: NextRequest): Response {
+  if (request.nextUrl.pathname === RUNTIME_CONFIG_PATH) {
+    // Request mode: allowlisted public values of the runtime env (R08-11).
+    return runtimeConfigResponse(runtimeConfigSource(), process.env);
+  }
+  return withRequestTimeCsp(routeRequest(request));
+}
+
+function routeRequest(request: NextRequest): NextResponse {
   const localizedAppPath = parseLocalePrefixedAppPath(request.nextUrl.pathname);
 
   // Authenticated app routes intentionally keep locale state in a cookie, not
@@ -102,5 +138,7 @@ export const config = {
   // and browsers get those files directly instead of a locale redirect.
   matcher: [
     "/((?!_next/static|_next/image|brand/|images/|fonts/|api/|.*\\..*).*)",
+    // Served by the proxy itself (R08-11); 404 in build mode.
+    "/runtime-config.js",
   ],
 };

@@ -1,5 +1,7 @@
 "use client";
 
+import { publicEnv } from "@/lib/public-env";
+
 /**
  * Realtime-aware polling intervals (R07-07).
  *
@@ -24,7 +26,10 @@ const DEFAULT_FALLBACK_POLL_MS = 15_000;
 
 export function realtimeFallbackPollMs(): number {
   const parsed = Number.parseInt(
-    process.env.NEXT_PUBLIC_REALTIME_FALLBACK_POLL_MS ?? "",
+    publicEnv(
+      "NEXT_PUBLIC_REALTIME_FALLBACK_POLL_MS",
+      process.env.NEXT_PUBLIC_REALTIME_FALLBACK_POLL_MS,
+    ) ?? "",
     10,
   );
   return Number.isFinite(parsed) && parsed > 0

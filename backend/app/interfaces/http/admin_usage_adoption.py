@@ -24,7 +24,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import require_roles
+from app.auth.dependencies import get_reporting_db_session, require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.db.session import get_db_session
 from app.domains.admin.schemas.usage_adoption import (
@@ -57,6 +57,8 @@ _AdminRoles = Annotated[
 ]
 _RateLimit = Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))]
 _DB = Annotated[AsyncSession, Depends(get_db_session)]
+# Staleness-tolerant reads: the read replica when configured and fresh (R08-04).
+_ReportingDB = Annotated[AsyncSession, Depends(get_reporting_db_session)]
 
 
 def _org_id(principal: AuthenticatedPrincipal) -> UUID:
@@ -80,7 +82,7 @@ def _build_filters(*, from_date, to_date, role: str | None) -> UsageAdoptionFilt
 async def get_usage_adoption_summary(
     principal: _AdminRoles,
     _: _RateLimit,
-    db_session: _DB,
+    db_session: _ReportingDB,
     from_date: Annotated[str | None, Query(alias="from")] = None,
     to_date: Annotated[str | None, Query(alias="to")] = None,
     role: Annotated[str | None, Query()] = None,
@@ -97,7 +99,7 @@ async def get_usage_adoption_summary(
 async def get_usage_adoption_charts(
     principal: _AdminRoles,
     _: _RateLimit,
-    db_session: _DB,
+    db_session: _ReportingDB,
     from_date: Annotated[str | None, Query(alias="from")] = None,
     to_date: Annotated[str | None, Query(alias="to")] = None,
     role: Annotated[str | None, Query()] = None,
@@ -114,7 +116,7 @@ async def get_usage_adoption_charts(
 async def get_usage_adoption_funnel(
     principal: _AdminRoles,
     _: _RateLimit,
-    db_session: _DB,
+    db_session: _ReportingDB,
     from_date: Annotated[str | None, Query(alias="from")] = None,
     to_date: Annotated[str | None, Query(alias="to")] = None,
     role: Annotated[str | None, Query()] = None,
@@ -131,7 +133,7 @@ async def get_usage_adoption_funnel(
 async def list_usage_adoption_users(
     principal: _AdminRoles,
     _: _RateLimit,
-    db_session: _DB,
+    db_session: _ReportingDB,
     from_date: Annotated[str | None, Query(alias="from")] = None,
     to_date: Annotated[str | None, Query(alias="to")] = None,
     role: Annotated[str | None, Query()] = None,
@@ -154,7 +156,7 @@ async def list_usage_adoption_users(
 async def export_usage_adoption(
     principal: _AdminRoles,
     _: _RateLimit,
-    db_session: _DB,
+    db_session: _ReportingDB,
     from_date: Annotated[str | None, Query(alias="from")] = None,
     to_date: Annotated[str | None, Query(alias="to")] = None,
     role: Annotated[str | None, Query()] = None,
