@@ -16,4 +16,5 @@ the License.
 
 Source: https://github.com/google/material-design-icons
 Subset generated with the Google Fonts CSS API (icon_names=...) for the names
-in config/material-symbols.json; axes opsz 20..48, FILL 0..1, wght 400, GRAD 0.
+in config/material-symbols.json; static default instance (no axes), as the
+former full stylesheet served it.

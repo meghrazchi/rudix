@@ -28,6 +28,26 @@ describe("namesInSource", () => {
     ]);
   });
 
+  it("finds names returned by icon helper functions", () => {
+    const names = namesInSource(`
+      export function getFileIcon(name) {
+        if (["txt", "md"].includes(name)) return "text_snippet";
+        if (name === "pdf") { return "picture_as_pdf"; }
+        return "draft";
+      }
+      const eventIcon = (type) => {
+        return "notifications";
+      };
+      function formatLabel(x) { return "not_an_icon"; }
+    `);
+    expect([...names].sort()).toEqual([
+      "draft",
+      "notifications",
+      "picture_as_pdf",
+      "text_snippet",
+    ]);
+  });
+
   it("ignores form field names and comparisons", () => {
     const names = namesInSource(`
       <input name="policy_name" />

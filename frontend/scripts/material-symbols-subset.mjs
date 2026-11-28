@@ -65,7 +65,37 @@ export function namesInSource(text) {
     const plain = m[1].trim();
     if (new RegExp(`^${NAME}$`).test(plain)) names.add(plain);
   }
+  // `return "x"` inside helpers named like an icon helper (getFileIcon,
+  // eventIcon, ...), which map a value to an icon name at runtime.
+  for (const body of iconHelperBodies(text)) {
+    for (const m of body.matchAll(new RegExp(`return\\s+"(${NAME})"`, "g")))
+      names.add(m[1]);
+  }
   return names;
+}
+
+/**
+ * Bodies of functions whose name contains "Icon" (`function fileIcon(` or
+ * `const fileIcon = (...) =>`), found by brace matching.
+ * @param {string} text
+ * @returns {string[]}
+ */
+function iconHelperBodies(text) {
+  const bodies = [];
+  const decl =
+    /(?:function\s+\w*Icon\w*\s*\(|const\s+\w*Icon\w*\s*=\s*\([^)]*\)[^=]*=>)/g;
+  for (const m of text.matchAll(decl)) {
+    const start = text.indexOf("{", m.index + m[0].length);
+    if (start === -1) continue;
+    let depth = 0;
+    let end = start;
+    for (; end < text.length; end += 1) {
+      if (text[end] === "{") depth += 1;
+      else if (text[end] === "}" && --depth === 0) break;
+    }
+    bodies.push(text.slice(start, end + 1));
+  }
+  return bodies;
 }
 
 /** @returns {string[]} */
