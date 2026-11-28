@@ -9,9 +9,11 @@ read from the ``Authorization`` header like every other route; never from the UR
 from __future__ import annotations
 
 from typing import Annotated
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.realtime import stream_http
 from app.auth.dependencies import require_roles
@@ -26,6 +28,7 @@ from app.core.error_codes import (
 )
 from app.core.logging import get_logger
 from app.core.metrics_realtime import record_realtime_reconnect
+from app.db.session import get_db_session
 from app.models.enums import OrganizationRole
 
 _logger = get_logger("realtime.http")
@@ -65,7 +68,12 @@ async def stream_events(
         AuthenticatedPrincipal,
         Depends(require_roles(*(role.value for role in OrganizationRole))),
     ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> StreamingResponse:
+    # The authentication dependency left a transaction open on the request session (the
+    # same session, cached per request). End it now: the dependency only exits after the
+    # response, so the pooled connection would otherwise be held for the whole stream.
+    await db_session.commit()
     if not settings.realtime_events_enabled:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -84,9 +92,10 @@ async def stream_events(
     redis = redis_module.redis_client
     if redis is None:
         raise _unavailable()
+    lease_id = uuid4().hex
     try:
         acquired = await stream_http.acquire_connection_slot(
-            redis, organization_id=organization_id, user_id=user_id
+            redis, organization_id=organization_id, user_id=user_id, lease_id=lease_id
         )
     except Exception as exc:
         _logger.warning(
@@ -112,6 +121,7 @@ async def stream_events(
         roles=principal.roles,
         last_event_id=stream_http.parse_last_event_id(raw_last_id),
         redis=redis,
+        lease_id=lease_id,
     )
     _logger.info(
         "realtime.stream.opened",

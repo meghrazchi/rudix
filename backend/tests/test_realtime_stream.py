@@ -15,13 +15,14 @@ from agent_worker_support import (
     api_client,
     headers_for,
 )
-from redis_fakes import BrokenRedis, FakeRedis
+from redis_fakes import BrokenRedis, FakeClock, FakeRedis
 
-from app.application.realtime import publisher
+from app.application.realtime import publisher, stream_http
 from app.application.realtime.stream_http import (
     RealtimeStreamReader,
     acquire_connection_slot,
     parse_last_event_id,
+    release_connection_slot,
 )
 from app.core.config import settings
 from app.domains.realtime.events import (
@@ -225,20 +226,75 @@ async def test_connection_cap_answers_429_and_slots_are_released(
     seeded = await agent_env.aseed()
     redis = FakeRedis()
     org, user = str(seeded.organization_id), str(seeded.user_id)
-    assert await acquire_connection_slot(redis, organization_id=org, user_id=user)
-    assert await acquire_connection_slot(redis, organization_id=org, user_id=user)
+    key = connection_key(org, user)
+    assert await acquire_connection_slot(redis, organization_id=org, user_id=user, lease_id="a")
+    assert await acquire_connection_slot(redis, organization_id=org, user_id=user, lease_id="b")
     async with api_client(agent_env, redis=redis) as client:
         headers = await headers_for(agent_env, seeded.user_id, seeded.organization_id)
         refused = await client.get(STREAM, headers=headers)
         assert refused.status_code == 429
         assert refused.json()["error"]["code"] == "realtime_connection_limit"
-        assert redis.keyspace.get(connection_key(org, user)) == "2"
-        await redis.decr(connection_key(org, user))
+        assert redis.keyspace.zcard(key) == 2
+        await release_connection_slot(redis, organization_id=org, user_id=user, lease_id="b")
         accepted = await client.get(STREAM, headers=headers, timeout=10)
     assert accepted.status_code == 200
-    # The finished stream gave its slot back.
-    assert redis.keyspace.get(connection_key(org, user)) == "1"
-    assert 0 < redis.keyspace.pttl(connection_key(org, user))
+    # The finished stream gave its lease back; only lease "a" is still held.
+    assert set(redis.keyspace.zsets[key]) == {"a"}
+    assert 0 < redis.keyspace.pttl(key)
+
+
+async def test_leaked_slots_expire_and_refused_attempts_never_extend_them(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A process that died with open streams must not lock the user out (R07-07 review)."""
+    monkeypatch.setattr(settings, "realtime_max_connections_per_user", 1)
+    clock = FakeClock(1_000_000)
+    redis = FakeRedis(clock=clock)
+    org, user = str(uuid4()), str(uuid4())
+    lease_ms = (settings.realtime_stream_max_seconds + 60) * 1000
+    assert await acquire_connection_slot(redis, organization_id=org, user_id=user, lease_id="x")
+    # The holder crashed; the client keeps retrying well inside the lease time.
+    for _ in range(5):
+        clock.advance(lease_ms // 4)
+        if clock.now_ms < 1_000_000 + lease_ms:
+            assert not await acquire_connection_slot(
+                redis, organization_id=org, user_id=user, lease_id="retry"
+            )
+    assert clock.now_ms >= 1_000_000 + lease_ms
+    assert await acquire_connection_slot(redis, organization_id=org, user_id=user, lease_id="new")
+    assert set(redis.keyspace.zsets[connection_key(org, user)]) == {"new"}
+
+
+async def test_stream_releases_the_request_transaction_before_streaming(
+    agent_env: AgentWorkerEnv,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stream must not hold a pooled database connection for its whole lifetime."""
+    sessions: list[Any] = []
+    original = agent_env.factory
+
+    def _factory() -> Any:
+        session = original()
+        sessions.append(session)
+        return session
+
+    monkeypatch.setattr(agent_env, "factory", _factory)
+    in_transaction: list[bool] = []
+    real_response = stream_http.stream_response
+
+    def _response(reader: RealtimeStreamReader) -> Any:
+        in_transaction.extend(session.in_transaction() for session in sessions)
+        return real_response(reader)
+
+    monkeypatch.setattr(stream_http, "stream_response", _response)
+    seeded = await agent_env.aseed()
+    sessions.clear()
+    async with api_client(agent_env, redis=FakeRedis()) as client:
+        headers = await headers_for(agent_env, seeded.user_id, seeded.organization_id)
+        sessions.clear()
+        response = await client.get(STREAM, headers=headers, timeout=10)
+    assert response.status_code == 200
+    assert in_transaction and not any(in_transaction)
 
 
 async def test_reader_ends_quietly_when_redis_breaks_mid_stream() -> None:
@@ -257,7 +313,7 @@ class _BrokenAfterSubscribe(FakeRedis):
     async def lrange(self, key: str, start: int, stop: int) -> list[str]:
         raise ConnectionError("gone")
 
-    async def decr(self, key: str) -> int:
+    async def zrem(self, key: str, *members: str) -> int:
         raise ConnectionError("gone")
 
 

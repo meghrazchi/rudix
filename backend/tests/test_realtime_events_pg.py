@@ -86,3 +86,52 @@ def test_commit_publishes_and_rollback_does_not_on_postgres(
     finally:
         env.execute_sql(delete(Document).where(Document.organization_id == seeded.organization_id))
     assert document_id is not None
+
+
+def test_open_stream_holds_no_database_transaction_on_postgres(
+    agent_env_pg: AgentWorkerEnv,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """While a stream is open, no backend of this database is ``idle in transaction``.
+
+    The authentication dependency opens a transaction on the request session, and the
+    dependency only exits after the response: without the commit in the endpoint, every
+    open stream would pin a pooled connection for ``REALTIME_STREAM_MAX_SECONDS``.
+    """
+    from agent_worker_support import api_client, headers_for
+    from sqlalchemy import text
+
+    from app.application.realtime.stream_http import RealtimeStreamReader
+
+    env = agent_env_pg
+    monkeypatch.setattr(settings, "realtime_events_enabled", True)
+    monkeypatch.setattr(settings, "realtime_stream_max_seconds", 0.3)
+    seeded = env.seed()
+    idle_in_transaction: list[int] = []
+    original_frames = RealtimeStreamReader.frames
+
+    async def _frames(self: RealtimeStreamReader) -> Any:
+        async with env.engine.connect() as probe:
+            count = (
+                await probe.execute(
+                    text(
+                        "SELECT count(*) FROM pg_stat_activity "
+                        "WHERE datname = current_database() AND pid <> pg_backend_pid() "
+                        "AND state LIKE 'idle in transaction%'"
+                    )
+                )
+            ).scalar_one()
+        idle_in_transaction.append(int(count))
+        async for frame in original_frames(self):
+            yield frame
+
+    monkeypatch.setattr(RealtimeStreamReader, "frames", _frames)
+
+    async def _scenario() -> int:
+        async with api_client(env, redis=FakeRedis()) as client:
+            headers = await headers_for(env, seeded.user_id, seeded.organization_id)
+            response = await client.get("/api/v1/events/stream", headers=headers, timeout=10)
+        return response.status_code
+
+    assert run_async(_scenario()) == 200
+    assert idle_in_transaction == [0]

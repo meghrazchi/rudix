@@ -308,9 +308,13 @@ If user selects documents, add:
 - [ ] No document text: payloads are whitelisted ids and statuses (`PAYLOAD_KEYS` in
   `app/domains/realtime/events.py`); filenames, titles, messages, and error text are
   stripped. The client refetches data through endpoints with their own access checks.
-- [ ] Connection cap: `REALTIME_MAX_CONNECTIONS_PER_USER` (default 5) per user, counted in
-  Redis (`429 realtime_connection_limit`); the counter expires a minute after the longest
-  stream.
+- [ ] Connection cap: `REALTIME_MAX_CONNECTIONS_PER_USER` (default 5) per user, held as
+  leases in one Redis sorted set and taken with one atomic script (the semaphore of
+  `app/rate_limit/concurrency.py`; `429 realtime_connection_limit`). Each lease expires a
+  minute after the longest stream, so a crashed API process frees its slots on its own, and
+  a refused attempt never extends a lease.
+- [ ] Database connections: the stream commits the request session before it starts, so
+  an open stream never holds a pooled connection.
 - [ ] Publishing happens after commit only (a rolled-back transaction publishes nothing)
   and never fails the write; failures log the event type and organisation id only.
 

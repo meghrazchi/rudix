@@ -49,6 +49,7 @@ from app.domains.realtime.events import (
     decode_entry,
     sequence_key,
 )
+from app.rate_limit import concurrency
 
 logger = get_logger("realtime.stream")
 
@@ -56,27 +57,31 @@ _SLOT_TTL_MARGIN_SECONDS = 60
 _MAX_POLL_SECONDS = 1.0
 
 
-async def acquire_connection_slot(redis: Any, *, organization_id: str, user_id: str) -> bool:
-    """Count one open stream for the user; ``False`` (and nothing held) above the cap.
+async def acquire_connection_slot(
+    redis: Any, *, organization_id: str, user_id: str, lease_id: str
+) -> bool:
+    """Hold one of the user's stream slots as lease ``lease_id``; ``False`` above the cap.
 
-    The counter expires a minute after the longest stream, so a process that died without
-    releasing its slots frees them on its own. Redis errors propagate (the endpoint answers
-    ``503``).
+    One atomic script (the semaphore of ``app/rate_limit/concurrency.py``): expired leases
+    are purged, then the lease is added only while fewer than the cap remain. Each lease
+    expires a minute after the longest stream, so a process that died without releasing it
+    frees that slot on its own; a refused attempt never extends anyone's lease. Redis
+    errors propagate (the endpoint answers ``503``).
     """
-    key = connection_key(organization_id, user_id)
-    count = int(await redis.incr(key))
-    await redis.expire(key, settings.realtime_stream_max_seconds + _SLOT_TTL_MARGIN_SECONDS)
-    if count > settings.realtime_max_connections_per_user:
-        await redis.decr(key)
-        return False
-    return True
+    return await concurrency.try_acquire(
+        redis,
+        key=connection_key(organization_id, user_id),
+        lease_id=lease_id,
+        limit=settings.realtime_max_connections_per_user,
+        lease_ms=(settings.realtime_stream_max_seconds + _SLOT_TTL_MARGIN_SECONDS) * 1000,
+    )
 
 
-async def release_connection_slot(redis: Any, *, organization_id: str, user_id: str) -> None:
+async def release_connection_slot(
+    redis: Any, *, organization_id: str, user_id: str, lease_id: str
+) -> None:
     try:
-        key = connection_key(organization_id, user_id)
-        if int(await redis.decr(key)) < 0:
-            await redis.delete(key)
+        await redis.zrem(connection_key(organization_id, user_id), lease_id)
     except Exception as exc:
         logger.warning(
             "realtime.stream.release_failed",
@@ -103,9 +108,11 @@ class RealtimeStreamReader:
         roles: Iterable[str],
         last_event_id: int,
         redis: Any,
+        lease_id: str = "",
     ) -> None:
         self.organization_id = organization_id
         self.user_id = user_id
+        self.lease_id = lease_id
         self.roles = frozenset(role.strip().lower() for role in roles if role.strip())
         self.floor = max(0, last_event_id)
         self.redis = redis
@@ -170,7 +177,10 @@ class RealtimeStreamReader:
         finally:
             await _close_pubsub(pubsub)
             await release_connection_slot(
-                self.redis, organization_id=self.organization_id, user_id=self.user_id
+                self.redis,
+                organization_id=self.organization_id,
+                user_id=self.user_id,
+                lease_id=self.lease_id,
             )
             realtime_connection_closed()
             logger.info(

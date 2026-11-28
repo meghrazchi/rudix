@@ -232,15 +232,6 @@ class FakeRedis:
         self._count("INCR")
         return self.keyspace.incr(key)
 
-    async def decr(self, key: str) -> int:
-        self._count("DECR")
-        value = int(self.keyspace.get(key) or 0) - 1
-        deadline = self.keyspace.expires_at_ms.get(key)
-        self.keyspace.set(key, str(value))
-        if deadline is not None:
-            self.keyspace.expires_at_ms[key] = deadline
-        return value
-
     async def delete(self, *keys: str) -> int:
         self._count("DEL")
         removed = sum(1 for key in keys if self.keyspace.exists(key))
