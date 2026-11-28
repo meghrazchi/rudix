@@ -81,6 +81,28 @@ export async function clearAuthSensitiveQueryState(): Promise<void> {
 
 export const queryKeys = {
   // anchor: C
+  documentViews: {
+    indexingStatusSummary: ["documents", "indexing-status-summary"] as const,
+    collectionPicker: (search: string, offset: number) =>
+      ["documents", "collection-picker", search, offset] as const,
+  },
+  collectionViews: {
+    forUpload: ["collections", "for-upload"] as const,
+    forAssign: ["collections", "for-assign"] as const,
+    documentMembership: (documentId: string) =>
+      ["collections", "doc", documentId] as const,
+    allDocuments: (collectionId: string) =>
+      [
+        "collections",
+        "documents",
+        collectionId,
+        { limit: 200, offset: 0 },
+        "all",
+      ] as const,
+  },
+  teamMemberPolicyPicker: ["team", "members", "policy-picker"] as const,
+  citationChunk: (documentId: string, chunkId: string) =>
+    ["citation-chunk", documentId, chunkId] as const,
   collections: {
     all: ["collections"] as const,
     list: (params?: Record<string, unknown>) =>

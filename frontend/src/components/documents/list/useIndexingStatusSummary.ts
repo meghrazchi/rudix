@@ -10,7 +10,7 @@ import type { IndexingStatusSummary } from "@/components/documents/list/document
 /** Organisation-wide document counts per status, from `total` of one-row pages. */
 export function useIndexingStatusSummary() {
   return useQuery({
-    queryKey: [...queryKeys.documents.all, "indexing-status-summary"] as const,
+    queryKey: queryKeys.documentViews.indexingStatusSummary,
     queryFn: async (): Promise<IndexingStatusSummary> => {
       const [all, uploaded, indexed, processing, failed] = await Promise.all([
         listDocuments({ limit: 1, offset: 0 }),

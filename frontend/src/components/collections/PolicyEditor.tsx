@@ -46,7 +46,7 @@ export function PolicyEditor({
   });
 
   const membersQuery = useQuery({
-    queryKey: ["team", "members", "policy-picker"],
+    queryKey: queryKeys.teamMemberPolicyPicker,
     queryFn: () => listTeamMembers({ limit: 200 }),
     enabled: teamCapabilities.listMembersEnabled,
   });

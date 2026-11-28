@@ -43,12 +43,10 @@ export function ManageCollectionDocumentsDialog({
   );
 
   const documentsQuery = useQuery({
-    queryKey: [
-      ...queryKeys.documents.all,
-      "collection-picker",
+    queryKey: queryKeys.documentViews.collectionPicker(
       searchQuery.trim(),
       pageOffset,
-    ],
+    ),
     queryFn: () =>
       listDocuments({
         status: "indexed",

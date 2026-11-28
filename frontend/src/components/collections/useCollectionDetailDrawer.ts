@@ -40,13 +40,7 @@ export function useCollectionDetailDrawer(collectionId: string) {
   });
 
   const allCollectionDocsQuery = useQuery({
-    queryKey: [
-      ...queryKeys.collections.documents(collectionId, {
-        limit: 200,
-        offset: 0,
-      }),
-      "all",
-    ],
+    queryKey: queryKeys.collectionViews.allDocuments(collectionId),
     queryFn: () =>
       listCollectionDocuments(collectionId, { limit: 200, offset: 0 }),
   });

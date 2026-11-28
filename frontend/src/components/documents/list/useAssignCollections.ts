@@ -33,19 +33,21 @@ export function useAssignCollections({
   const [assignSaveError, setAssignSaveError] = useState<string | null>(null);
 
   const allCollectionsQuery = useQuery({
-    queryKey: [...queryKeys.collections.all, "for-upload"],
+    queryKey: queryKeys.collectionViews.forUpload,
     queryFn: () => listCollections({ limit: 200 }),
     enabled: isUploadModalOpen,
   });
 
   const assignCollectionsListQuery = useQuery({
-    queryKey: [...queryKeys.collections.all, "for-assign"],
+    queryKey: queryKeys.collectionViews.forAssign,
     queryFn: () => listCollections({ limit: 200 }),
     enabled: Boolean(assignDocumentId),
   });
 
   const docCollectionsQuery = useQuery({
-    queryKey: [...queryKeys.collections.all, "doc", assignDocumentId ?? ""],
+    queryKey: queryKeys.collectionViews.documentMembership(
+      assignDocumentId ?? "",
+    ),
     queryFn: () => getDocumentCollections(assignDocumentId ?? ""),
     enabled: Boolean(assignDocumentId),
   });
