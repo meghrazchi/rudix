@@ -1,4 +1,9 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 export type FeatureFlagName =
   | "agents"
@@ -62,42 +67,21 @@ export const FLAG_LABELS: Record<FeatureFlagName, string> = {
   org_memory: "Organization memory",
 };
 
-export type FeatureFlagDetail = {
-  name: string;
-  enabled: boolean;
-  env_default: boolean;
-  has_org_override: boolean;
-  override_enabled: boolean | null;
-  override_reason: string | null;
-  overridden_by_user_id: string | null;
-  overridden_at: string | null;
-};
+export type FeatureFlagDetail = Served<Schemas["FeatureFlagDetail"]>;
 
-export type FeatureFlagsResponse = {
-  organization_id: string;
-  flags: FeatureFlagDetail[];
-};
+export type FeatureFlagsResponse = Served<Schemas["FeatureFlagsResponse"]>;
 
-export type FeatureFlagSetRequest = {
-  enabled: boolean;
-  reason?: string | null;
-};
+export type FeatureFlagSetRequest = Schemas["FeatureFlagSetRequest"];
 
-export type FeatureFlagSetResponse = {
-  organization_id: string;
-  flag: FeatureFlagDetail;
-};
+export type FeatureFlagSetResponse = Served<Schemas["FeatureFlagSetResponse"]>;
 
-export type FeatureFlagDeleteResponse = {
-  organization_id: string;
-  flag_name: string;
-  reverted_to_env_default: boolean;
-  env_default: boolean;
-};
+export type FeatureFlagDeleteResponse = Served<
+  Schemas["FeatureFlagDeleteResponse"]
+>;
 
-export type PublicFeatureFlagsResponse = {
-  flags: Record<string, boolean>;
-};
+export type PublicFeatureFlagsResponse = Served<
+  Schemas["PublicFeatureFlagsResponse"]
+>;
 
 export async function listAdminFeatureFlags(): Promise<FeatureFlagsResponse> {
   return apiRequest<FeatureFlagsResponse>("/admin/feature-flags", {

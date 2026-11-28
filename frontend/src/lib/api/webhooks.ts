@@ -1,4 +1,9 @@
+import type { Overlay, Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 export const WEBHOOK_EVENT_TYPES = [
   "document.indexed",
@@ -24,63 +29,33 @@ export const WEBHOOK_EVENT_LABELS: Record<WebhookEventType, string> = {
   "quota.reached": "Quota limit reached",
 };
 
-export type Webhook = {
-  id: string;
-  organization_id: string;
-  name: string;
-  description: string | null;
-  url: string;
-  secret_prefix: string;
-  event_types: string[];
-  status: "active" | "disabled";
-  retry_policy: { max_attempts: number; backoff_seconds: number };
-  created_by_id: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type Webhook = Overlay<
+  Served<Schemas["WebhookResponse"]>,
+  {
+    status: "active" | "disabled";
+    retry_policy: { max_attempts: number; backoff_seconds: number };
+  }
+>;
 
-export type WebhookCreated = Webhook & {
-  raw_secret: string;
-};
+export type WebhookCreated = Webhook & { raw_secret: string };
 
-export type WebhookDelivery = {
-  id: string;
-  webhook_id: string;
-  organization_id: string;
-  event_type: string;
-  payload: Record<string, unknown>;
-  status: "pending" | "delivered" | "failed";
-  http_status_code: number | null;
-  response_body: string | null;
-  attempt_count: number;
-  next_retry_at: string | null;
-  error_message: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type WebhookDelivery = Overlay<
+  Served<Schemas["WebhookDeliveryResponse"]>,
+  { status: "pending" | "delivered" | "failed" }
+>;
 
-export type WebhookListResponse = { items: Webhook[]; total: number };
-export type WebhookDeliveryListResponse = {
-  items: WebhookDelivery[];
-  total: number;
-};
+export type WebhookListResponse = Overlay<
+  Served<Schemas["WebhookListResponse"]>,
+  { items: Webhook[] }
+>;
+export type WebhookDeliveryListResponse = Overlay<
+  Served<Schemas["WebhookDeliveryListResponse"]>,
+  { items: WebhookDelivery[] }
+>;
 
-export type CreateWebhookRequest = {
-  name: string;
-  description?: string | null;
-  url: string;
-  event_types: string[];
-  retry_policy?: { max_attempts: number; backoff_seconds: number };
-};
+export type CreateWebhookRequest = Schemas["CreateWebhookRequest"];
 
-export type UpdateWebhookRequest = {
-  name?: string | null;
-  description?: string | null;
-  url?: string | null;
-  event_types?: string[] | null;
-  status?: "active" | "disabled" | null;
-  retry_policy?: { max_attempts: number; backoff_seconds: number } | null;
-};
+export type UpdateWebhookRequest = Schemas["UpdateWebhookRequest"];
 
 function normalizeRetryPolicy(raw: unknown): {
   max_attempts: number;
@@ -265,6 +240,7 @@ export async function testWebhook(
   return {
     items,
     total: typeof raw.total === "number" ? raw.total : items.length,
+    next_cursor: typeof raw.next_cursor === "string" ? raw.next_cursor : null,
   };
 }
 
@@ -285,5 +261,6 @@ export async function listWebhookDeliveries(
   return {
     items,
     total: typeof raw.total === "number" ? raw.total : items.length,
+    next_cursor: typeof raw.next_cursor === "string" ? raw.next_cursor : null,
   };
 }

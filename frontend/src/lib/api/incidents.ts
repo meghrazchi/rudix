@@ -1,4 +1,9 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 export type IncidentStatus =
   | "investigating"
@@ -7,56 +12,17 @@ export type IncidentStatus =
   | "resolved";
 export type IncidentSeverity = "critical" | "high" | "medium" | "low";
 
-export type IncidentNoteEntry = {
-  id: string;
-  note: string;
-  status_change: string | null;
-  created_by_id: string | null;
-  created_at: string;
-};
+export type IncidentNoteEntry = Served<Schemas["IncidentNoteEntry"]>;
 
-export type IncidentSummary = {
-  id: string;
-  organization_id: string;
-  title: string;
-  status: IncidentStatus;
-  severity: IncidentSeverity;
-  affected_services: string[];
-  message: string | null;
-  is_public: boolean;
-  started_at: string;
-  resolved_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type IncidentSummary = Served<Schemas["IncidentSummary"]>;
 
-export type IncidentDetail = IncidentSummary & {
-  notes: IncidentNoteEntry[];
-};
+export type IncidentDetail = Served<Schemas["IncidentDetail"]>;
 
-export type IncidentsListResponse = {
-  items: IncidentSummary[];
-  total: number;
-  page: number;
-  page_size: number;
-};
+export type IncidentsListResponse = Served<Schemas["IncidentsListResponse"]>;
 
-export type ServiceStatusBanner = {
-  has_active_incident: boolean;
-  has_active_maintenance: boolean;
-  active_incident_count: number;
-  banner_message: string | null;
-  highest_severity: string | null;
-};
+export type ServiceStatusBanner = Served<Schemas["ServiceStatusBanner"]>;
 
-export type ServiceStatusSnapshot = {
-  organization_id: string;
-  generated_at: string;
-  active_incidents: IncidentSummary[];
-  recently_resolved: IncidentSummary[];
-  open_failed_job_count: number;
-  banner: ServiceStatusBanner;
-};
+export type ServiceStatusSnapshot = Served<Schemas["ServiceStatusSnapshot"]>;
 
 export type IncidentsQuery = {
   status?: IncidentStatus;
@@ -66,29 +32,11 @@ export type IncidentsQuery = {
   page_size?: number;
 };
 
-export type CreateIncidentRequest = {
-  title: string;
-  severity?: IncidentSeverity;
-  affected_services?: string[];
-  message?: string | null;
-  is_public?: boolean;
-  started_at?: string | null;
-};
+export type CreateIncidentRequest = Schemas["CreateIncidentRequest"];
 
-export type UpdateIncidentRequest = {
-  title?: string;
-  status?: IncidentStatus;
-  severity?: IncidentSeverity;
-  affected_services?: string[];
-  message?: string | null;
-  is_public?: boolean;
-  resolved_at?: string | null;
-};
+export type UpdateIncidentRequest = Schemas["UpdateIncidentRequest"];
 
-export type AddIncidentNoteRequest = {
-  note: string;
-  status_change?: IncidentStatus | null;
-};
+export type AddIncidentNoteRequest = Schemas["AddIncidentNoteRequest"];
 
 export async function getStatusSnapshot(): Promise<ServiceStatusSnapshot> {
   return apiRequest<ServiceStatusSnapshot>("/admin/status");

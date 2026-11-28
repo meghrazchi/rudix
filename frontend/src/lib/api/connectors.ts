@@ -1,120 +1,46 @@
 import { apiRequest } from "@/lib/api/request";
 
-import type { ProviderSummary } from "@/lib/api/connector-providers";
+import type { components } from "@/lib/api/generated/schema";
+import type { Overlay } from "@/lib/api/schema-helpers";
 
-export type ConnectorConnectionSummary = {
-  id: string;
-  provider_key: string;
-  provider: ProviderSummary;
-  display_name: string;
-  external_account_id: string | null;
-  collection_id: string | null;
-  status: string;
-  auth_config: Record<string, unknown>;
-  last_sync_at: string | null;
-  error_message: string | null;
-  source_count: number;
-  indexed_document_count: number;
-  sync_job_count: number;
-  created_at: string;
-  updated_at: string;
-};
+type Schemas = components["schemas"];
 
-export type ConnectorDiagnostics = {
-  connection_id: string;
-  provider_key: string;
-  status: string;
-  error_message: string | null;
-  auth_type: string | null;
-  credential_status: string | null;
-  credential_version: number | null;
-  credential_fingerprint: string | null;
-  scopes: string[];
-  expires_at: string | null;
-  metadata: Record<string, unknown>;
-};
+export type ConnectorConnectionSummary =
+  Schemas["ConnectorConnectionSummaryResponse"];
 
-export type SourcePermissionSnapshot = {
-  id: string;
-  provider_source_id: string;
-  name: string;
-  source_type: string;
-  is_enabled: boolean;
-  permissions: Record<string, unknown>;
-};
+export type ConnectorDiagnostics = Schemas["ConnectorDiagnosticsResponse"];
 
-export type ConnectorDiscoveryItem = {
-  provider_source_id: string;
-  name: string;
-  source_type: string;
-  source_url: string | null;
-  parent_provider_source_id: string | null;
-  metadata: Record<string, unknown>;
-  permissions: Record<string, unknown>;
-};
+export type SourcePermissionSnapshot =
+  Schemas["SourcePermissionSnapshotResponse"];
 
-export type ConnectorDiscoveryResponse = {
-  items: ConnectorDiscoveryItem[];
-  total: number;
-  next_cursor: Record<string, unknown> | null;
-  has_more: boolean;
-};
+export type ConnectorDiscoveryItem =
+  Schemas["ConnectorDiscoveredSourceResponse"];
 
-export type ConnectorConnectionDetail = ConnectorConnectionSummary & {
-  diagnostics: ConnectorDiagnostics;
-  source_permission_snapshots: SourcePermissionSnapshot[];
-};
+export type ConnectorDiscoveryResponse =
+  Schemas["ConnectorDiscoveredSourceListResponse"];
 
-export type ScopeWarning = {
-  code: string;
-  message: string;
-  scope: string | null;
-};
+export type ConnectorConnectionDetail = Overlay<
+  Schemas["ConnectorConnectionDetailResponse"],
+  {
+    diagnostics: ConnectorDiagnostics;
+    source_permission_snapshots: SourcePermissionSnapshot[];
+  }
+>;
 
-export type PermissionReview = {
-  id: string;
-  connection_id: string;
-  is_confirmed: boolean;
-  is_broad_scope: boolean;
-  scope_warnings: ScopeWarning[];
-  permission_snapshot: Record<string, unknown>;
-  reviewed_by_user_id: string | null;
-  reviewed_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type ScopeWarning = Schemas["ScopeWarningResponse"];
 
-export type ConnectorConnectionsListResponse = {
-  items: ConnectorConnectionSummary[];
-  total: number;
-};
+export type PermissionReview = Schemas["PermissionReviewResponse"];
 
-export type BeginConnectorOAuthConnectPayload = {
-  provider_key: string;
-  redirect_uri: string;
-  requested_scopes?: string[] | null;
-  collection_id?: string | null;
-  connection_id?: string | null;
-  display_name?: string | null;
-  external_account_id?: string | null;
-  client_id?: string | null;
-  config?: Record<string, unknown>;
-};
+export type ConnectorConnectionsListResponse =
+  Schemas["ConnectorConnectionsListResponse"];
 
-export type BeginConnectorOAuthConnectResponse = {
-  state: string;
-  authorization_url: string;
-  expires_at: string;
-  scopes: string[];
-};
+export type BeginConnectorOAuthConnectPayload = Schemas["OAuthConnectRequest"];
 
-export type CreateConnectorConnectionPayload = {
-  provider_key: string;
-  display_name: string;
-  collection_id?: string | null;
-  external_account_id?: string | null;
-  config?: Record<string, unknown>;
-};
+export type BeginConnectorOAuthConnectResponse =
+  Schemas["OAuthConnectResponse"];
+
+export type CreateConnectorConnectionPayload =
+  Schemas["CreateConnectorConnectionRequest"];
 
 export async function beginConnectorOAuthConnect(
   payload: BeginConnectorOAuthConnectPayload,

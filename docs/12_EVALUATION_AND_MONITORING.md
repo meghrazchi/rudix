@@ -911,6 +911,24 @@ after `finalize` on its own queue.
 - "No measurable change in chat or ingestion latency during a full evaluation run" is a
   staging load-test check; no measurement has been recorded yet.
 
+### Bundle budgets (R07-03)
+
+CI (`frontend` job, step "Check bundle budgets") runs `node scripts/check-bundle-budgets.mjs`
+after the production build and fails when a route's first-load JavaScript exceeds its budget.
+
+- What is measured: the chunks Next lists per route in
+  `.next/diagnostics/route-bundle-stats.json`, `gzip -9` per chunk, summed. The report
+  (route, raw bytes, gzip bytes, budget) is written to `.next/bundle-report.json` and
+  uploaded as the `bundle-report` artifact. A missing stats file, a route without a budget
+  or an over-budget route exits 1.
+- Budgets live in `frontend/config/bundle-budgets.json`: `ceil(measured x 1.05)` KB per
+  group (auth pages, marketing, app default) and per route for app routes above the default.
+  The 150 KB marketing and 300 KB app targets are recorded there as goals; the measured gap
+  is in `frontend/README.md`.
+- How to update: after an intended size change, run the build, read the script output, and
+  set the budget to `ceil(measured x 1.05)`. Never lower the headroom or raise a figure
+  without a measurement to make a failing check pass.
+
 ## Continuous evaluation
 
 Run evaluations:

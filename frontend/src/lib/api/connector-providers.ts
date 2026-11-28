@@ -1,4 +1,8 @@
 import { apiRequest } from "@/lib/api/request";
+import type { Overlay } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
+type Schemas = components["schemas"];
 
 export type ConnectorAuthType =
   | "oauth2"
@@ -20,17 +24,9 @@ export type ConnectorCapabilityKey =
   | "deletions"
   | "deep_links";
 
-export type ProviderRateLimit = {
-  name: string;
-  max_requests: number;
-  window_seconds: number;
-  burst: number | null;
-};
+export type ProviderRateLimit = Schemas["ProviderRateLimitResponse"];
 
-export type ProviderExportFormat = {
-  format: string;
-  mime_type: string;
-};
+export type ProviderExportFormat = Schemas["ProviderExportFormatResponse"];
 
 export type ProviderConfigSchemaField = {
   type: "string" | "boolean" | "array" | "integer" | "number";
@@ -47,28 +43,21 @@ export type ProviderConfigSchema = {
   additionalProperties?: boolean;
 };
 
-export type ProviderCapabilities = {
-  auth_type: ConnectorAuthType;
-  capabilities: ConnectorCapabilityKey[];
-  rate_limits: ProviderRateLimit[];
-  export_formats: ProviderExportFormat[];
-  max_page_size: number | null;
-  notes: string | null;
-};
+// The schema types these as free-form strings and objects; the UI narrows them.
+export type ProviderCapabilities = Overlay<
+  Schemas["ProviderCapabilitiesResponse"],
+  { auth_type: ConnectorAuthType; capabilities: ConnectorCapabilityKey[] }
+>;
 
-export type ProviderSummary = {
-  key: string;
-  display_name: string;
-  enabled_by_default: boolean;
-  has_oauth: boolean;
-  capabilities: ProviderCapabilities;
-  config_schema: ProviderConfigSchema;
-};
+export type ProviderSummary = Overlay<
+  Schemas["ProviderSummaryResponse"],
+  { capabilities: ProviderCapabilities; config_schema: ProviderConfigSchema }
+>;
 
-export type ProvidersListResponse = {
-  items: ProviderSummary[];
-  total: number;
-};
+export type ProvidersListResponse = Overlay<
+  Schemas["ProvidersListResponse"],
+  { items: ProviderSummary[] }
+>;
 
 export async function listProviders(): Promise<ProvidersListResponse> {
   return apiRequest<ProvidersListResponse>("/connectors/providers");

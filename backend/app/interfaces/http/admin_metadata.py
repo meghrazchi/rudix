@@ -36,6 +36,7 @@ from app.domains.metadata.schemas.metadata import (
     CreateMetadataFieldRequest,
     DocumentMetadataResponse,
     DocumentMetadataValueResponse,
+    FilterDocumentsResponse,
     MetadataAuditEntryResponse,
     MetadataAuditListResponse,
     MetadataFieldListResponse,
@@ -376,7 +377,7 @@ async def bulk_set_metadata(
 
 @router.get(
     "/admin/metadata/filter-documents",
-    response_model=dict,
+    response_model=FilterDocumentsResponse,
 )
 async def filter_documents_by_metadata(
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_READ_ROLES))],
@@ -389,7 +390,7 @@ async def filter_documents_by_metadata(
             max_length=50,
         ),
     ] = None,
-) -> dict:
+) -> FilterDocumentsResponse:
     """Return document IDs that satisfy ALL provided metadata filters.
 
     Each `filter` param is `<field_id>:<value>`.  AND logic across all entries.
@@ -405,9 +406,9 @@ async def filter_documents_by_metadata(
         field_id_str, value = raw.split(":", 1)
         parsed.append({"field_id": field_id_str.strip(), "value": value})
     if not parsed:
-        return {"document_ids": []}
+        return FilterDocumentsResponse(document_ids=[])
     doc_ids = await _doc_repo.list_documents_by_metadata(db, organization_id=org_id, filters=parsed)
-    return {"document_ids": [str(d) for d in doc_ids]}
+    return FilterDocumentsResponse(document_ids=[str(d) for d in doc_ids])
 
 
 @router.get(

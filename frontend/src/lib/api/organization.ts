@@ -1,5 +1,10 @@
+import type { Overlay, Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
+
+type Schemas = components["schemas"];
 
 function trimToNull(value: string | undefined): string | null {
   const trimmed = value?.trim();
@@ -16,42 +21,28 @@ export type OrganizationCapabilities = {
   deleteEnabled: boolean;
 };
 
-export type OrganizationProfile = {
-  id: string | null;
-  name: string;
-  slug: string;
-  primary_domain: string | null;
-  domain_allowlist: string[];
-  support_email: string | null;
-  description: string | null;
-  created_at: string | null;
-  plan: string | null;
-};
+export type OrganizationProfile = Overlay<
+  Served<Schemas["OrganizationProfile"]>,
+  { id: string | null }
+>;
 
-export type OrganizationSettings = {
-  default_member_role: "member" | "viewer";
-  invite_only: boolean;
-  allowed_email_domains: string[];
-  default_document_visibility: "public" | "private";
-  default_collection: string | null;
-  retention_days: number | null;
-  source_download: "all" | "admins" | "none";
-  evaluation_access: boolean;
-  agentic_access: boolean;
-  mcp_access: boolean;
-  analytics_enabled: boolean;
-};
+export type OrganizationSettings = Overlay<
+  Served<Schemas["OrgSettings"]>,
+  {
+    default_member_role: "member" | "viewer";
+    default_document_visibility: "public" | "private";
+    source_download: "all" | "admins" | "none";
+  }
+>;
 
-export type IngestionDefaults = {
-  allowed_file_types: string[];
-  max_upload_size_mb: number | null;
-  max_page_count: number | null;
-  duplicate_handling: "allow" | "skip" | "replace";
-  auto_index: boolean;
-  reindex_policy: "on_update" | "manual";
-  retry_policy: "never" | "once" | "three_times";
-  default_metadata_tags: string[];
-};
+export type IngestionDefaults = Overlay<
+  Served<Schemas["IngestionDefaults"]>,
+  {
+    duplicate_handling: "skip" | "replace" | "allow";
+    reindex_policy: "manual" | "on_update";
+    retry_policy: "never" | "once" | "three_times";
+  }
+>;
 
 export class OrganizationEndpointUnavailableError extends Error {
   readonly endpointKey: keyof OrganizationCapabilities;

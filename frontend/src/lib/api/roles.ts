@@ -1,55 +1,25 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
 
-export type PermissionEntry = {
-  permission: string;
-  category: string;
-  description: string;
-};
+type Schemas = components["schemas"];
 
-export type PermissionCatalogResponse = {
-  items: PermissionEntry[];
-  total: number;
-};
+export type PermissionEntry = Served<Schemas["PermissionEntry"]>;
 
-export type BuiltinRole = {
-  role: string;
-  label: string;
-  description: string;
-  permissions: string[];
-  is_builtin: true;
-};
+export type PermissionCatalogResponse = Served<
+  Schemas["PermissionCatalogResponse"]
+>;
 
-export type CustomRole = {
-  id: string;
-  organization_id: string;
-  name: string;
-  description: string | null;
-  base_role: string | null;
-  permissions: string[];
-  created_by_id: string | null;
-  created_at: string;
-  updated_at: string;
-  is_builtin: false;
-};
+export type BuiltinRole = Served<Schemas["BuiltinRoleResponse"]>;
 
-export type RoleListResponse = {
-  builtin_roles: BuiltinRole[];
-  custom_roles: CustomRole[];
-};
+export type CustomRole = Served<Schemas["CustomRoleResponse"]>;
 
-export type CreateCustomRoleRequest = {
-  name: string;
-  description?: string | null;
-  base_role?: string | null;
-  permissions: string[];
-};
+export type RoleListResponse = Served<Schemas["RoleListResponse"]>;
 
-export type UpdateCustomRoleRequest = {
-  name?: string | null;
-  description?: string | null;
-  base_role?: string | null;
-  permissions?: string[] | null;
-};
+export type CreateCustomRoleRequest = Schemas["CreateCustomRoleRequest"];
+
+export type UpdateCustomRoleRequest = Schemas["UpdateCustomRoleRequest"];
 
 const ROLES_BASE = "/admin/roles";
 

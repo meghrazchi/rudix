@@ -1,4 +1,9 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 function trimToNull(value: string | undefined): string | null {
   const trimmed = value?.trim();
@@ -68,40 +73,13 @@ export function getSecurityCapabilities(): SecurityCapabilities {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type SecuritySession = {
-  id: string;
-  device: string;
-  ip_address: string | null;
-  location: string | null;
-  created_at: string | null;
-  last_active_at: string | null;
-  is_current: boolean;
-};
+export type SecuritySession = Served<Schemas["SessionItem"]>;
 
-export type LoginPolicy = {
-  domain_allowlist: string[];
-  session_timeout_hours: number | null;
-  sso_required: boolean;
-  invite_only: boolean;
-  mfa_required: boolean;
-};
+export type LoginPolicy = Served<Schemas["LoginPolicy"]>;
 
-export type SecurityPosture = {
-  prompt_injection_protection: boolean | null;
-  citation_validation: boolean | null;
-  tenant_isolation: boolean | null;
-  output_validation: boolean | null;
-  tool_policy_enforced: boolean | null;
-  last_audit_at: string | null;
-};
+export type SecurityPosture = Served<Schemas["SecurityPosture"]>;
 
-export type AuditEvent = {
-  id: string;
-  event_type: string;
-  actor_email: string | null;
-  created_at: string;
-  summary: string;
-};
+export type AuditEvent = Served<Schemas["AuditEventItem"]>;
 
 // ── API functions ─────────────────────────────────────────────────────────────
 

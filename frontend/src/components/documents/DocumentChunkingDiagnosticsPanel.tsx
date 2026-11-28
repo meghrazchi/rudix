@@ -158,13 +158,13 @@ export function DocumentChunkingDiagnosticsPanel({
             />
           </div>
 
-          {diagnostics.reason_codes.length > 0 ? (
+          {(diagnostics.reason_codes?.length ?? 0) > 0 ? (
             <div className="rounded-lg border border-[#ddd7f6] bg-white px-4 py-3">
               <p className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                 {t("reasonCodes")}
               </p>
               <div className="flex flex-wrap gap-2">
-                {diagnostics.reason_codes.map((reason) => (
+                {(diagnostics.reason_codes ?? []).map((reason) => (
                   <span
                     key={reason}
                     className="rounded-full bg-[#f5f2ff] px-2.5 py-1 font-mono text-[11px] text-[#4f4690]"

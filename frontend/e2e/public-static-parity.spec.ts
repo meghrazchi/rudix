@@ -51,6 +51,19 @@ function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+// The site origin comes from the environment (NEXT_PUBLIC_PUBLIC_SITE_URL or
+// the app URL), so a local run and CI produce different absolute URLs for
+// the same page. Local dev origins are compared as one placeholder; any
+// other origin (a real domain, schema.org) still has to match exactly.
+const LOCAL_ORIGIN = /https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?/g;
+
+function normalizeOrigin(snapshot: ParitySnapshot): ParitySnapshot {
+  // One pass over the serialized snapshot covers every field, JSON-LD included.
+  return JSON.parse(
+    JSON.stringify(snapshot).replace(LOCAL_ORIGIN, "{site-origin}"),
+  ) as ParitySnapshot;
+}
+
 function readBaseline(): Record<string, ParitySnapshot> {
   if (!existsSync(BASELINE_PATH)) {
     return {};
@@ -156,7 +169,7 @@ test.describe("public pages keep metadata, SEO tags and DOM", () => {
           localizedPath
         ];
         expect(expected, `${localizedPath} has a baseline entry`).toBeTruthy();
-        expect(snapshot).toEqual(expected);
+        expect(normalizeOrigin(snapshot)).toEqual(normalizeOrigin(expected));
       });
     }
   }

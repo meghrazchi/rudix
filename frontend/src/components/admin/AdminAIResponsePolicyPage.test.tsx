@@ -94,6 +94,8 @@ function makePolicy(
     disclaimer_text: null,
     disclaimer_position: "prepend",
     refusal_message: null,
+    grounded_verification_mode: "off",
+    grounded_verification_threshold: null,
     created_by_id: "user-1",
     updated_by_id: null,
     created_at: "2026-06-26T10:00:00Z",

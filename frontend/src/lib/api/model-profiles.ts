@@ -1,98 +1,35 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
 
-export type TaskType =
-  | "chat"
-  | "summarization"
-  | "comparison"
-  | "embeddings"
-  | "evaluations"
-  | "agentic";
+type Schemas = components["schemas"];
 
-export type ProfileSource = "env_default" | "org_profile" | "request_override";
+export type TaskType = Served<Schemas["TaskType"]>;
 
-export type ModelProfileResponse = {
-  profile_id: string;
-  organization_id: string;
-  profile_name: string;
-  task_type: TaskType;
-  provider_type: string;
-  base_model: string;
-  context_window: number | null;
-  max_tokens: number | null;
-  temperature: number | null;
-  json_mode: boolean;
-  streaming: boolean;
-  fallback_provider_key: string | null;
-  is_active: boolean;
-  is_experimental: boolean;
-  cost_metadata: Record<string, unknown>;
-  version: number;
-  updated_by_id: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type ProfileSource = Served<Schemas["ProfileSource"]>;
 
-export type ModelProfileListResponse = {
-  items: ModelProfileResponse[];
-  total: number;
-};
+export type ModelProfileResponse = Served<Schemas["ModelProfileResponse"]>;
 
-export type ResolvedTaskProfile = {
-  task_type: TaskType;
-  provider_type: string;
-  base_model: string;
-  max_tokens: number | null;
-  temperature: number | null;
-  json_mode: boolean;
-  streaming: boolean;
-  fallback_provider_key: string | null;
-  source: ProfileSource;
-  version: number;
-};
+export type ModelProfileListResponse = Served<
+  Schemas["ModelProfileListResponse"]
+>;
 
-export type EffectiveModelPolicyResponse = {
-  organization_id: string;
-  profiles: ResolvedTaskProfile[];
-  feature_local_llm_enabled: boolean;
-  feature_local_embeddings_enabled: boolean;
-  feature_fallback_enabled: boolean;
-  feature_request_override_enabled: boolean;
-};
+export type ResolvedTaskProfile = Served<Schemas["ResolvedTaskProfile"]>;
 
-export type ProfileValidationIssue = {
-  field: string;
-  code: string;
-  message: string;
-};
+export type EffectiveModelPolicyResponse = Served<
+  Schemas["EffectiveModelPolicyResponse"]
+>;
 
-export type ValidateProfileResponse = {
-  valid: boolean;
-  issues: ProfileValidationIssue[];
-};
+export type ProfileValidationIssue = Served<Schemas["ProfileValidationIssue"]>;
 
-export type UpsertModelProfileRequest = {
-  profile_name: string;
-  provider_type: string;
-  base_model: string;
-  context_window?: number | null;
-  max_tokens?: number | null;
-  temperature?: number | null;
-  json_mode?: boolean;
-  streaming?: boolean;
-  fallback_provider_key?: string | null;
-  is_experimental?: boolean;
-  cost_metadata?: Record<string, unknown>;
-  change_note?: string | null;
-};
+export type ValidateProfileResponse = Served<
+  Schemas["ValidateProfileResponse"]
+>;
 
-export type ValidateProfileRequest = {
-  task_type: TaskType;
-  provider_type: string;
-  base_model: string;
-  json_mode?: boolean;
-  is_experimental?: boolean;
-  fallback_provider_key?: string | null;
-};
+export type UpsertModelProfileRequest = Schemas["UpsertModelProfileRequest"];
+
+export type ValidateProfileRequest = Schemas["ValidateProfileRequest"];
 
 export async function listModelProfiles(): Promise<ModelProfileListResponse> {
   return apiRequest<ModelProfileListResponse>("/model-profiles");

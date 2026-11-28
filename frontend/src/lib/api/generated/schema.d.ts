@@ -8603,6 +8603,70 @@ export interface components {
              */
             updated_at: string;
         };
+        /** AgentTraceEventResponse */
+        AgentTraceEventResponse: {
+            /** Event Type */
+            event_type: string;
+            /** Run Id */
+            run_id: string;
+            /** Step Id */
+            step_id?: string | null;
+            /** Tool Call Id */
+            tool_call_id?: string | null;
+            /** Approval Id */
+            approval_id?: string | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            };
+        };
+        /** AgentTraceResponse */
+        AgentTraceResponse: {
+            /** Run Id */
+            run_id: string;
+            /** Organization Id */
+            organization_id: string;
+            /** Status */
+            status: string;
+            /** Objective */
+            objective: string | null;
+            /** Surface */
+            surface: string;
+            /** Started At */
+            started_at: string | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Cancelled At */
+            cancelled_at: string | null;
+            /** Created At */
+            created_at: string;
+            /** Total Cost Usd */
+            total_cost_usd: string | null;
+            /** Error Message */
+            error_message: string | null;
+            /** Trace Request Id */
+            trace_request_id: string | null;
+            /** Redacted */
+            redacted: boolean;
+            /** Timeline */
+            timeline: components["schemas"]["AgentTraceEventResponse"][];
+            /** Total Events */
+            total_events: number;
+            /** Step Count */
+            step_count: number;
+            /** Tool Call Count */
+            tool_call_count: number;
+            /** Approval Count */
+            approval_count: number;
+            /** Policy Snapshot */
+            policy_snapshot: {
+                [key: string]: unknown;
+            } | null;
+            /** Shared Via Token */
+            shared_via_token?: boolean | null;
+        };
         /** AgentTraceRetentionRequest */
         AgentTraceRetentionRequest: {
             /**
@@ -14856,6 +14920,11 @@ export interface components {
              */
             submitted_at: string;
         };
+        /** FilterDocumentsResponse */
+        FilterDocumentsResponse: {
+            /** Document Ids */
+            document_ids: string[];
+        };
         /** ForceFullResyncResponse */
         ForceFullResyncResponse: {
             /** Sync Run Id */
@@ -19517,6 +19586,11 @@ export interface components {
             /** Needs Review Count */
             needs_review_count: number;
         };
+        /** RevokeAllSessionsResponse */
+        RevokeAllSessionsResponse: {
+            /** Revoked Count */
+            revoked_count: number;
+        };
         /** RevokeInvitationResponse */
         RevokeInvitationResponse: {
             /** Invitation Id */
@@ -23815,9 +23889,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AgentTraceResponse"];
                 };
             };
             /** @description Validation Error */
@@ -26716,9 +26788,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AgentTraceResponse"];
                 };
             };
             /** @description Validation Error */
@@ -36475,9 +36545,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RevokeAllSessionsResponse"];
                 };
             };
         };
@@ -37779,9 +37847,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["FilterDocumentsResponse"];
                 };
             };
             /** @description Validation Error */

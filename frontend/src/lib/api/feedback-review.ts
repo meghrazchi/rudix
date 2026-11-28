@@ -1,5 +1,10 @@
+import type { Served, WithOptional } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
 import type { FeedbackCategory } from "@/lib/api/feedback";
+
+type Schemas = components["schemas"];
 
 export type FeedbackReviewStatus =
   | "new"
@@ -17,65 +22,17 @@ export type FeedbackReviewStatus =
 
 export type FeedbackSeverity = "low" | "medium" | "high";
 
-export type FeedbackSummary = {
-  feedback_id: string;
-  answer_id: string | null;
-  message_id: string;
-  submitter_user_id: string;
-  rating: "up" | "down";
-  reason: string | null;
-  comment: string | null;
-  // F303 fields
-  category: FeedbackCategory | null;
-  question_text: string | null;
-  answer_text: string | null;
-  model_name: string | null;
-  llm_provider: string | null;
-  citations: Record<string, unknown>[] | null;
-  retrieval_diagnostics: Record<string, unknown> | null;
-  trust_metadata: Record<string, unknown> | null;
-  confidence_score: number | null;
-  redacted_at: string | null;
-  converted_to_eval_question_id: string | null;
-  // F316 fields
-  trace_id: string | null;
-  selected_citation_ids: string[] | null;
-  submitted_at: string;
-};
+export type FeedbackSummary = Served<Schemas["FeedbackSummaryResponse"]>;
 
-export type MessageSummary = {
-  message_id: string;
-  session_id: string;
-  content_preview: string;
-  confidence_score: number | null;
-  model_name: string | null;
-  latency_ms: number | null;
-  created_at: string;
-};
+export type MessageSummary = Served<Schemas["MessageSummaryResponse"]>;
 
-export type FeedbackReviewItemResponse = {
-  review_id: string;
-  feedback_id: string;
-  organization_id: string;
-  status: FeedbackReviewStatus;
-  severity: FeedbackSeverity;
-  reviewer_id: string | null;
-  reviewer_notes: string | null;
-  linked_eval_question_id: string | null;
-  linked_document_id: string | null;
-  resolved_at: string | null;
-  created_at: string;
-  updated_at: string;
-  feedback: FeedbackSummary | null;
-  message: MessageSummary | null;
-};
+export type FeedbackReviewItemResponse = Served<
+  Schemas["FeedbackReviewItemResponse"]
+>;
 
-export type FeedbackReviewListResponse = {
-  items: FeedbackReviewItemResponse[];
-  total: number;
-  limit: number;
-  offset: number;
-};
+export type FeedbackReviewListResponse = Served<
+  Schemas["FeedbackReviewListResponse"]
+>;
 
 export type FeedbackReviewListParams = {
   status?: FeedbackReviewStatus | null;
@@ -93,33 +50,18 @@ export type FeedbackReviewListParams = {
   offset?: number;
 };
 
-export type TriageFeedbackPayload = {
-  severity: FeedbackSeverity;
-  reviewer_notes?: string | null;
-};
+export type TriageFeedbackPayload = Schemas["TriageFeedbackRequest"];
 
-export type UpdateReviewItemPayload = {
-  status?: FeedbackReviewStatus | null;
-  severity?: FeedbackSeverity | null;
-  reviewer_notes?: string | null;
-  reviewer_id?: string | null;
-  linked_eval_question_id?: string | null;
-  linked_document_id?: string | null;
-};
+export type UpdateReviewItemPayload = Schemas["UpdateReviewItemRequest"];
 
-export type ConvertToEvalCasePayload = {
-  evaluation_set_id: string;
-  default_difficulty?: "easy" | "medium" | "hard";
-  reviewer_notes?: string | null;
-};
+export type ConvertToEvalCasePayload = WithOptional<
+  Schemas["ConvertToEvalCaseRequest"],
+  "default_difficulty"
+>;
 
-export type ConvertToEvalCaseResponse = {
-  review_id: string;
-  evaluation_set_id: string;
-  evaluation_question_id: string;
-  question: string;
-  already_existed: boolean;
-};
+export type ConvertToEvalCaseResponse = Served<
+  Schemas["ConvertToEvalCaseResponse"]
+>;
 
 export async function listFeedbackReviewItems(
   params: FeedbackReviewListParams = {},

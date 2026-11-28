@@ -1,64 +1,31 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest, type ApiRequestOptions } from "@/lib/api/request";
 
-export type PipelineNodeStatus =
-  | "pending"
-  | "running"
-  | "completed"
-  | "failed"
-  | "skipped";
+type Schemas = components["schemas"];
 
-export type PipelineNode = {
-  id: string;
-  label: string;
-  section: "ingestion" | "query" | "evaluation";
-  description?: string;
-  status: PipelineNodeStatus;
-  started_at?: string | null;
-  completed_at?: string | null;
-  duration_ms?: number | null;
-  metrics?: Record<string, unknown>;
-};
+export type PipelineNode = Served<Schemas["PipelineNodeResponse"]>;
 
-export type PipelineEdge = {
-  id: string;
-  source: string;
-  target: string;
-};
+export type PipelineNodeStatus = PipelineNode["status"];
 
-export type PipelineRunGraphResponse = {
-  pipeline_run_id: string;
-  pipeline_type: string;
-  status: string;
-  nodes: PipelineNode[];
-  edges: PipelineEdge[];
-};
+export type PipelineEdge = Schemas["PipelineEdgeResponse"];
 
-export type PipelineRunResolveResponse = {
-  pipeline_run_id: string;
-  pipeline_type: string;
-  status: string;
-};
+export type PipelineRunGraphResponse = Served<
+  Schemas["PipelineRunGraphResponse"]
+>;
 
-export type PipelineNodeDetailResponse = {
-  node_id: string;
-  title: string;
-  description: string;
-  status: PipelineNodeStatus;
-  inputs: Record<string, unknown>;
-  outputs: Record<string, unknown>;
-  config: Record<string, unknown>;
-  logs: string[];
-  error_message: string | null;
-  error_details: Record<string, unknown>;
-  metrics: Record<string, unknown>;
-  started_at: string | null;
-  completed_at: string | null;
-  duration_ms: number | null;
-};
+export type PipelineRunResolveResponse = Served<
+  Schemas["PipelineRunResolveResponse"]
+>;
 
-export type PipelineStepListResponse = {
-  steps: string[];
-};
+export type PipelineNodeDetailResponse = Served<
+  Schemas["PipelineNodeDetailResponse"]
+>;
+
+export type PipelineStepListResponse = Served<
+  Schemas["PipelineStepListResponse"]
+>;
 
 export type PipelineRequestOptions = Pick<
   ApiRequestOptions,

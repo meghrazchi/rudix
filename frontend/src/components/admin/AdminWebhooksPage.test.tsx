@@ -352,6 +352,7 @@ describe("AdminWebhooksPage", () => {
     const deliveryResult: WebhookDeliveryListResponse = {
       items: [makeDelivery()],
       total: 1,
+      next_cursor: null,
     };
     mockApi.listWebhooks.mockResolvedValue({
       items: [makeWebhook()],
@@ -381,6 +382,7 @@ describe("AdminWebhooksPage", () => {
         makeDelivery({ id: "del-2", status: "failed", http_status_code: 500 }),
       ],
       total: 2,
+      next_cursor: null,
     };
     mockApi.listWebhooks.mockResolvedValue({
       items: [makeWebhook()],

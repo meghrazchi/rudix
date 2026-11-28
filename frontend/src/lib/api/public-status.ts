@@ -1,4 +1,9 @@
+import type { Served } from "@/lib/api/schema-helpers";
+import type { components } from "@/lib/api/generated/schema";
+
 import { apiRequest } from "@/lib/api/request";
+
+type Schemas = components["schemas"];
 
 export type PublicComponentState =
   | "operational"
@@ -7,37 +12,11 @@ export type PublicComponentState =
   | "maintenance"
   | "unknown";
 
-export type PublicStatusComponent = {
-  key: string;
-  label: string;
-  status: PublicComponentState;
-  summary: string;
-  affected_services: string[];
-  updated_at: string | null;
-};
+export type PublicStatusComponent = Served<Schemas["PublicStatusComponent"]>;
 
-export type PublicStatusIncident = {
-  title: string;
-  status: string;
-  severity: string;
-  kind: "incident" | "maintenance";
-  affected_services: string[];
-  message: string | null;
-  started_at: string;
-  resolved_at: string | null;
-};
+export type PublicStatusIncident = Served<Schemas["PublicStatusIncident"]>;
 
-export type PublicStatusSnapshot = {
-  generated_at: string;
-  overall_status: PublicComponentState;
-  headline: string;
-  summary: string;
-  components: PublicStatusComponent[];
-  current_incidents: PublicStatusIncident[];
-  scheduled_maintenance: PublicStatusIncident[];
-  recent_history: PublicStatusIncident[];
-  uptime_notice: string;
-};
+export type PublicStatusSnapshot = Served<Schemas["PublicStatusSnapshot"]>;
 
 export async function getPublicStatusSnapshot(): Promise<PublicStatusSnapshot> {
   return apiRequest<PublicStatusSnapshot>("/status", {
