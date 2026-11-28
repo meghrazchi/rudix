@@ -71,6 +71,7 @@ All notable changes to Rudix, the product and its documentation, are recorded he
 
 ### Changed
 
+- `frontend` (R07-03): `/documents` back within its bundle budget (339.9 to 315.2 KB gzip, budget 334) with no budget raised: the documents table's virtual rows and the upload, delete and assign-collections dialogs load on demand, and the Web Vitals collector uses `React.lazy` so the root layout no longer ships the `next/dynamic` loader (about 1.2 KB off most routes; `/[locale]/product` 239.6 to 238.4).
 - `0.7.0` integration check (R07-00): coverage ratchets raised to the measured values (backend `fail_under` 82.4; frontend lines 69.5, statements 68.6, functions 62.1, branches 60.8) and a Status section in `docs/roadmap/V0_7_0_IMPLEMENTATION_PLAN.md`. The `/documents` bundle budget (334 KB) is exceeded at 339.9 KB and is left unchanged for an owner decision.
 - `0.6.0` integration check (R06-00): coverage ratchets raised to the measured values (backend `fail_under` 82.2; frontend lines 66.0, statements 65.1, functions 59.1, branches 58.5), a route test for the static solution pages, `scripts/export_openapi.py` stubs `OPENAI_API_KEY` so the OpenAPI contract check runs on a runner without `.env`, and the ingestion golden harness pins `OCR_DEFAULT_LANGUAGES`.
 - CI: check workflows run on pull requests and on push to `main` and `develop`, no longer on every branch push; `release.yml` still runs on `main` and tags only.

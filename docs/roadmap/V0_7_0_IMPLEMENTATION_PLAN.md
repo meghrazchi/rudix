@@ -340,19 +340,19 @@ no secrets):
 
 Not met or not verified:
 
-- Bundle budgets: `check-bundle-budgets.mjs` fails on `/documents`, 339.9 KB gzip against
+- Bundle budgets: `check-bundle-budgets.mjs` failed on `/documents`, 339.9 KB gzip against
   334. Measured at each merge point: 317.6 after A1, 318.2 after B1, 327.3 after A2 (A2 added
   about 8 to 10.6 KB to every route, marketing pages included: `/[locale]/product` 228.8 to
   239.3), 338.9 after C2 (+11.6), 339.9 after C3. C2 was branched before A2 was merged, so the
-  two increases met only on `develop`. Marketing pages are at 239.6 against 240. The budget is
-  left unchanged, because the README rule forbids raising a figure to make a failing check
-  pass; recovering the size or re-baselining the budgets is an owner decision. Two lazy loads
-  were tried here and not kept: `React.lazy` for the Web Vitals collector saved 2.3 KB on
-  every route but changed when its effects run in an existing test; lazy virtual rows for the
-  documents table took `/documents` to 335.3 but moved shared chunks and put three marketing
-  pages over 240.
-- Spec targets stay goals (section 6): marketing 239.6 KB against 150; ordinary app routes up
-  to 319.3 KB (`/user/profile`) against 300; `/chat` 355.3 KB.
+  two increases met only on `develop`. Fixed afterwards without changing a budget: the Web
+  Vitals collector loads with `React.lazy` instead of `next/dynamic` (the root layout no
+  longer ships the `next/dynamic` loader; 1.1 to 1.3 KB off every route that does not use it
+  elsewhere), and the documents page loads its virtual rows, upload, delete and
+  assign-collections dialogs on demand (the assign dialog was imported through the
+  `CollectionsPage` module). `/documents` is now 315.2 KB against 334 and `/[locale]/product`
+  238.4 against 240; every route is within its budget.
+- Spec targets stay goals (section 6): marketing 238.4 KB against 150; ordinary app routes up
+  to 318.1 KB (`/user/profile`) against 300; `/chat` 355.4 KB.
 - R07-10 "no component over 500 lines" holds only for the files this release split; the other
   58 are listed in the frontend README.
 - R07-06 is partly met: for non-admin roles `GET /documents` returns `total` equal to the
