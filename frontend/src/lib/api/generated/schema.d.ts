@@ -24070,6 +24070,8 @@ export interface operations {
                 limit?: number;
                 offset?: number;
                 include_full_text?: boolean;
+                /** @description Return only this chunk when it belongs to the document. */
+                chunk_id?: string | null;
             };
             header?: never;
             path: {

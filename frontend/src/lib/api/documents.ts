@@ -347,12 +347,18 @@ export type ListDocumentsOptions = {
   sort_by?: DocumentSortBy;
   sort_order?: SortOrder;
   filename_query?: string;
+  /** Opaque keyset cursor from `next_cursor`; requires `sort_by=created_at`. */
+  cursor?: string;
+  /** Ask for `total` on a cursor page (the server omits it by default there). */
+  include_total?: boolean;
 };
 
 export type DocumentChunksOptions = {
   limit?: number;
   offset?: number;
   include_full_text?: boolean;
+  /** Return only this chunk (empty page when it is not in the document). */
+  chunk_id?: string;
 };
 
 export type ReindexDocumentRequest = Overlay<
@@ -416,6 +422,8 @@ export async function listDocuments(
       sort_by: options.sort_by,
       sort_order: options.sort_order,
       filename_query: options.filename_query || undefined,
+      cursor: options.cursor || undefined,
+      include_total: options.include_total,
     },
   });
 }
@@ -451,6 +459,7 @@ export async function getDocumentChunks(
         limit: options.limit,
         offset: options.offset,
         include_full_text: options.include_full_text,
+        chunk_id: options.chunk_id || undefined,
       },
     },
   );

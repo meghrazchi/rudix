@@ -1550,6 +1550,25 @@
               "default": false,
               "title": "Include Full Text"
             }
+          },
+          {
+            "name": "chunk_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return only this chunk when it belongs to the document.",
+              "title": "Chunk Id"
+            },
+            "description": "Return only this chunk when it belongs to the document."
           }
         ],
         "responses": {

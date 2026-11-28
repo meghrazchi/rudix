@@ -953,6 +953,10 @@ async def get_document_chunks(
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
     include_full_text: bool = False,
+    chunk_id: Annotated[
+        UUID | None,
+        Query(description="Return only this chunk when it belongs to the document."),
+    ] = None,
 ) -> DocumentChunksResponse:
     del document_id
     chunks = await document_repository.list_document_chunks_paginated(
@@ -961,11 +965,13 @@ async def get_document_chunks(
         index_version=settings.document_index_version,
         limit=limit,
         offset=offset,
+        chunk_id=chunk_id,
     )
     total = await document_repository.count_document_chunks(
         db_session,
         document_id=document.id,
         index_version=settings.document_index_version,
+        chunk_id=chunk_id,
     )
 
     items = [
@@ -1000,6 +1006,7 @@ async def get_document_chunks(
         total=total,
         returned=len(items),
         include_full_text=include_full_text,
+        chunk_id_filter=chunk_id is not None,
     )
     return DocumentChunksResponse(
         document_id=str(document.id),
