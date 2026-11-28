@@ -54,6 +54,7 @@ This repository keeps `README.md` at the root and all other documentation under 
 - [roadmap/V0_8_0_PRODUCTION_INFRASTRUCTURE.md](./roadmap/V0_8_0_PRODUCTION_INFRASTRUCTURE.md)
 - [roadmap/V0_8_0_IMPLEMENTATION_PLAN.md](./roadmap/V0_8_0_IMPLEMENTATION_PLAN.md) — Decisions taken, work packages, chains, shared-file anchors, contracts, operator steps, and staging-only exit criteria for `0.8.0`
 - [roadmap/V0_9_0_PRODUCT_COMPLETENESS.md](./roadmap/V0_9_0_PRODUCT_COMPLETENESS.md)
+- [roadmap/V0_9_0_IMPLEMENTATION_PLAN.md](./roadmap/V0_9_0_IMPLEMENTATION_PLAN.md) — Decisions taken, nine work packages in five chains, migration chain, shared-file anchors, contracts, operator steps, and staging-only exit criteria for `0.9.0`
 - [roadmap/V1_0_0_GENERAL_AVAILABILITY.md](./roadmap/V1_0_0_GENERAL_AVAILABILITY.md)
 
 ## Setup and Operations
