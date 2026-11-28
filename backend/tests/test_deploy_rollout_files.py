@@ -115,6 +115,20 @@ def test_health_checks_run_inside_the_api_container() -> None:
     assert "exec -T api python -c" in terraform
 
 
+def test_rollback_health_check_runs_inside_the_api_container() -> None:
+    # The rollback script runs against the same hosts, where port 8000 is closed (R08-01).
+    rollback = _read(_REPO / "deploy" / "scripts" / "rollback_compose_remote.sh")
+    assert "curl" not in rollback
+    # Every reference to the API port is the in-container check.
+    for line in rollback.splitlines():
+        if "127.0.0.1:8000" in line:
+            assert "exec -T api python -c" in line, line
+    assert re.search(
+        r"docker compose -f '\$compose_file' exec -T api python -c .*/api/v1/health", rollback
+    )
+    assert "docker compose -f '$compose_file' up -d --wait" in rollback
+
+
 def test_remote_script_ships_edge_files_and_compose_profiles() -> None:
     remote = _read(_REMOTE_SCRIPT)
     assert f'edge_files="{" ".join(_EDGE_FILES)}"' in remote
