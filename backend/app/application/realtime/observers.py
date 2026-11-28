@@ -5,8 +5,8 @@ so each choke point (``status_tracking.set_document_status`` / ``mark_document_f
 the finalize stage, deletion, upload and reindex workflows, notification creation, sync run
 transitions, incident create/update/resolve) publishes without per-call wiring:
 
-* ``Document``: inserted, deleted, or ``status`` changed -> ``document.status`` (uploader
-  and owner/admin) plus ``documents.changed`` (every member).
+* ``Document``: inserted, deleted, or ``status`` / ``graph_extraction_status`` changed ->
+  ``document.status`` (uploader and owner/admin) plus ``documents.changed`` (every member).
 * ``ConnectorSyncRun``: inserted or ``status`` changed -> ``connector.sync`` (owner/admin
   and the connection's creator).
 * ``Notification``: inserted -> ``notification.created`` (the recipient only).
@@ -47,8 +47,9 @@ def _loaded(instance: Any, name: str) -> Any:
     return inspect(instance).dict.get(name)
 
 
-def _status_changed(instance: Any) -> bool:
-    return bool(inspect(instance).attrs["status"].history.has_changes())
+def _status_changed(instance: Any, *fields: str) -> bool:
+    attrs = inspect(instance).attrs
+    return any(attrs[name].history.has_changes() for name in fields or ("status",))
 
 
 def connection_creator(session: Session, connection_id: UUID | None) -> UUID | None:
@@ -127,7 +128,8 @@ def _incident(instance: Incident) -> list[RealtimeEvent]:
 
 def _collect(session: Session, instance: Any, change: str) -> list[RealtimeEvent]:
     if isinstance(instance, Document):
-        if change == "dirty" and not _status_changed(instance):
+        # Graph extraction progress is shown next to the status, so it counts as a change.
+        if change == "dirty" and not _status_changed(instance, "status", "graph_extraction_status"):
             return []
         return _document(instance, deleted=change == "deleted")
     if isinstance(instance, ConnectorSyncRun):

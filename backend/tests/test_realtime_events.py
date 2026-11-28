@@ -232,7 +232,12 @@ async def test_document_status_is_published_only_after_commit(
         assert row is not None
         row.filename = "renamed.pdf"  # not a status change
         await session.commit()
-    assert len(buffered(realtime_redis, seeded.organization_id)) == 2
+        assert len(buffered(realtime_redis, seeded.organization_id)) == 2
+        row.graph_extraction_status = "extracting"  # shown next to the status
+        await session.commit()
+    entries = buffered(realtime_redis, seeded.organization_id)
+    assert len(entries) == 4
+    assert entries[2]["payload"] == {"document_id": str(document.id), "status": "uploaded"}
 
 
 async def test_rolled_back_transaction_publishes_nothing(
