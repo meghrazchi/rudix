@@ -238,7 +238,7 @@ backup:
       repository: postgres
       tag: "16"
       digest: ""
-    # Key in secrets.existingSecret with a libpq URL (postgresql://) for pg_dump.
+    # Key in secrets.existingSecret with a libpq connection URL for pg_dump.
     databaseUrlSecretKey: BACKUP_DATABASE_URL
   qdrant:
     enabled: true
