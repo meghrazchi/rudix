@@ -43,10 +43,16 @@ from app.application.chat.transports.sse import open_sse_query
 from app.application.chat.transports.ws import WsSequence, as_ws_sequence, run_ws_query
 from app.application.chat.transports.ws_resume import start_ws_resume
 from app.application.chat.ws_auth import authenticate_ws_handshake
+from app.application.chat.ws_connection_limit import (
+    MEMORY_COUNTS,
+    MEMORY_LOCK,
+    WsConnectionLimiter,
+)
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
 from app.core.logging import log_query_event
+from app.core.metrics_infra import chat_ws_connection_closed, chat_ws_connection_opened
 from app.db.session import SessionLocal, get_db_session
 from app.domains.chat.schemas.chat import ChatQueryRequest, ChatQueryResponse
 from app.domains.chat.schemas.chat_ws import ChatWSInboundMessage, ChatWSOutboundEvent
@@ -268,9 +274,12 @@ router.include_router(chat_answer_shares.router)
 # WebSocket chat transport (F277)
 # ──────────────────────────────────────────────────────────────────────────────
 
-# Per-user active connection counter (in-process; replace with Redis for multi-instance).
-_ws_connection_counts: dict[str, int] = {}
-_ws_connection_lock = asyncio.Lock()
+# Per-user connection counter of the ``memory`` backend (and of the Redis open-mode
+# fallback); ``WS_CHAT_CONNECTION_LIMIT_BACKEND=redis`` shares the limit across replicas
+# (R08-03, ``app/application/chat/ws_connection_limit.py``). Read at connect time, so a
+# rebinding of these names reaches the limiter.
+_ws_connection_counts: dict[str, int] = MEMORY_COUNTS
+_ws_connection_lock: asyncio.Lock = MEMORY_LOCK
 
 
 async def _ws_send(websocket: WebSocket, event: ChatWSOutboundEvent) -> None:
@@ -359,14 +368,20 @@ async def chat_websocket(
         return
 
     # ── Connection count guard ────────────────────────────────────────────────
-    async with _ws_connection_lock:
-        current = _ws_connection_counts.get(user_id, 0)
-        if current >= settings.ws_chat_max_connections_per_user:
-            await websocket.close(code=4429, reason="Too many connections")
-            return
-        _ws_connection_counts[user_id] = current + 1
+    limiter = WsConnectionLimiter(counts=_ws_connection_counts, lock=_ws_connection_lock)
+    slot = await limiter.acquire(
+        organization_id=str(principal.organization_id or ""), user_id=user_id
+    )
+    if slot is None:
+        await websocket.close(code=4429, reason="Too many connections")
+        return
 
-    await websocket.accept()
+    try:
+        await websocket.accept()
+    except BaseException:
+        await limiter.release(slot)
+        raise
+    chat_ws_connection_opened()
     log_query_event(
         event="ws_chat.connection.opened",
         organization_id=principal.organization_id,
@@ -399,6 +414,7 @@ async def chat_websocket(
         while True:
             await asyncio.sleep(interval)
             await send_event("heartbeat.ping")
+            await limiter.refresh(slot)  # R08-03: keep the Redis lease alive
 
     try:
         await send_event("connection.ready")
@@ -484,8 +500,8 @@ async def chat_websocket(
             heartbeat_task.cancel()
         if active_task and not active_task.done():
             ws_runs.handle_ws_drop(active_task, active_run)  # R05-13: resume grace window
-        async with _ws_connection_lock:
-            _ws_connection_counts[user_id] = max(0, _ws_connection_counts.get(user_id, 1) - 1)
+        await limiter.release(slot)
+        chat_ws_connection_closed()
         log_query_event(
             event="ws_chat.connection.closed",
             organization_id=principal.organization_id,

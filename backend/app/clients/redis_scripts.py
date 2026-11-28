@@ -48,6 +48,9 @@ class ScriptStore(Protocol):
 
     def zcard(self, key: str) -> int: ...
 
+    # R08-03 WebSocket connection lease refresh.
+    def zscore(self, key: str, member: str) -> float | None: ...
+
     # Lists (R05-13 resume buffer).
     def exists(self, key: str) -> bool: ...
 
