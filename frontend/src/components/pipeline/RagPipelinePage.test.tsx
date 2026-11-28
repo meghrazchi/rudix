@@ -104,7 +104,7 @@ describe("RagPipelinePage", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Upload" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Chunk" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Chunk" }));
 
     await waitFor(() => {
       expect(

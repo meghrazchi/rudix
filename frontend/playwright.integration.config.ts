@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+import { consentedStorageState } from "./e2e/support/consent";
+
 // Critical-path suite against the real integration stack (R03-04): API, worker,
 // Postgres, Qdrant, MinIO, RabbitMQ, Redis and the deterministic LLM stub from
 // deploy/compose/docker-compose.integration-stub.yml. The suite is skipped
@@ -29,6 +31,9 @@ export default defineConfig({
   ],
   use: {
     baseURL: APP_URL,
+    // Start as a returning visitor: the cookie banner is a modal dialog that
+    // intercepts clicks (e2e/cookie-consent.spec.ts covers the banner itself).
+    storageState: consentedStorageState(APP_URL),
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

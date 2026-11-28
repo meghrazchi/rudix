@@ -4,16 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import dynamic from "next/dynamic";
+import { SkeletonBlock } from "@/components/states/SkeletonBlock";
 import {
   DetailDrawer,
   ReportHeader,
@@ -21,6 +13,18 @@ import {
 } from "@/components/reports/report-ui";
 import { useReportBackendData } from "@/components/reports/ReportBackendData";
 import { getAnswerQualityDetail } from "@/lib/api/answer-quality";
+
+// recharts loads on demand (R07-03).
+const AnswerQualityTrendChart = dynamic(
+  () =>
+    import("@/components/reports/AnswerQualityCharts").then(
+      (module) => module.AnswerQualityTrendChart,
+    ),
+  {
+    ssr: false,
+    loading: () => <SkeletonBlock rows={6} className="h-full" />,
+  },
+);
 
 function percent(value: number | null): string {
   return value == null ? "—" : `${(value * 100).toFixed(1)}%`;
@@ -107,29 +111,7 @@ export function AnswerQualityReportDashboard() {
             role="img"
             aria-label="Answer confidence and citation support trend"
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={answerQuality?.trends ?? []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ebe8f4" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis domain={[0, 1]} tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="average_confidence"
-                  name="Confidence"
-                  stroke="#6254d9"
-                  strokeWidth={2}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="average_citation_support"
-                  name="Citation support"
-                  stroke="#059669"
-                  strokeWidth={2}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <AnswerQualityTrendChart data={answerQuality?.trends ?? []} />
           </div>
         </section>
         <section className="rounded-xl border border-[#dfdced] bg-white p-5 shadow-sm">

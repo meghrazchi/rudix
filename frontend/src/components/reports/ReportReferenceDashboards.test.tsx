@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
   AnswerQualityDashboard,
@@ -55,7 +55,7 @@ vi.mock("@/components/reports/ReportBackendData", () => ({
 }));
 
 describe("reference report dashboards", () => {
-  it("renders backend answer quality metrics", () => {
+  it("renders backend answer quality metrics", async () => {
     const { container } = render(<AnswerQualityDashboard />);
     expect(container.querySelector("main")).toHaveClass("gap-6");
     expect(
@@ -66,15 +66,17 @@ describe("reference report dashboards", () => {
       screen.getByRole("heading", { name: "Answer quality" }),
     ).toBeInTheDocument();
     expect(screen.getByText("94.2%")).toBeInTheDocument();
-    expect(
-      container.querySelector('[data-chart-library="recharts"]'),
-    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        container.querySelector('[data-chart-library="recharts"]'),
+      ).toBeInTheDocument(),
+    );
     expect(
       screen.getByRole("table", { name: "Daily quality analysis" }),
     ).toBeInTheDocument();
   });
 
-  it("renders source health recommendations and integrity table", () => {
+  it("renders source health recommendations and integrity table", async () => {
     const { container } = render(<SourceHealthDashboard />);
     expect(
       screen.getByRole("heading", { name: "Source health" }),
@@ -82,24 +84,28 @@ describe("reference report dashboards", () => {
     expect(
       screen.getByRole("heading", { name: "Retrieval Volatility" }),
     ).toBeInTheDocument();
-    expect(
-      container.querySelector('[data-chart-library="recharts"]'),
-    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        container.querySelector('[data-chart-library="recharts"]'),
+      ).toBeInTheDocument(),
+    );
     expect(
       screen.getByRole("table", { name: "Source processing health" }),
     ).toBeInTheDocument();
   });
 
-  it("renders feedback categories and queue", () => {
+  it("renders feedback categories and queue", async () => {
     const { container } = render(<FeedbackIssuesDashboard />);
     expect(
       screen.getByRole("heading", { name: "Feedback & issues" }),
     ).toBeInTheDocument();
-    expect(
-      container.querySelector('[data-chart-library="recharts"]'),
-    ).toHaveAttribute(
-      "aria-label",
-      expect.stringContaining("wrong answer: 42%"),
+    await waitFor(() =>
+      expect(
+        container.querySelector('[data-chart-library="recharts"]'),
+      ).toHaveAttribute(
+        "aria-label",
+        expect.stringContaining("wrong answer: 42%"),
+      ),
     );
     expect(
       screen.getByRole("table", { name: "Feedback queue" }),
