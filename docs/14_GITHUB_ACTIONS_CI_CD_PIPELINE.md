@@ -572,6 +572,21 @@ the rotation order for each value is in `docs/11` `### Rotation`.
 | `QUALITY_GATE_ID`      | UUID of the quality gate configuration.                                               |
 | `ACCURACY_EVAL_SET_ID` | UUID of the published evaluation set.                                                 |
 
+`RUDIX_API_TOKEN` should be a service-account token:
+
+1. In **Admin → Service accounts**, create an account (for example `github-ci`, environment
+   `ci`) with the `quality_gates:run` scope.
+2. Create a token for it and copy the `svc_…` value. It is shown only once.
+3. Store only that raw value, with no `Bearer ` prefix and no quotes:
+   `gh secret set RUDIX_API_TOKEN`.
+
+`quality_gates:run` lets the token list evaluation runs, trigger a gate run and read its
+report. It cannot create, edit, delete or override gates; overriding a failed gate stays an
+owner/admin action. A token without the scope gets `403`, and a value that is not a `svc_`,
+`rudix_` or valid session token gets `401 Invalid token format`. Rotate by creating a second
+token, updating the secret, then revoking the old one. An admin's session token also works
+but expires after `APP_AUTH_ACCESS_TOKEN_TTL_SECONDS` (default 1 hour), so do not use it for CI.
+
 ### Optional Sentry release tagging
 
 - `SENTRY_DSN`

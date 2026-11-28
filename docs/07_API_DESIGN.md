@@ -1929,6 +1929,22 @@ Response:
 
 ## Evaluation
 
+### Machine access for the CI quality gate
+
+Three routes also accept service-account (`svc_`) and API-key (`rudix_`) tokens, checked by
+scope instead of role. Logged-in users keep the role checks listed for each route.
+
+| Route                                     | Users                         | Tokens need                                 |
+| ----------------------------------------- | ----------------------------- | ------------------------------------------- |
+| `GET /evaluations/runs`                   | owner, admin, member, viewer  | `evaluations:run` or `quality_gates:run`    |
+| `POST /quality-gates/{id}/runs`           | owner, admin                  | `quality_gates:run`                         |
+| `GET /quality-gates/runs/{id}/report`     | owner, admin, member, viewer  | `quality_gates:run`                         |
+
+A token missing the scope gets `403` (`Token does not have the required scopes`). Every other
+quality-gate route, including override, stays human-only. A gate run triggered by a service
+account stores `triggered_by_id = null`; the audit entry carries `actor_type`,
+`service_account_id` and `credential_id` instead.
+
 ### POST `/evaluation-sets`
 
 Create an evaluation set.

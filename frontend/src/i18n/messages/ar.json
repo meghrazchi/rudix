@@ -6615,6 +6615,7 @@
       "documentsWrite": "المستندات — كتابة",
       "chatWrite": "الدردشة — كتابة",
       "evaluationsRun": "التقييمات — تشغيل",
+      "qualityGatesRun": "بوابات الجودة — تشغيل (CI)",
       "webhooksManage": "خطافات الويب — إدارة",
       "connectorsManage": "الموصلات — إدارة"
     },

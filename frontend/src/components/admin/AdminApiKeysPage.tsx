@@ -28,6 +28,7 @@ const SCOPE_KEYS: Record<string, string> = {
   "documents:write": "documentsWrite",
   "chat:write": "chatWrite",
   "evaluations:run": "evaluationsRun",
+  "quality_gates:run": "qualityGatesRun",
   "webhooks:manage": "webhooksManage",
   "connectors:manage": "connectorsManage",
 };

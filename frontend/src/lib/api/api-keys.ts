@@ -10,6 +10,7 @@ export const VALID_SCOPES = [
   "documents:write",
   "chat:write",
   "evaluations:run",
+  "quality_gates:run",
   "webhooks:manage",
   "connectors:manage",
 ] as const;

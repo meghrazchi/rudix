@@ -162,6 +162,15 @@ Multi-tenant defense-in-depth requirements:
   acceptance, and the browser OAuth callback are not bound yet (`docs/22`, "Known gaps before
   `strict`"); bind them before `strict` in staging.
 
+- Service-account and API-key principals carry no organization role. A route opens to them
+  only through `require_roles_or_token_permissions` (`app/auth/role_or_scope.py`), which keeps
+  the role check for users and checks the token's scope permissions otherwise. Today only the
+  three CI quality-gate routes use it (`docs/07`, "Machine access for the CI quality gate").
+  The `quality_gates:run` scope grants a token-only permission that no human role holds, and it
+  never covers gate create, update, delete or override. A service account's id is not a
+  `users.id`, so routes write `null` to user foreign keys and record the account in audit
+  metadata.
+
 Connector operations must also enforce:
 
 - `organization_id` on providers' connections, external sources, external

@@ -43,6 +43,7 @@ vi.mock("@/lib/api/api-keys", () => ({
     "documents:write",
     "chat:write",
     "evaluations:run",
+    "quality_gates:run",
     "webhooks:manage",
     "connectors:manage",
   ],

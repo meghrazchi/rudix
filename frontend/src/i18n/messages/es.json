@@ -6621,6 +6621,7 @@
       "documentsWrite": "Documentos — escritura",
       "chatWrite": "Chat — escritura",
       "evaluationsRun": "Evaluaciones — ejecutar",
+      "qualityGatesRun": "Puertas de calidad — ejecutar (CI)",
       "webhooksManage": "Webhooks — gestionar",
       "connectorsManage": "Conectores — gestionar"
     },

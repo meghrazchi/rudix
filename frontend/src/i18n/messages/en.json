@@ -6494,6 +6494,7 @@
       "documentsWrite": "Documents — write",
       "chatWrite": "Chat — write",
       "evaluationsRun": "Evaluations — run",
+      "qualityGatesRun": "Quality gates — run (CI)",
       "webhooksManage": "Webhooks — manage",
       "connectorsManage": "Connectors — manage"
     },

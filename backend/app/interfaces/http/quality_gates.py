@@ -9,9 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
+from app.auth.role_or_scope import is_service_account, require_roles_or_token_permissions
 from app.core.logging import log_evaluation_event
 from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import AuditLogService
+from app.domains.api_keys.services.api_keys_service import QUALITY_GATES_RUN_PERMISSION
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.domains.quality_gates.repositories.quality_gates import QualityGateRepository
 from app.domains.quality_gates.schemas.quality_gates import (
@@ -58,6 +60,19 @@ def _org_id(principal: AuthenticatedPrincipal) -> UUID:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid organization context",
         ) from exc
+
+
+def _actor_metadata(principal: AuthenticatedPrincipal) -> dict[str, str]:
+    """Audit fields naming a machine caller; empty for interactive users."""
+    if principal.api_key_permissions is None:
+        return {}
+    actor_type = "service_account" if is_service_account(principal) else "api_key"
+    metadata = {"actor_type": actor_type}
+    if is_service_account(principal):
+        metadata["service_account_id"] = principal.user_id
+    if principal.api_key_id:
+        metadata["credential_id"] = principal.api_key_id
+    return metadata
 
 
 def _user_id(principal: AuthenticatedPrincipal) -> UUID:
@@ -365,12 +380,19 @@ async def trigger_quality_gate_run(
     payload: TriggerQualityGateRunRequest,
     principal: Annotated[
         AuthenticatedPrincipal,
-        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+        Depends(
+            require_roles_or_token_permissions(
+                roles=(OrganizationRole.owner.value, OrganizationRole.admin.value),
+                token_permissions=(QUALITY_GATES_RUN_PERMISSION,),
+            )
+        ),
     ],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> QualityGateRunResponse:
     organization_id = _org_id(principal)
-    user_id = _user_id(principal)
+    # A service account's id is not a users.id, so it cannot fill the user foreign keys;
+    # it is recorded in the audit metadata instead.
+    user_id = None if is_service_account(principal) else _user_id(principal)
     request_id = _request_id(request)
     gate_uuid = _parse_uuid(quality_gate_id, "Quality gate")
     gate = await _gate_repo.get_gate(db_session, gate_id=gate_uuid, organization_id=organization_id)
@@ -490,6 +512,7 @@ async def trigger_quality_gate_run(
             "quality_gate_id": str(gate.id),
             "verdict": verdict,
             "fail_count": len(failed_checks),
+            **_actor_metadata(principal),
         },
     )
     await db_session.commit()
@@ -579,11 +602,14 @@ async def get_quality_gate_report(
     principal: Annotated[
         AuthenticatedPrincipal,
         Depends(
-            require_roles(
-                OrganizationRole.owner.value,
-                OrganizationRole.admin.value,
-                OrganizationRole.member.value,
-                OrganizationRole.viewer.value,
+            require_roles_or_token_permissions(
+                roles=(
+                    OrganizationRole.owner.value,
+                    OrganizationRole.admin.value,
+                    OrganizationRole.member.value,
+                    OrganizationRole.viewer.value,
+                ),
+                token_permissions=(QUALITY_GATES_RUN_PERMISSION,),
             )
         ),
     ],

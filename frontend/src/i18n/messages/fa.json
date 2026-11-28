@@ -6619,6 +6619,7 @@
       "documentsWrite": "اسناد — نوشتن",
       "chatWrite": "گفت‌وگو — نوشتن",
       "evaluationsRun": "ارزیابی‌ها — اجرا",
+      "qualityGatesRun": "دروازه‌های کیفیت — اجرا (CI)",
       "webhooksManage": "وب‌هوک‌ها — مدیریت",
       "connectorsManage": "اتصال‌دهنده‌ها — مدیریت"
     },

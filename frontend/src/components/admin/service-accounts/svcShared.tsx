@@ -8,6 +8,7 @@ export const SCOPE_LABELS: Record<string, string> = {
   "documents:write": "Documents — write",
   "chat:write": "Chat — write",
   "evaluations:run": "Evaluations — run",
+  "quality_gates:run": "Quality gates — run (CI)",
   "webhooks:manage": "Webhooks — manage",
   "connectors:manage": "Connectors — manage",
 };
