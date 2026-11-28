@@ -34,6 +34,10 @@ config:
     # v080-A2
     # v080-B1
     # v080-B2
+    METRICS_ENABLED: "true"
+    METRICS_REQUIRE_AUTH: "true"
+    WORKER_METRICS_ENABLED: "true"
+    WORKER_METRICS_MULTIPROCESS: "true"
     # v080-B3
     # v080-C1
     # Readiness gates only on the stores every request needs (contract 5.2.6, B1 setting).
@@ -66,6 +70,14 @@ tmpVolume: {}
 # owner: S1
 metrics:
   enabled: true
+  # owner: B2
+  workers:
+    multiprocess: true
+  # owner: B2
+  serviceMonitor:
+    enabled: true
+    labels:
+      release: kube-prometheus-stack
 
 # owner: A1
 ingress: {}

@@ -56,6 +56,11 @@ config:
     # v080-A2
     # v080-B1
     # v080-B2
+    # Metrics switches; must agree with the `metrics` block (rudix.b2.validate).
+    METRICS_ENABLED: "false"
+    METRICS_REQUIRE_AUTH: "true"
+    WORKER_METRICS_ENABLED: "false"
+    WORKER_METRICS_MULTIPROCESS: "true"
     # v080-B3
     # v080-C1
     # Readiness gates only on the stores every request needs (contract 5.2.6, B1 setting).
@@ -120,8 +125,18 @@ metrics:
   # owner: B2
   workers:
     port: 9808
+    # Prefork children export their counters through PROMETHEUS_MULTIPROC_DIR (R08-09);
+    # mirrored by config.env WORKER_METRICS_MULTIPROCESS.
+    multiprocess: true
   # owner: B2
-  serviceMonitor: {}
+  # Prometheus Operator ServiceMonitors for the api `http` and worker `metrics` ports (needs
+  # the monitoring.coreos.com CRDs). Off by default; needs metrics.enabled.
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    # Extra labels, e.g. `release: kube-prometheus-stack` for the operator's selector.
+    labels: {}
 
 # owner: A1
 ingress:
