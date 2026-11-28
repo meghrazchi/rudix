@@ -57,6 +57,30 @@ jobs:
           terraform init -backend=false -input=false
           terraform validate
 
+  # Kubernetes chart and Compose files (0.8.0). Nothing is deployed and no cluster is used.
+  deploy-config:
+    name: Deploy config
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
+
+      - name: Lint and render Helm chart
+        run: RENDER_DIR="$RUNNER_TEMP/helm" deploy/scripts/check_helm_chart.sh
+
+      - name: Validate rendered manifests
+        run: |
+          docker run --rm -v "$RUNNER_TEMP/helm:/m:ro" ghcr.io/yannh/kubeconform:v0.6.7 \
+            -strict -summary -ignore-missing-schemas -kubernetes-version 1.30.0 /m
+
+      - name: Check compose files
+        run: deploy/scripts/check_compose_config.sh
+
   backend:
     name: Backend lint and tests
     runs-on: ubuntu-latest
@@ -79,6 +103,12 @@ jobs:
           make -C backend lint
           cd backend
           .venv/bin/ruff format --check app tests
+
+      # The Helm chart tests (tests/test_helm_chart_*.py) skip when helm is missing.
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.19.0
 
       - name: Run backend tests
         run: |
