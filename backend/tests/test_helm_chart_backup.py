@@ -158,6 +158,44 @@ def test_invalid_backup_values_fail(set_values: dict[str, str], message: str) ->
     assert message in render_failure([], set_values)
 
 
+FRESHNESS = "config.env.BACKUP_FRESHNESS_CHECK_ENABLED"
+
+
+@pytest.mark.parametrize(
+    ("set_values", "message"),
+    [
+        ({FRESHNESS: "true"}, "needs config.env.BACKUP_BUCKET"),
+        (
+            {**ENABLED, FRESHNESS: "true", "config.env.BACKUP_BUCKET": "other-bucket"},
+            "must equal backup.bucket and backup.prefix",
+        ),
+        (
+            {
+                **ENABLED,
+                FRESHNESS: "true",
+                "config.env.BACKUP_BUCKET": "rudix-backups",
+                "config.env.BACKUP_PREFIX": "elsewhere",
+            },
+            "must equal backup.bucket and backup.prefix",
+        ),
+    ],
+)
+def test_freshness_check_needs_the_same_bucket_in_config(
+    set_values: dict[str, str], message: str
+) -> None:
+    # The beat task runs in the worker pods, which never see the CronJob-only bucket env.
+    assert message in render_failure([], set_values)
+
+
+def test_freshness_check_renders_with_matching_config() -> None:
+    objects = render_chart(
+        [], {**ENABLED, FRESHNESS: "true", "config.env.BACKUP_BUCKET": "rudix-backups"}
+    )
+    config = next(obj for obj in objects if obj["kind"] == "ConfigMap")
+    assert config["data"]["BACKUP_BUCKET"] == "rudix-backups"
+    assert render_chart([], {FRESHNESS: "false"})
+
+
 def test_data_stores_key_is_documentation_only() -> None:
     values = yaml.safe_load((CHART_DIR / "values.yaml").read_text())["dataStores"]
     assert values["qdrant"]["replicationFactor"] >= 2

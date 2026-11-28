@@ -22,6 +22,19 @@ The encryption key comes from a Secret mounted as a read-only file, never from v
 {{- fail "rudix: backup.postgres.enabled needs secrets.existingSecret holding backup.postgres.databaseUrlSecretKey" -}}
 {{- end -}}
 {{- end -}}
+{{- /* The freshness beat task runs in the worker pods, which get config.env but not the
+CronJob-only BACKUP_BUCKET and BACKUP_PREFIX: it must find the same markers. */ -}}
+{{- $env := .Values.config.env | default dict -}}
+{{- if eq (toString ((index $env "BACKUP_FRESHNESS_CHECK_ENABLED") | default "")) "true" -}}
+{{- $envBucket := toString ((index $env "BACKUP_BUCKET") | default "") -}}
+{{- $envPrefix := toString ((index $env "BACKUP_PREFIX") | default "rudix") -}}
+{{- if not $envBucket -}}
+{{- fail "rudix: config.env.BACKUP_FRESHNESS_CHECK_ENABLED needs config.env.BACKUP_BUCKET: the freshness task reads the markers from the worker pods" -}}
+{{- end -}}
+{{- if and $backup.enabled (or (ne $envBucket (toString $backup.bucket)) (ne $envPrefix (toString $backup.prefix))) -}}
+{{- fail "rudix: config.env.BACKUP_BUCKET and BACKUP_PREFIX must equal backup.bucket and backup.prefix, or the freshness task reads other markers" -}}
+{{- end -}}
+{{- end -}}
 {{- end -}}
 
 {{/* The postgres:16 image used by the dump initContainer (digest wins over tag). */}}

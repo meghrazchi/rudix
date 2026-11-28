@@ -218,7 +218,11 @@ and container security contexts, a `/backup` emptyDir (`workDirSizeLimit`), and
   `secrets.existingSecret`.
 - NetworkPolicies already treat `backup-*` pods as data-store clients (C1).
 - Freshness: set `BACKUP_FRESHNESS_CHECK_ENABLED=true` in `config.env` so the beat task
-  exports `rudix_backup_last_success_timestamp_seconds`; alerts are in
+  exports `rudix_backup_last_success_timestamp_seconds`. The task runs in the worker pods,
+  which do not get the CronJob-only `BACKUP_BUCKET` and `BACKUP_PREFIX`, so set both in
+  `config.env` too (bucket read credentials come from `secrets.existingSecret`); the render
+  fails when the check is on without `config.env.BACKUP_BUCKET`, or when they differ from
+  `backup.bucket` and `backup.prefix`. Alerts are in
   `infra/observability/prometheus/rules/backups.yml` (docs/12, "Backup freshness").
 
 Restore and verification: `deploy/scripts/restore_drill.sh` (scratch database and Qdrant
