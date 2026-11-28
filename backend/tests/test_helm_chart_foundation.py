@@ -225,7 +225,12 @@ def test_staging_and_production_have_the_same_keys_as_each_other_and_defaults() 
 
 
 def test_every_top_level_key_has_an_owner_comment() -> None:
-    for name in ("values.yaml", "values-staging.yaml", "values-production.yaml"):
+    for name in (
+        "values.yaml",
+        "values-staging.yaml",
+        "values-production.yaml",
+        "ci/all-features-values.yaml",
+    ):
         assert top_level_keys_without_owner(CHART_DIR / name) == [], name
     text = (CHART_DIR / "values.yaml").read_text()
     for key, owner in PLAN_OWNERS.items():
@@ -275,6 +280,52 @@ def test_shared_assertions_catch_violations() -> None:
     assert "REDIS_PASSWORD" in text and "APP_AUTH_SECRET" not in text
     assert is_secret_env_name("APP_AUTH_SECRET")
     assert not is_secret_env_name("APP_AUTH_ACCESS_TOKEN_TTL_SECONDS")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "CHUNK_SIZE_TOKENS",
+        "EMBEDDING_BATCH_MAX_TOKENS",
+        "OPENAI_LLM_INPUT_COST_PER_MILLION_TOKENS_USD",
+        "CONNECTOR_CREDENTIAL_ENCRYPTION_KEY_ID",
+        "NEXT_PUBLIC_CONTACT_CAPTCHA_SITE_KEY",
+    ],
+)
+def test_non_secret_names_with_secret_words_may_live_in_config_maps(name: str) -> None:
+    assert not is_secret_env_name(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "POSTGRES_PASSWORD",
+        "OPENAI_API_KEY",
+        "MINIO_SECRET_KEY",
+        "METRICS_BEARER_TOKEN",
+        "CONNECTOR_CREDENTIAL_ENCRYPTION_KEY",
+        "BOT_SLACK_SIGNING_SECRET",
+        "LANGFUSE_SECRET_KEY",
+    ],
+)
+def test_secret_names_stay_secret(name: str) -> None:
+    assert is_secret_env_name(name)
+
+
+def test_numeric_env_values_render_as_plain_digits(tmp_path: Path) -> None:
+    overrides = tmp_path / "numbers.yaml"
+    overrides.write_text(
+        "config:\n  env:\n    UPLOAD_MAX_BYTES: 52428800\n    RATIO: 0.25\n    FLAG: true\n"
+        "runtimeConfig:\n  env:\n    NEXT_PUBLIC_POLL_MS: 15000000\n    NEXT_PUBLIC_EMPTY: null\n"
+    )
+    objects = render_chart([str(overrides)])
+    config = next(obj for obj in objects if obj["metadata"]["name"] == "rudix-config")
+    assert config["data"]["UPLOAD_MAX_BYTES"] == "52428800"
+    assert config["data"]["RATIO"] == "0.25"
+    assert config["data"]["FLAG"] == "true"
+    frontend = next(obj for obj in objects if obj["metadata"]["name"] == "rudix-frontend")
+    assert frontend["data"]["NEXT_PUBLIC_POLL_MS"] == "15000000"
+    assert frontend["data"]["NEXT_PUBLIC_EMPTY"] == ""
 
 
 def test_check_script_is_posix_and_covers_every_values_file() -> None:

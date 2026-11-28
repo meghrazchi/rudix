@@ -37,10 +37,11 @@ STANDARD_LABELS = (
 # Environment names that look like secrets. Such a name may get its value only from a
 # Secret (secretKeyRef or envFrom secretRef), never a literal or a ConfigMap.
 SECRET_ENV_NAME = re.compile(r"PASSWORD|SECRET|TOKEN|_KEY")
-# Names that match SECRET_ENV_NAME but hold no secret (durations, switches, key names).
+# Names that match SECRET_ENV_NAME but hold no secret (durations, switches, key names, token
+# counts and prices such as CHUNK_SIZE_TOKENS, key ids, public captcha site keys).
 NON_SECRET_ENV_NAME = re.compile(
     r"(_SECONDS|_MS|_TTL|_ENABLED|_REQUIRED|_MODE|_HEADER|_HEADER_NAME|_NAME|_PREFIX|_FILE"
-    r"|_SECRET_KEY_NAME)$"
+    r"|_SECRET_KEY_NAME|_TOKENS|_TOKENS_USD|_KEY_ID|_SITE_KEY)$"
 )
 FORBIDDEN_SERVICE_TYPES = ("NodePort", "LoadBalancer")
 

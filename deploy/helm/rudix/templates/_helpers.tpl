@@ -100,6 +100,20 @@ imagePullSecrets:
 {{- include "rudix.componentName" (dict "root" . "component" "frontend") -}}
 {{- end -}}
 
+{{/*
+A quoted ConfigMap value. Numbers from values files arrive as float64, which toString writes
+in exponent form (52428800 -> "5.24288e+07"); toJson keeps the plain digits. Null is "".
+*/}}
+{{- define "rudix.envValue" -}}
+{{- if kindIs "float64" . -}}
+{{- toJson . | quote -}}
+{{- else if kindIs "invalid" . -}}
+{{- "" | quote -}}
+{{- else -}}
+{{- . | toString | quote -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "rudix.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create -}}
 {{- default (include "rudix.fullname" .) .Values.serviceAccount.name -}}

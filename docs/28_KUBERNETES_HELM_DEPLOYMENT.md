@@ -86,6 +86,7 @@ dict, for example `include "rudix.image" (dict "root" $ "component" "api")`.
 | `rudix.containerSecurityContext` | root | `allowPrivilegeEscalation: false`, `readOnlyRootFilesystem: true`, `runAsNonRoot: true`, `capabilities.drop: [ALL]` |
 | `rudix.tmpVolume`, `rudix.tmpVolumeMount` | root | an `emptyDir` named `tmp` (`tmpVolume.sizeLimit`) mounted at `/tmp` |
 | `rudix.configMapName`, `rudix.frontendConfigMapName`, `rudix.serviceAccountName`, `rudix.imagePullSecrets` | root | names and pull secrets used by the templates |
+| `rudix.envValue` | value | a quoted ConfigMap value; numbers stay plain digits, null becomes `""` |
 
 Service ports by name (contract 5.2.2, used by C1): frontend `http` 3000, api `http` 8000,
 mcp `http` 8010, workers `metrics` 9808.
@@ -105,7 +106,10 @@ it is missing. The chart tests skip with a reason when Helm is missing; CI insta
 set_values)` and the shared assertions every `tests/test_helm_chart_*.py` runs: standard labels
 on every object; no `hostPort`, `hostNetwork`, `privileged: true`, `NodePort`, or
 `LoadBalancer`; environment names matching `PASSWORD|SECRET|TOKEN|_KEY` only from a
-`secretKeyRef` or `envFrom.secretRef`, never a literal or a ConfigMap. The CI job
+`secretKeyRef` or `envFrom.secretRef`, never a literal or a ConfigMap (names ending in a
+duration, switch, or count suffix such as `_SECONDS`, `_ENABLED`, `_TOKENS`, `_KEY_ID`, or
+`_SITE_KEY` are not secrets; `NON_SECRET_ENV_NAME` lists them). ConfigMap values go through
+`rudix.envValue`, which keeps numbers in plain digits (`52428800`, not `5.24288e+07`). The CI job
 `deploy-config` also validates the rendered manifests with `kubeconform` (Kubernetes `1.30.0`
 schemas); that step is first exercised in CI, not on a development machine.
 

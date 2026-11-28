@@ -8,7 +8,7 @@ metadata:
 {{- with .Values.runtimeConfig.env }}
 data:
   {{- range $key, $value := . }}
-  {{ $key }}: {{ $value | toString | quote }}
+  {{ $key }}: {{ include "rudix.envValue" $value }}
   {{- end }}
 {{- else }}
 data: {}
