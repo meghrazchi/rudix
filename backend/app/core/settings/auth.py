@@ -56,6 +56,10 @@ class AuthSettings(BaseModel):
         default="rudix_session_hint", min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_\-]+$"
     )
     app_auth_session_hint_cookie_domain: str | None = Field(default=None, max_length=255)
+    # R08-11: verify-only previous signing secret for rotation overlap. Tokens and OAuth
+    # state are always signed with app_auth_secret; this one is only tried on verification.
+    # It is never used for connector credential encryption.
+    app_auth_secret_previous: SecretStr | None = None
 
 
 def validate_auth_cookies(settings: Settings) -> None:
@@ -84,6 +88,7 @@ def validate_auth_provider(settings: Settings) -> None:
         and not settings._secret_value(settings.app_auth_secret).strip()
     ):
         raise ValueError("app_auth_secret is required when auth_provider=app")
+    validate_auth_secret_previous(settings)
 
     if settings.auth_provider == AuthProvider.clerk and settings.clerk_jwks_url is None:
         raise ValueError("clerk_jwks_url is required when auth_provider=clerk")
@@ -98,3 +103,14 @@ def validate_auth_provider(settings: Settings) -> None:
         raise ValueError("supabase_jwt_issuer is required when auth_provider=supabase")
     if settings.auth_provider == AuthProvider.supabase and settings.supabase_jwt_audience is None:
         raise ValueError("supabase_jwt_audience is required when auth_provider=supabase")
+
+
+def validate_auth_secret_previous(settings: Settings) -> None:
+    previous = settings.app_auth_secret_previous
+    if previous is None:
+        return
+    previous_value = settings._secret_value(previous)
+    if not previous_value.strip():
+        raise ValueError("app_auth_secret_previous must not be empty when set")
+    if previous_value == settings._secret_value(settings.app_auth_secret):
+        raise ValueError("app_auth_secret_previous must differ from app_auth_secret")

@@ -342,5 +342,6 @@ def sanitized_snapshot(settings: Settings) -> dict[str, Any]:
             # anchor: v080-B3
             # anchor: v080-C2
             # anchor: v080-D1
+            "app_auth_secret_previous_set": settings.app_auth_secret_previous is not None,
         },
     }
