@@ -114,6 +114,12 @@ check-revisions:
 		exit 1; \
 	fi
 
+.PHONY: check-migration-safety
+# Every migration against the working-tree models and the allowlist (R08-08); CI also runs
+# --base-ref origin/<pull request base>. Rules: docs/CONTRIBUTING.md, Database migrations.
+check-migration-safety:
+	$(VENV_BIN)/python scripts/check_migration_safety.py --all
+
 migrate: check-revisions
 	$(ALEMBIC) upgrade head
 

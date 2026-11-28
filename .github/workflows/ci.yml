@@ -188,6 +188,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          # The migration safety check reads the pull request base (R08-08).
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -205,6 +208,17 @@ jobs:
           .venv/bin/alembic upgrade head
           .venv/bin/alembic downgrade -1
           .venv/bin/alembic upgrade head
+
+      - name: Check migration safety
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          cd backend
+          .venv/bin/python scripts/check_migration_safety.py --all
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            .venv/bin/python scripts/check_migration_safety.py --base-ref "origin/$BASE_REF"
+          fi
 
   frontend:
     name: Frontend quality checks
