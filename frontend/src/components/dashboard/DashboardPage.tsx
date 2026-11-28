@@ -60,6 +60,8 @@ type DashboardDocumentSummary = {
   indexedDocuments: number;
   totalChunks: number;
   chunksEstimated: boolean;
+  /** Documents whose chunk counts were summed (capped by the env limit). */
+  fetchedDocuments: number;
 };
 
 type DashboardChatSummary = {
@@ -262,6 +264,7 @@ async function fetchDashboardDocumentsSummary(): Promise<DashboardDocumentSummar
     indexedDocuments,
     totalChunks,
     chunksEstimated: fetchedRows < totalDocuments,
+    fetchedDocuments: fetchedRows,
   };
 }
 
@@ -692,6 +695,7 @@ function DisabledQuickAction({ icon, label }: { icon: string; label: string }) {
 
 export function DashboardPage() {
   const t = useTranslations("dashboard");
+  const tPagination = useTranslations("common.pagination");
   const tAppShell = useTranslations("appShell");
   const { state } = useAuthSession();
   const role = state.session?.role;
@@ -1055,7 +1059,10 @@ export function DashboardPage() {
           }
           caption={
             documentsSummary?.chunksEstimated
-              ? t("kpi.totalChunksNote")
+              ? tPagination("partialSummary", {
+                  shown: documentsSummary.fetchedDocuments,
+                  total: documentsSummary.totalDocuments,
+                })
               : t("kpi.totalChunksDescription")
           }
           icon="layers"

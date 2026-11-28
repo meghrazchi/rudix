@@ -21,7 +21,7 @@ import {
   type AgentRunListItem,
   type AgentRuntimeMode,
 } from "@/lib/api/agent";
-import { listCollections } from "@/lib/api/collections";
+import { useCollectionSearchList } from "@/components/collections/useCollectionSearchList";
 import { listAvailableConnectorConnections } from "@/lib/api/connectors";
 import { listDocuments } from "@/lib/api/documents";
 import {
@@ -976,10 +976,11 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
         sort_order: "desc",
       }),
   });
-  const collectionsQuery = useQuery({
-    queryKey: [...queryKeys.collections.all, "workspace-workflow-scope"],
-    queryFn: () => listCollections({ limit: 200 }),
+  // Server-side name search with load more instead of one 200-row page.
+  const collectionsSearch = useCollectionSearchList({
+    scope: "workspace-workflow-scope",
   });
+  const collectionsQuery = collectionsSearch.query;
   const connectorConnectionsQuery = useQuery({
     queryKey: [...queryKeys.connectorConnections, "workspace-workflow-scope"],
     queryFn: () => listAvailableConnectorConnections(),
@@ -988,10 +989,7 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
     () => indexedDocumentsQuery.data?.items ?? [],
     [indexedDocumentsQuery.data?.items],
   );
-  const collections = useMemo(
-    () => collectionsQuery.data?.items ?? [],
-    [collectionsQuery.data?.items],
-  );
+  const collections = collectionsSearch.items;
   const connectorConnections = useMemo(
     () => connectorConnectionsQuery.data?.items ?? [],
     [connectorConnectionsQuery.data?.items],
@@ -1176,6 +1174,13 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
         connectorConnections={connectorConnections}
         indexedDocuments={indexedDocuments}
         isCollectionsLoading={collectionsQuery.isLoading}
+        onCollectionSearchQueryChange={collectionsSearch.setSearch}
+        collectionsPaging={{
+          total: collectionsSearch.total,
+          hasMore: collectionsSearch.hasMore,
+          isLoadingMore: collectionsSearch.isLoadingMore,
+          onLoadMore: collectionsSearch.loadMore,
+        }}
         isConnectorsLoading={connectorConnectionsQuery.isLoading}
         isDocumentsLoading={indexedDocumentsQuery.isLoading}
         onToggleCollection={(collectionId) => {

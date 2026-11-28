@@ -22,6 +22,11 @@ import {
 } from "@/lib/onboarding";
 import { trackOnboardingEvent } from "@/lib/analytics";
 
+const ONBOARDING_DOCUMENTS_KEY = queryKeys.documents.list({
+  scope: "onboarding",
+  counts: true,
+});
+
 type OnboardingChecklistProps = {
   session: AuthenticatedSession;
   state: OnboardingState;
@@ -62,9 +67,16 @@ export function OnboardingChecklist({
     (session.role === "owner" || session.role === "admin") &&
     (configQuery.data?.sample_docs_enabled ?? false);
 
+  // Counts from `total` of one-row pages (R07-06) instead of scanning 200 rows.
   const documentsQuery = useQuery({
-    queryKey: queryKeys.documents.list({ scope: "onboarding", limit: 200 }),
-    queryFn: () => listDocuments({ limit: 200 }),
+    queryKey: ONBOARDING_DOCUMENTS_KEY,
+    queryFn: async () => {
+      const [all, indexed] = await Promise.all([
+        listDocuments({ limit: 1, include_total: true }),
+        listDocuments({ limit: 1, status: "indexed", include_total: true }),
+      ]);
+      return { total: all.total ?? 0, indexed: indexed.total ?? 0 };
+    },
     staleTime: 60_000,
   });
 
@@ -78,9 +90,7 @@ export function OnboardingChecklist({
     () => ({
       hasOrganization: Boolean(session.organizationId),
       hasDocuments: (documentsQuery.data?.total ?? 0) > 0,
-      hasIndexedDocuments: (documentsQuery.data?.items ?? []).some(
-        (doc) => doc.status === "indexed",
-      ),
+      hasIndexedDocuments: (documentsQuery.data?.indexed ?? 0) > 0,
       hasChatSessions: (chatQuery.data?.total ?? 0) > 0,
     }),
     [session.organizationId, documentsQuery.data, chatQuery.data],
@@ -110,7 +120,7 @@ export function OnboardingChecklist({
     mutationFn: loadSampleDataset,
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.documents.list({ scope: "onboarding", limit: 200 }),
+        queryKey: ONBOARDING_DOCUMENTS_KEY,
       });
       trackOnboardingEvent("onboarding_sample_docs_loaded", {
         organization_id: session.organizationId ?? "",
