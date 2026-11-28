@@ -185,6 +185,18 @@ describe("ChunkingProfilesSection", () => {
     expect(mockChunkingApi.getChunkingStrategyCatalog).not.toHaveBeenCalled();
   });
 
+  it("shows a loading state, not the restricted one, while the session loads", () => {
+    mockAuth.state = { status: "loading", session: null };
+
+    renderSection();
+
+    expect(screen.getByText("Loading session...")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Chunking profiles restricted"),
+    ).not.toBeInTheDocument();
+    expect(mockChunkingApi.getChunkingStrategyCatalog).not.toHaveBeenCalled();
+  });
+
   it("loads the default profile and previews safe chunk metadata", async () => {
     renderSection();
 
