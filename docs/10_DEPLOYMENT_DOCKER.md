@@ -569,9 +569,10 @@ fallback to the Helm chart ([docs/28](./28_KUBERNETES_HELM_DEPLOYMENT.md)).
 - `EDGE_NOINDEX` (staging default `true`, production `false`) adds
   `X-Robots-Tag: noindex, nofollow` on every edge host. Security headers stay with the
   frontend and the API (both already send HSTS in staging and production), so the edge does not repeat them.
-- `EDGE_MAX_REQUEST_BODY` (default `26MB`) caps request bodies on the API host. It is coupled to
+- `EDGE_MAX_REQUEST_BODY` (default `26MiB`) caps request bodies on the API host. It is coupled to
   the backend `MAX_UPLOAD_SIZE_MB` (default 25) plus headroom for multipart framing: raise both
-  together, or uploads fail at the edge with `413` before the API can answer.
+  together, or uploads fail at the edge with `413` before the API can answer. Use binary units
+  (`MiB`): Caddy reads `MB` as 1,000,000 bytes, so `26MB` is smaller than the backend's 25 MiB.
 - Access logs are JSON on stdout with the query string replaced by `?redacted` and the
   `Authorization`, `Proxy-Authorization`, `Cookie`, `X-Api-Key`, and `Set-Cookie` headers
   deleted.

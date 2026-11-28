@@ -88,17 +88,22 @@ def test_scaled_upstreams_balance_and_stream(caddyfile: str) -> None:
 
 def test_body_limit_matches_the_documented_upload_coupling(caddyfile: str) -> None:
     api = _block(caddyfile, "{$RUDIX_API_HOST}")
-    match = re.search(r"max_size \{\$EDGE_MAX_REQUEST_BODY:(\d+)MB\}", api)
-    assert match, "request_body max_size must come from EDGE_MAX_REQUEST_BODY"
-    edge_limit_mb = int(match.group(1))
+    # Binary units only: Caddy parses sizes with go-humanize, where "MB" is 1,000,000 bytes
+    # and "MiB" is 1,048,576 bytes. The backend limit is max_upload_size_mb * 1024 * 1024.
+    match = re.search(r"max_size \{\$EDGE_MAX_REQUEST_BODY:(\d+)MiB\}", api)
+    assert match, "request_body max_size must come from EDGE_MAX_REQUEST_BODY, in MiB"
+    edge_limit_bytes = int(match.group(1)) * 1024 * 1024
     upload_limit_mb = StorageSettings.model_fields["max_upload_size_mb"].default
-    assert edge_limit_mb == upload_limit_mb + 1 == 26
+    upload_limit_bytes = upload_limit_mb * 1024 * 1024
+    # One MiB of headroom for multipart framing above the largest accepted file.
+    assert edge_limit_bytes == upload_limit_bytes + 1024 * 1024
+    assert "MB}" not in api.replace("MiB}", "")
     for name in ("staging", "production"):
         compose = yaml.safe_load(
             (_REPO / "deploy" / "compose" / f"docker-compose.{name}.yml").read_text()
         )
         env = compose["services"]["edge"]["environment"]
-        assert env["EDGE_MAX_REQUEST_BODY"] == "${EDGE_MAX_REQUEST_BODY:-26MB}"
+        assert env["EDGE_MAX_REQUEST_BODY"] == "${EDGE_MAX_REQUEST_BODY:-26MiB}"
 
 
 def test_access_log_drops_query_strings_and_credentials(caddyfile: str) -> None:

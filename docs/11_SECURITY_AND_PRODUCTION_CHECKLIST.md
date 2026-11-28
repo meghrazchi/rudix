@@ -533,7 +533,7 @@ and ingress").
   only compose-network containers can reach them; narrow it to the compose subnet on a shared
   network. On Kubernetes, keep the ingress-nginx default `use-forwarded-headers: "false"`
   unless a trusted load balancer sits in front.
-- Body limit: `EDGE_MAX_REQUEST_BODY` (26MB) and `ingress.maxBodySize` (`26m`) sit just above
+- Body limit: `EDGE_MAX_REQUEST_BODY` (26MiB) and `ingress.maxBodySize` (`26m`) sit just above
   `MAX_UPLOAD_SIZE_MB` (25); raise them together.
 - Log redaction: edge access logs drop the query string (`?redacted`) and delete
   `Authorization`, `Proxy-Authorization`, `Cookie`, `X-Api-Key`, and `Set-Cookie`. The ingress

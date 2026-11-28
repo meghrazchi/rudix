@@ -103,7 +103,7 @@ jobs:
                   -e EDGE_TLS_MODE="$tls_mode" \
                   -e EDGE_NOINDEX="$noindex" \
                   -e EDGE_MATOMO="$matomo" \
-                  -e EDGE_MAX_REQUEST_BODY=26MB \
+                  -e EDGE_MAX_REQUEST_BODY=26MiB \
                   -e MCP_HTTP_PORT=8010 \
                   caddy:2.10 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
               done

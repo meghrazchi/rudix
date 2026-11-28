@@ -76,7 +76,7 @@
 	# Upload cap: backend MAX_UPLOAD_SIZE_MB (25) plus headroom for multipart framing.
 	# Raise both together.
 	request_body {
-		max_size {$EDGE_MAX_REQUEST_BODY:26MB}
+		max_size {$EDGE_MAX_REQUEST_BODY:26MiB}
 	}
 	handle /mcp* {
 		reverse_proxy {
