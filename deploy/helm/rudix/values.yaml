@@ -123,7 +123,32 @@ metrics:
 
 # owner: A1
 ingress:
+  # One Ingress each for the app, the API, and (when mcp.enabled) MCP. Needs an
+  # operator-installed controller; written for NGINX ingress (docs/28, "Edge and ingress").
   enabled: false
+  className: nginx
+  # Upload cap: backend MAX_UPLOAD_SIZE_MB (25) plus multipart headroom; raise both together.
+  maxBodySize: 26m
+  # proxy-read/send timeout on the API and MCP ingresses, for WebSocket and SSE streams.
+  streamTimeoutSeconds: 3600
+  # true: X-Robots-Tag "noindex, nofollow" on every host (staging).
+  noindex: false
+  certManager:
+    # Empty: no cert-manager annotation; the TLS secrets are provided another way.
+    clusterIssuer: ""
+  # Extra annotations added to every Ingress.
+  annotations: {}
+  app:
+    host: app.rudix.invalid
+    tlsSecretName: rudix-app-tls
+  api:
+    host: api.rudix.invalid
+    tlsSecretName: rudix-api-tls
+  mcp:
+    # Empty host: MCP is served on the API host under path, with the API certificate.
+    host: ""
+    path: /mcp
+    tlsSecretName: ""
 
 # owner: A2
 backup:

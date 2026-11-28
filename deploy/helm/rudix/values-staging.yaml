@@ -58,7 +58,17 @@ tmpVolume: {}
 metrics: {}
 
 # owner: A1
-ingress: {}
+ingress:
+  enabled: true
+  noindex: true
+  certManager:
+    clusterIssuer: ""
+  app:
+    host: app.staging.rudix.invalid
+    tlsSecretName: rudix-staging-app-tls
+  api:
+    host: api.staging.rudix.invalid
+    tlsSecretName: rudix-staging-api-tls
 
 # owner: A2
 backup: {}

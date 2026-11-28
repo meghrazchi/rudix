@@ -58,7 +58,17 @@ tmpVolume: {}
 metrics: {}
 
 # owner: A1
-ingress: {}
+ingress:
+  enabled: true
+  noindex: false
+  certManager:
+    clusterIssuer: ""
+  app:
+    host: app.rudix.invalid
+    tlsSecretName: rudix-production-app-tls
+  api:
+    host: api.rudix.invalid
+    tlsSecretName: rudix-production-api-tls
 
 # owner: A2
 backup: {}

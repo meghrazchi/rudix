@@ -66,7 +66,23 @@ metrics:
   enabled: true
 
 # owner: A1
-ingress: {}
+ingress:
+  enabled: true
+  noindex: true
+  certManager:
+    clusterIssuer: ci-issuer
+  annotations:
+    example.invalid/ci: "true"
+  app:
+    host: app.ci.rudix.invalid
+    tlsSecretName: rudix-ci-app-tls
+  api:
+    host: api.ci.rudix.invalid
+    tlsSecretName: rudix-ci-api-tls
+  mcp:
+    host: mcp.ci.rudix.invalid
+    path: /mcp
+    tlsSecretName: rudix-ci-mcp-tls
 
 # owner: A2
 backup: {}

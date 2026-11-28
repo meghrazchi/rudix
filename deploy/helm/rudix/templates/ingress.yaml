@@ -1,0 +1,79 @@
+{{- /*
+Ingress objects for the app, API, and MCP hosts (0.8.0, A1, R08-01).
+Written for an operator-installed NGINX ingress controller (ingress.className) and, when
+ingress.certManager.clusterIssuer is set, cert-manager. Services come from C1 (contract
+5.2.2): <fullname>-frontend, <fullname>-api, <fullname>-mcp, each with a port named http.
+docs/28_KUBERNETES_HELM_DEPLOYMENT.md, "Edge and ingress".
+*/ -}}
+{{- if .Values.ingress.enabled }}
+{{- $ingress := .Values.ingress -}}
+{{- $mcpHost := default $ingress.api.host $ingress.mcp.host -}}
+{{- /* MCP shares the API host and its certificate unless it has its own host. */ -}}
+{{- $mcpSecret := ternary (default $ingress.api.tlsSecretName $ingress.mcp.tlsSecretName) $ingress.api.tlsSecretName (not (empty $ingress.mcp.host)) -}}
+{{- $sites := list
+  (dict "component" "frontend" "host" $ingress.app.host "path" "/" "secret" $ingress.app.tlsSecretName "streams" false)
+  (dict "component" "api" "host" $ingress.api.host "path" "/" "secret" $ingress.api.tlsSecretName "streams" true)
+-}}
+{{- if (.Values.mcp).enabled }}
+{{- $sites = append $sites (dict "component" "mcp" "host" $mcpHost "path" $ingress.mcp.path "secret" $mcpSecret "streams" true) -}}
+{{- end }}
+{{- range $site := $sites }}
+{{- if not $site.host }}
+{{- fail (printf "rudix: ingress host for %s is empty" $site.component) }}
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "rudix.componentName" (dict "root" $ "component" $site.component) }}
+  labels:
+    {{- include "rudix.labels" (dict "root" $ "component" $site.component) | nindent 4 }}
+  annotations:
+    {{- with $ingress.certManager.clusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ . | quote }}
+    {{- end }}
+    nginx.ingress.kubernetes.io/proxy-body-size: {{ $ingress.maxBodySize | quote }}
+    {{- if $site.streams }}
+    # WebSocket and server-sent event streams stay open; responses are not buffered.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: {{ $ingress.streamTimeoutSeconds | toString | quote }}
+    nginx.ingress.kubernetes.io/proxy-send-timeout: {{ $ingress.streamTimeoutSeconds | toString | quote }}
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    {{- end }}
+    {{- if $ingress.noindex }}
+    nginx.ingress.kubernetes.io/custom-headers: {{ printf "%s/%s-ingress-headers" $.Release.Namespace (include "rudix.fullname" $) | quote }}
+    {{- end }}
+    {{- with $ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ $ingress.className | quote }}
+  tls:
+    - hosts:
+        - {{ $site.host | quote }}
+      secretName: {{ required (printf "rudix: ingress TLS secret name for %s is required" $site.component) $site.secret | quote }}
+  rules:
+    - host: {{ $site.host | quote }}
+      http:
+        paths:
+          - path: {{ $site.path | quote }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "rudix.componentName" (dict "root" $ "component" $site.component) }}
+                port:
+                  name: http
+{{- end }}
+{{- if $ingress.noindex }}
+---
+# Response header for every ingress host when ingress.noindex is true (staging). The
+# controller must allow it: global-allowed-response-headers: "X-Robots-Tag" (docs/28).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-ingress-headers" (include "rudix.fullname" .) }}
+  labels:
+    {{- include "rudix.labels" (dict "root" . "component" "config") | nindent 4 }}
+data:
+  X-Robots-Tag: "noindex, nofollow"
+{{- end }}
+{{- end }}
