@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import {
   createQualityGate,
@@ -36,7 +37,10 @@ const qgKeys = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function verdictBadge(verdict: string): React.ReactNode {
+const KNOWN_VERDICTS = new Set(["passed", "failed", "overridden"]);
+
+function VerdictBadge({ verdict }: { verdict: string }): React.ReactNode {
+  const t = useTranslations("evaluations.qualityGate");
   const cls =
     verdict === "passed"
       ? "bg-green-100 text-green-800"
@@ -47,10 +51,24 @@ function verdictBadge(verdict: string): React.ReactNode {
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}
     >
-      {verdict.toUpperCase()}
+      {(KNOWN_VERDICTS.has(verdict)
+        ? t(`verdict.${verdict}`)
+        : verdict
+      ).toUpperCase()}
     </span>
   );
 }
+
+const THRESHOLD_KEYS = new Set([
+  "retrieval_hit_rate_min",
+  "citation_accuracy_score_min",
+  "faithfulness_score_min",
+  "answer_relevance_score_min",
+  "not_found_rate_max",
+  "safety_pass_rate_min",
+  "latency_ms_p95_max",
+  "cost_usd_per_question_max",
+]);
 
 function formatMetric(value: number | null, metric: string): string {
   if (value == null) return "—";
@@ -67,6 +85,7 @@ function CheckList({
   checks: GateCheckResult[];
   variant: "passed" | "failed";
 }): React.ReactNode {
+  const t = useTranslations("evaluations.qualityGate");
   if (!checks.length) return null;
   return (
     <ul className="mt-1 space-y-0.5 text-xs">
@@ -78,8 +97,11 @@ function CheckList({
             {variant === "passed" ? "✓" : "✗"}
           </span>
           <span className="text-gray-700">
-            {c.label}: actual {formatMetric(c.actual, c.metric)} / threshold{" "}
-            {formatMetric(c.threshold, c.metric)}
+            {t("checkLine", {
+              label: c.label,
+              actual: formatMetric(c.actual, c.metric),
+              threshold: formatMetric(c.threshold, c.metric),
+            })}
             {c.detail ? ` — ${c.detail}` : ""}
           </span>
         </li>
@@ -99,6 +121,7 @@ function GateRunCard({
   run: QualityGateRunResponse;
   gateId: string;
 }): React.ReactNode {
+  const t = useTranslations("evaluations.qualityGate");
   const qc = useQueryClient();
   const [overrideReason, setOverrideReason] = useState("");
   const [showOverride, setShowOverride] = useState(false);
@@ -126,33 +149,37 @@ function GateRunCard({
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {verdictBadge(run.verdict)}
+          <VerdictBadge verdict={run.verdict} />
           <span className="text-xs text-gray-500">{createdAt}</span>
         </div>
         <div className="flex gap-2 text-xs text-gray-500">
-          <span>{run.failed_checks.length} failed</span>
+          <span>{t("failedCount", { count: run.failed_checks.length })}</span>
           <span>/</span>
-          <span>{run.passed_checks.length} passed</span>
+          <span>{t("passedCount", { count: run.passed_checks.length })}</span>
         </div>
       </div>
 
       {run.failed_checks.length > 0 && (
         <div className="mt-3">
-          <p className="text-xs font-medium text-red-700">Failing checks</p>
+          <p className="text-xs font-medium text-red-700">
+            {t("failingChecks")}
+          </p>
           <CheckList checks={run.failed_checks} variant="failed" />
         </div>
       )}
 
       {run.passed_checks.length > 0 && (
         <div className="mt-3">
-          <p className="text-xs font-medium text-green-700">Passing checks</p>
+          <p className="text-xs font-medium text-green-700">
+            {t("passingChecks")}
+          </p>
           <CheckList checks={run.passed_checks} variant="passed" />
         </div>
       )}
 
       {run.override_reason && (
         <p className="mt-2 text-xs text-yellow-700 italic">
-          Override: {run.override_reason}
+          {t("override", { reason: run.override_reason })}
         </p>
       )}
 
@@ -163,7 +190,7 @@ function GateRunCard({
             download
             className="text-xs text-blue-600 hover:underline"
           >
-            Download CI report JSON
+            {t("downloadReport")}
           </a>
         </div>
       )}
@@ -176,14 +203,14 @@ function GateRunCard({
               onClick={() => setShowOverride(true)}
               className="rounded bg-yellow-50 px-3 py-1.5 text-xs font-medium text-yellow-800 ring-1 ring-yellow-200 hover:bg-yellow-100"
             >
-              Override gate (requires documented reason)
+              {t("overrideButton")}
             </button>
           ) : (
             <div className="space-y-2">
               <textarea
                 className="w-full rounded border border-gray-300 p-2 text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
                 rows={3}
-                placeholder="Provide a detailed reason for this override (min 10 chars)…"
+                placeholder={t("overridePlaceholder")}
                 value={overrideReason}
                 onChange={(e) => setOverrideReason(e.target.value)}
               />
@@ -197,7 +224,9 @@ function GateRunCard({
                   onClick={() => overrideMutation.mutate()}
                   className="rounded bg-yellow-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-yellow-700 disabled:opacity-50"
                 >
-                  {overrideMutation.isPending ? "Applying…" : "Apply override"}
+                  {overrideMutation.isPending
+                    ? t("applying")
+                    : t("applyOverride")}
                 </button>
                 <button
                   type="button"
@@ -207,7 +236,7 @@ function GateRunCard({
                   }}
                   className="rounded px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100"
                 >
-                  Cancel
+                  {t("cancel")}
                 </button>
               </div>
               {overrideMutation.isError && (
@@ -230,6 +259,7 @@ function GateRunCard({
 // ---------------------------------------------------------------------------
 
 function GateDetail({ gate }: { gate: QualityGateResponse }): React.ReactNode {
+  const t = useTranslations("evaluations.qualityGate");
   const qc = useQueryClient();
   const [evalRunId, setEvalRunId] = useState("");
   const [safetyRunId, setSafetyRunId] = useState("");
@@ -262,12 +292,17 @@ function GateDetail({ gate }: { gate: QualityGateResponse }): React.ReactNode {
       {thresholdEntries.length > 0 && (
         <div>
           <h4 className="mb-1 text-xs font-semibold tracking-wide text-gray-500 uppercase">
-            Configured thresholds
+            {t("configuredThresholds")}
           </h4>
           <ul className="space-y-0.5">
             {thresholdEntries.map(([key, value]) => (
               <li key={key} className="text-xs text-gray-700">
-                <span className="font-medium">{key.replace(/_/g, " ")}:</span>{" "}
+                <span className="font-medium">
+                  {THRESHOLD_KEYS.has(key)
+                    ? t(`thresholds.${key}`)
+                    : key.replace(/_/g, " ")}
+                  :
+                </span>{" "}
                 {formatMetric(value as number, key)}
               </li>
             ))}
@@ -277,19 +312,19 @@ function GateDetail({ gate }: { gate: QualityGateResponse }): React.ReactNode {
 
       <div>
         <h4 className="mb-1 text-xs font-semibold tracking-wide text-gray-500 uppercase">
-          Trigger gate run
+          {t("triggerRun")}
         </h4>
         <div className="flex flex-col gap-2">
           <input
             type="text"
-            placeholder="Evaluation run ID (UUID)"
+            placeholder={t("evalRunPlaceholder")}
             value={evalRunId}
             onChange={(e) => setEvalRunId(e.target.value)}
             className="rounded border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
           />
           <input
             type="text"
-            placeholder="Safety eval run ID (UUID) — optional"
+            placeholder={t("safetyRunPlaceholder")}
             value={safetyRunId}
             onChange={(e) => setSafetyRunId(e.target.value)}
             className="rounded border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
@@ -300,7 +335,7 @@ function GateDetail({ gate }: { gate: QualityGateResponse }): React.ReactNode {
             onClick={() => triggerMutation.mutate()}
             className="self-start rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {triggerMutation.isPending ? "Running…" : "Run gate"}
+            {triggerMutation.isPending ? t("running") : t("runGate")}
           </button>
           {triggerMutation.isError && (
             <ErrorState
@@ -310,24 +345,22 @@ function GateDetail({ gate }: { gate: QualityGateResponse }): React.ReactNode {
             />
           )}
           {triggerMutation.isSuccess && (
-            <p className="text-xs text-green-600">
-              Gate run completed — see results below.
-            </p>
+            <p className="text-xs text-green-600">{t("runCompleted")}</p>
           )}
         </div>
       </div>
 
       <div>
         <h4 className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">
-          Run history
+          {t("runHistory")}
         </h4>
         {runsLoading ? (
-          <LoadingState compact title="Loading runs…" />
+          <LoadingState compact title={t("loadingRuns")} />
         ) : !runsData?.items.length ? (
           <EmptyState
             compact
-            title="No runs yet"
-            description="Trigger the gate above to see results."
+            title={t("noRuns")}
+            description={t("noRunsHint")}
           />
         ) : (
           <div className="space-y-3">
@@ -354,6 +387,7 @@ function CreateGateForm({
 }: {
   onCreated: () => void;
 }): React.ReactNode {
+  const t = useTranslations("evaluations.qualityGate");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [thresholdFields, setThresholdFields] = useState<
@@ -361,15 +395,15 @@ function CreateGateForm({
   >({});
   const qc = useQueryClient();
 
-  const THRESHOLD_LABELS: [keyof QualityGateThresholds, string, string][] = [
-    ["retrieval_hit_rate_min", "Retrieval hit rate min", "0–1"],
-    ["citation_accuracy_score_min", "Citation accuracy min", "0–1"],
-    ["faithfulness_score_min", "Faithfulness score min", "0–1"],
-    ["answer_relevance_score_min", "Answer relevance min", "0–1"],
-    ["not_found_rate_max", "Not-found rate max", "0–1"],
-    ["safety_pass_rate_min", "Safety pass rate min", "0–1"],
-    ["latency_ms_p95_max", "Latency p95 max (ms)", "ms"],
-    ["cost_usd_per_question_max", "Cost per question max (USD)", "$"],
+  const THRESHOLD_FIELDS: [keyof QualityGateThresholds, string][] = [
+    ["retrieval_hit_rate_min", "range"],
+    ["citation_accuracy_score_min", "range"],
+    ["faithfulness_score_min", "range"],
+    ["answer_relevance_score_min", "range"],
+    ["not_found_rate_max", "range"],
+    ["safety_pass_rate_min", "range"],
+    ["latency_ms_p95_max", "ms"],
+    ["cost_usd_per_question_max", "usd"],
   ];
 
   const createMutation = useMutation({
@@ -401,23 +435,24 @@ function CreateGateForm({
     <div className="space-y-3">
       <input
         type="text"
-        placeholder="Gate name"
+        placeholder={t("gateNamePlaceholder")}
         value={name}
         onChange={(e) => setName(e.target.value)}
         className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none"
       />
       <input
         type="text"
-        placeholder="Description (optional)"
+        placeholder={t("descriptionPlaceholder")}
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none"
       />
       <div className="grid grid-cols-2 gap-2">
-        {THRESHOLD_LABELS.map(([key, label, hint]) => (
+        {THRESHOLD_FIELDS.map(([key, hint]) => (
           <div key={key} className="flex flex-col gap-0.5">
             <label className="text-xs text-gray-600">
-              {label} <span className="text-gray-400">({hint})</span>
+              {t(`thresholds.${key}`)}{" "}
+              <span className="text-gray-400">({t(`hint.${hint}`)})</span>
             </label>
             <input
               type="number"
@@ -426,7 +461,7 @@ function CreateGateForm({
               max={
                 key.endsWith("_min") || key.endsWith("_max") ? "1" : undefined
               }
-              placeholder="leave blank to skip"
+              placeholder={t("blankToSkip")}
               value={thresholdFields[key] ?? ""}
               onChange={(e) =>
                 setThresholdFields((prev) => ({
@@ -445,7 +480,7 @@ function CreateGateForm({
         onClick={() => createMutation.mutate()}
         className="rounded bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
       >
-        {createMutation.isPending ? "Creating…" : "Create gate"}
+        {createMutation.isPending ? t("creating") : t("createGate")}
       </button>
       {createMutation.isError && (
         <ErrorState compact error={createMutation.error} />
@@ -459,6 +494,7 @@ function CreateGateForm({
 // ---------------------------------------------------------------------------
 
 export function QualityGatePanel(): React.ReactNode {
+  const t = useTranslations("evaluations.qualityGate");
   const qc = useQueryClient();
   const [selectedGateId, setSelectedGateId] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -481,7 +517,7 @@ export function QualityGatePanel(): React.ReactNode {
   });
 
   if (isLoading) {
-    return <LoadingState title="Loading quality gates…" />;
+    return <LoadingState title={t("loadingGates")} />;
   }
 
   if (error) {
@@ -502,13 +538,13 @@ export function QualityGatePanel(): React.ReactNode {
       {/* Gate list */}
       <div className="flex w-64 flex-shrink-0 flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-800">Quality Gates</h3>
+          <h3 className="text-sm font-semibold text-gray-800">{t("title")}</h3>
           <button
             type="button"
             onClick={() => setShowCreateForm((v) => !v)}
             className="rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
           >
-            {showCreateForm ? "Cancel" : "+ New gate"}
+            {showCreateForm ? t("cancel") : t("newGate")}
           </button>
         </div>
 
@@ -521,8 +557,8 @@ export function QualityGatePanel(): React.ReactNode {
         {gates.length === 0 && !showCreateForm ? (
           <EmptyState
             compact
-            title="No quality gates"
-            description="Create one to enforce release thresholds."
+            title={t("noGates")}
+            description={t("noGatesHint")}
           />
         ) : (
           <ul className="space-y-1">
@@ -576,7 +612,7 @@ export function QualityGatePanel(): React.ReactNode {
                 onClick={() => {
                   if (
                     window.confirm(
-                      `Delete quality gate "${selectedGate.name}"? This also deletes all run history.`,
+                      t("confirmDelete", { name: selectedGate.name }),
                     )
                   ) {
                     deleteMutation.mutate(selectedGate.quality_gate_id);
@@ -584,14 +620,14 @@ export function QualityGatePanel(): React.ReactNode {
                 }}
                 className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50"
               >
-                Delete
+                {t("delete")}
               </button>
             </div>
             <GateDetail gate={selectedGate} />
           </div>
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-gray-400">
-            Select a quality gate to view details and run history.
+            {t("select")}
           </div>
         )}
       </div>

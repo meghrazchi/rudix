@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import {
   buildComparisonExportUrl,
@@ -93,39 +94,41 @@ function MetricBadge({
   isRegression: boolean;
   isImprovement: boolean;
 }) {
+  const t = useTranslations("evaluations.runComparison");
   if (isRegression) {
     return (
       <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-        Regression
+        {t("regression")}
       </span>
     );
   }
   if (isImprovement) {
     return (
       <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
-        Improvement
+        {t("improvement")}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
-      Unchanged
+      {t("unchanged")}
     </span>
   );
 }
 
 function CaseStatusBadge({ row }: { row: CaseComparisonRow }) {
+  const t = useTranslations("evaluations.runComparison");
   if (row.regression) {
     return (
       <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-        Regression
+        {t("regression")}
       </span>
     );
   }
   if (row.improvement) {
     return (
       <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
-        Improvement
+        {t("improvement")}
       </span>
     );
   }
@@ -141,35 +144,30 @@ function MetricSummaryTable({
   labelA: string;
   labelB: string;
 }) {
+  const t = useTranslations("evaluations.runComparison");
   if (deltas.length === 0) {
-    return (
-      <p className="text-sm text-gray-500">
-        No metric summary available for these runs.
-      </p>
-    );
+    return <p className="text-sm text-gray-500">{t("noMetricSummary")}</p>;
   }
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200">
       <table className="min-w-full divide-y divide-gray-100 text-sm">
-        <caption className="sr-only">
-          Metric comparison between two evaluation runs.
-        </caption>
+        <caption className="sr-only">{t("metricCaption")}</caption>
         <thead className="bg-gray-50">
           <tr>
             <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-              Metric
+              {t("metric")}
             </th>
             <th className="px-3 py-2 text-right text-xs font-semibold tracking-wide text-gray-500 uppercase">
-              {labelA} (A)
+              {t("runA", { label: labelA })}
             </th>
             <th className="px-3 py-2 text-right text-xs font-semibold tracking-wide text-gray-500 uppercase">
-              {labelB} (B)
+              {t("runB", { label: labelB })}
             </th>
             <th className="px-3 py-2 text-right text-xs font-semibold tracking-wide text-gray-500 uppercase">
-              Delta (B−A)
+              {t("delta")}
             </th>
             <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-              Status
+              {t("status")}
             </th>
           </tr>
         </thead>
@@ -235,6 +233,7 @@ function CaseComparisonTable({
   labelA: string;
   labelB: string;
 }) {
+  const t = useTranslations("evaluations.runComparison");
   const [expanded, setExpanded] = useState<ExpandedCase | null>(null);
 
   const visible = useMemo(() => filterCases(cases, filter), [cases, filter]);
@@ -244,14 +243,14 @@ function CaseComparisonTable({
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="search"
-          aria-label="Search cases"
-          placeholder="Search cases…"
+          aria-label={t("searchCases")}
+          placeholder={t("searchPlaceholder")}
           value={filter.query}
           onChange={(e) => onFilterChange({ ...filter, query: e.target.value })}
           className="h-8 w-56 rounded border border-gray-300 px-2 text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-[#8b5cf6] focus:outline-none"
         />
         <select
-          aria-label="Filter by case status"
+          aria-label={t("filterStatus")}
           value={filter.caseStatus}
           onChange={(e) =>
             onFilterChange({
@@ -261,13 +260,13 @@ function CaseComparisonTable({
           }
           className="h-8 rounded border border-gray-300 px-2 text-sm text-gray-700 focus:ring-2 focus:ring-[#8b5cf6] focus:outline-none"
         >
-          <option value="all">All cases</option>
-          <option value="regression">Regressions only</option>
-          <option value="improvement">Improvements only</option>
-          <option value="failed_any">Failed in either run</option>
+          <option value="all">{t("allCases")}</option>
+          <option value="regression">{t("regressionsOnly")}</option>
+          <option value="improvement">{t("improvementsOnly")}</option>
+          <option value="failed_any">{t("failedAny")}</option>
         </select>
         <select
-          aria-label="Filter by difficulty"
+          aria-label={t("filterDifficulty")}
           value={filter.difficulty}
           onChange={(e) =>
             onFilterChange({
@@ -277,42 +276,40 @@ function CaseComparisonTable({
           }
           className="h-8 rounded border border-gray-300 px-2 text-sm text-gray-700 focus:ring-2 focus:ring-[#8b5cf6] focus:outline-none"
         >
-          <option value="all">All difficulties</option>
-          <option value="easy">Easy</option>
-          <option value="medium">Medium</option>
-          <option value="hard">Hard</option>
+          <option value="all">{t("allDifficulties")}</option>
+          <option value="easy">{t("easy")}</option>
+          <option value="medium">{t("medium")}</option>
+          <option value="hard">{t("hard")}</option>
         </select>
         <span className="ml-auto text-xs text-gray-500">
-          {visible.length} of {cases.length} cases
+          {t("casesCount", { visible: visible.length, total: cases.length })}
         </span>
       </div>
 
       {visible.length === 0 ? (
         <p className="py-4 text-center text-sm text-gray-500">
-          No cases match the current filters.
+          {t("noCasesMatch")}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-gray-200">
           <table className="min-w-full divide-y divide-gray-100 text-sm">
-            <caption className="sr-only">
-              Per-question comparison between runs.
-            </caption>
+            <caption className="sr-only">{t("caseCaption")}</caption>
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-                  Question
+                  {t("question")}
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-                  Diff
+                  {t("diff")}
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-                  {labelA} (A)
+                  {t("runA", { label: labelA })}
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-                  {labelB} (B)
+                  {t("runB", { label: labelB })}
                 </th>
                 <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
-                  Status
+                  {t("status")}
                 </th>
               </tr>
             </thead>
@@ -425,8 +422,9 @@ function CaseResultCell({
   isExpanded: boolean;
   onToggle: () => void;
 }) {
+  const t = useTranslations("evaluations.runComparison");
   if (!result) {
-    return <span className="text-xs text-gray-400">No result</span>;
+    return <span className="text-xs text-gray-400">{t("noResult")}</span>;
   }
   const isFailed = result.status === "failed";
   return (
@@ -439,16 +437,20 @@ function CaseResultCell({
               : "bg-emerald-100 text-emerald-700"
           }`}
         >
-          {isFailed ? "failed" : "ok"}
+          {isFailed ? t("failed") : t("ok")}
         </span>
         {result.retrieval_score != null && (
           <span className="text-xs text-gray-600 tabular-nums">
-            ret {(result.retrieval_score * 100).toFixed(0)}%
+            {t("retShort", {
+              value: (result.retrieval_score * 100).toFixed(0),
+            })}
           </span>
         )}
         {result.faithfulness_score != null && (
           <span className="text-xs text-gray-600 tabular-nums">
-            faith {(result.faithfulness_score * 100).toFixed(0)}%
+            {t("faithShort", {
+              value: (result.faithfulness_score * 100).toFixed(0),
+            })}
           </span>
         )}
       </div>
@@ -458,7 +460,7 @@ function CaseResultCell({
           onClick={onToggle}
           className="text-xs text-[#7c3aed] underline hover:no-underline"
         >
-          {isExpanded ? "Hide answer" : "View answer"}
+          {isExpanded ? t("hideAnswer") : t("viewAnswer")}
         </button>
       )}
     </div>
@@ -474,22 +476,26 @@ function CaseAnswerDetail({
   side: "a" | "b";
   label: string;
 }) {
+  const t = useTranslations("evaluations.runComparison");
   if (!result) return null;
   return (
     <div className="space-y-2 text-sm">
       <p className="font-semibold text-gray-700">
-        Answer from {label} ({side.toUpperCase()})
+        {t("answerFrom", { label, side: side.toUpperCase() })}
       </p>
       {result.generated_answer ? (
         <p className="rounded bg-white p-2 whitespace-pre-wrap text-gray-800 ring-1 ring-gray-200">
           {result.generated_answer}
         </p>
       ) : (
-        <p className="text-gray-400 italic">No answer generated.</p>
+        <p className="text-gray-400 italic">{t("noAnswer")}</p>
       )}
       {result.failure_reason && (
         <p className="text-red-600">
-          <span className="font-medium">Failure:</span> {result.failure_reason}
+          {t.rich("failure", {
+            strong: (chunks) => <span className="font-medium">{chunks}</span>,
+            reason: result.failure_reason,
+          })}
         </p>
       )}
     </div>
@@ -511,6 +517,7 @@ export function RunComparisonPanel({
   runBId,
   onClose,
 }: RunComparisonPanelProps) {
+  const t = useTranslations("evaluations.runComparison");
   const [caseFilter, setCaseFilter] = useState<CaseFilter>(caseFilterDefaults);
 
   const queryParams: CompareRunsParams = {
@@ -534,18 +541,16 @@ export function RunComparisonPanel({
 
   return (
     <section
-      aria-label="Evaluation run comparison"
+      aria-label={t("panelAria")}
       className="space-y-6 rounded-xl border border-[#ddd8ec] bg-white p-4 shadow-sm"
     >
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">
-            Run comparison
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t("title")}</h2>
           <p className="mt-0.5 text-sm text-gray-500">
             <span className="font-medium text-gray-700">{labelA}</span>
-            {" vs "}
+            {t("vs")}
             <span className="font-medium text-gray-700">{labelB}</span>
           </p>
         </div>
@@ -557,14 +562,14 @@ export function RunComparisonPanel({
                 download="comparison.csv"
                 className="rounded border border-[#cbc6dd] px-3 py-1.5 text-xs font-semibold text-[#403b5f] hover:bg-gray-50"
               >
-                Export CSV
+                {t("exportCsv")}
               </a>
               <a
                 href={buildComparisonExportUrl(runAId, runBId, "json")}
                 download="comparison.json"
                 className="rounded border border-[#cbc6dd] px-3 py-1.5 text-xs font-semibold text-[#403b5f] hover:bg-gray-50"
               >
-                Export JSON
+                {t("exportJson")}
               </a>
             </>
           )}
@@ -574,7 +579,7 @@ export function RunComparisonPanel({
               onClick={onClose}
               className="rounded border border-[#cbc6dd] px-3 py-1.5 text-xs font-semibold text-[#403b5f] hover:bg-gray-50"
             >
-              Close
+              {t("close")}
             </button>
           )}
         </div>
@@ -588,7 +593,7 @@ export function RunComparisonPanel({
               {comparison.regression_count}
             </span>
             <span className="text-sm text-red-700">
-              {comparison.regression_count === 1 ? "regression" : "regressions"}
+              {t("regressionCount", { count: comparison.regression_count })}
             </span>
           </div>
           <div className="flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2">
@@ -596,16 +601,14 @@ export function RunComparisonPanel({
               {comparison.improvement_count}
             </span>
             <span className="text-sm text-green-700">
-              {comparison.improvement_count === 1
-                ? "improvement"
-                : "improvements"}
+              {t("improvementCount", { count: comparison.improvement_count })}
             </span>
           </div>
           <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2">
             <span className="text-2xl font-bold text-gray-700 tabular-nums">
               {comparison.total_cases}
             </span>
-            <span className="text-sm text-gray-600">total cases</span>
+            <span className="text-sm text-gray-600">{t("totalCases")}</span>
           </div>
         </div>
       )}
@@ -632,7 +635,7 @@ export function RunComparisonPanel({
       {comparison && (
         <div className="space-y-2">
           <h3 className="text-sm font-semibold text-gray-700">
-            Metric summary
+            {t("metricSummary")}
           </h3>
           <MetricSummaryTable
             deltas={comparison.metric_deltas}
@@ -645,8 +648,8 @@ export function RunComparisonPanel({
       {/* Run headers */}
       {comparison && (
         <div className="grid grid-cols-2 gap-4">
-          <RunHeaderCard run={comparison.run_a} label="A (Baseline)" />
-          <RunHeaderCard run={comparison.run_b} label="B (Candidate)" />
+          <RunHeaderCard run={comparison.run_a} label={t("baselineLabel")} />
+          <RunHeaderCard run={comparison.run_b} label={t("candidateLabel")} />
         </div>
       )}
 
@@ -654,7 +657,7 @@ export function RunComparisonPanel({
       {comparison && (
         <div className="space-y-2">
           <h3 className="text-sm font-semibold text-gray-700">
-            Case comparison
+            {t("caseComparison")}
           </h3>
           <CaseComparisonTable
             cases={comparison.cases}
@@ -676,6 +679,7 @@ function RunHeaderCard({
   run: RunComparisonResponse["run_a"];
   label: string;
 }) {
+  const t = useTranslations("evaluations.runComparison");
   const statusColor =
     run.status === "completed"
       ? "text-emerald-700 bg-emerald-50"
@@ -690,7 +694,11 @@ function RunHeaderCard({
         <span
           className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColor}`}
         >
-          {run.status}
+          {["completed", "failed", "running", "queued", "cancelled"].includes(
+            run.status,
+          )
+            ? t(`runStatus.${run.status}`)
+            : run.status}
         </span>
       </div>
       <p className="mt-1 truncate text-xs text-gray-500">
@@ -698,7 +706,7 @@ function RunHeaderCard({
       </p>
       {run.started_at && (
         <p className="mt-0.5 text-xs text-gray-400">
-          Started {new Date(run.started_at).toLocaleString()}
+          {t("started", { date: new Date(run.started_at).toLocaleString() })}
         </p>
       )}
     </div>

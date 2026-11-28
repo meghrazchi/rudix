@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import {
   EVAL_LANGUAGE_OPTIONS,
@@ -40,6 +41,7 @@ function languageLabel(code: string): string {
 // ---------------------------------------------------------------------------
 
 function CoverageWarning({ languages }: { languages: string[] }) {
+  const t = useTranslations("evaluations.multilingual");
   if (languages.length === 0) return null;
   return (
     <div
@@ -51,9 +53,10 @@ function CoverageWarning({ languages }: { languages: string[] }) {
         ⚠
       </span>
       <span>
-        Insufficient coverage (&lt;5 questions) for:{" "}
-        <strong>{languages.map(languageLabel).join(", ")}</strong>. Add more
-        cases to make these metrics statistically reliable.
+        {t.rich("coverageWarning", {
+          languages: languages.map(languageLabel).join(", "),
+          strong: (chunks) => <strong>{chunks}</strong>,
+        })}
       </span>
     </div>
   );
@@ -64,17 +67,18 @@ function CoverageWarning({ languages }: { languages: string[] }) {
 // ---------------------------------------------------------------------------
 
 function CoverageRow({ item }: { item: LanguageCoverageItem }) {
+  const t = useTranslations("evaluations.multilingual");
   return (
     <tr className={item.has_insufficient_coverage ? "bg-yellow-50" : undefined}>
       <td className="px-3 py-2 font-medium">
         {languageLabel(item.language)}
         {item.has_insufficient_coverage && (
           <span
-            aria-label="insufficient coverage"
-            title="Fewer than 5 questions — metrics may not be reliable"
+            aria-label={t("lowBadgeAria")}
+            title={t("lowBadgeTitle")}
             className="ml-1.5 inline-block rounded bg-yellow-200 px-1 text-xs text-yellow-800"
           >
-            low
+            {t("lowBadge")}
           </span>
         )}
       </td>
@@ -95,6 +99,7 @@ type LanguageCoverageTableProps = {
 export function LanguageCoverageTable({
   evaluationSetId,
 }: LanguageCoverageTableProps) {
+  const t = useTranslations("evaluations.multilingual");
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.evaluations.languageCoverage(evaluationSetId),
     queryFn: () => getLanguageCoverage(evaluationSetId),
@@ -104,14 +109,14 @@ export function LanguageCoverageTable({
   if (isLoading) {
     return (
       <div className="py-4 text-center text-sm text-gray-500" aria-busy="true">
-        Loading language coverage…
+        {t("loadingCoverage")}
       </div>
     );
   }
   if (isError || !data) {
     return (
       <div className="py-4 text-center text-sm text-red-600" role="alert">
-        Failed to load language coverage.
+        {t("coverageFailed")}
       </div>
     );
   }
@@ -121,9 +126,9 @@ export function LanguageCoverageTable({
   ) {
     return (
       <div className="rounded-md border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500">
-        No questions have a <code>question_language</code> label yet. Set the
-        language field when creating or importing questions to enable coverage
-        tracking.
+        {t.rich("noLabels", {
+          code: (chunks) => <code>{chunks}</code>,
+        })}
       </div>
     );
   }
@@ -136,9 +141,11 @@ export function LanguageCoverageTable({
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
             <tr>
-              <th className="px-3 py-2">Language</th>
-              <th className="px-3 py-2 text-right">Questions</th>
-              <th className="px-3 py-2 text-right">With expected answer</th>
+              <th className="px-3 py-2">{t("columns.language")}</th>
+              <th className="px-3 py-2 text-right">{t("columns.questions")}</th>
+              <th className="px-3 py-2 text-right">
+                {t("columns.withExpected")}
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">
@@ -147,7 +154,7 @@ export function LanguageCoverageTable({
             ))}
             {data.unlabelled_count > 0 && (
               <tr className="text-gray-400">
-                <td className="px-3 py-2 italic">Unlabelled</td>
+                <td className="px-3 py-2 italic">{t("unlabelled")}</td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {data.unlabelled_count}
                 </td>
@@ -159,7 +166,7 @@ export function LanguageCoverageTable({
       </div>
 
       <p className="text-xs text-gray-500">
-        Total questions: {data.total_question_count}
+        {t("totalQuestions", { count: data.total_question_count })}
       </p>
     </div>
   );
@@ -179,21 +186,22 @@ function scoreColor(value: number | null, higherIsBetter = true): string {
 }
 
 function BreakdownRow({ item }: { item: LanguageBreakdownItem }) {
+  const t = useTranslations("evaluations.multilingual");
   return (
     <tr className={item.has_insufficient_coverage ? "bg-yellow-50" : undefined}>
       <td className="px-3 py-2 font-medium">
         {item.language === "unlabelled" ? (
-          <span className="text-gray-400 italic">Unlabelled</span>
+          <span className="text-gray-400 italic">{t("unlabelled")}</span>
         ) : (
           languageLabel(item.language)
         )}
         {item.has_insufficient_coverage && (
           <span
-            aria-label="insufficient coverage"
-            title="Fewer than 5 questions — metrics may not be reliable"
+            aria-label={t("lowBadgeAria")}
+            title={t("lowBadgeTitle")}
             className="ml-1.5 inline-block rounded bg-yellow-200 px-1 text-xs text-yellow-800"
           >
-            low
+            {t("lowBadge")}
           </span>
         )}
       </td>
@@ -242,6 +250,7 @@ type MultilingualEvalPanelProps = {
 export function MultilingualEvalPanel({
   evaluationRunId,
 }: MultilingualEvalPanelProps) {
+  const t = useTranslations("evaluations.multilingual");
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.evaluations.languageBreakdown(evaluationRunId),
     queryFn: () => getLanguageBreakdown(evaluationRunId),
@@ -251,14 +260,14 @@ export function MultilingualEvalPanel({
   if (isLoading) {
     return (
       <div className="py-4 text-center text-sm text-gray-500" aria-busy="true">
-        Loading language breakdown…
+        {t("loadingBreakdown")}
       </div>
     );
   }
   if (isError || !data) {
     return (
       <div className="py-4 text-center text-sm text-red-600" role="alert">
-        Failed to load language breakdown.
+        {t("breakdownFailed")}
       </div>
     );
   }
@@ -267,9 +276,9 @@ export function MultilingualEvalPanel({
   if (labelled.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500">
-        No questions in this run have a language label. Set{" "}
-        <code>question_language</code> on evaluation questions to see
-        per-language metrics here.
+        {t.rich("noRunLabels", {
+          code: (chunks) => <code>{chunks}</code>,
+        })}
       </div>
     );
   }
@@ -282,25 +291,29 @@ export function MultilingualEvalPanel({
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
             <tr>
-              <th className="px-3 py-2">Language</th>
+              <th className="px-3 py-2">{t("columns.language")}</th>
               <th
                 className="px-3 py-2 text-right"
-                title="Successes / Total questions"
+                title={t("columns.questionsTitle")}
               >
-                Questions
+                {t("columns.questions")}
               </th>
-              <th className="px-3 py-2 text-right">Retrieval</th>
-              <th className="px-3 py-2 text-right">Citation</th>
-              <th className="px-3 py-2 text-right">Faithfulness</th>
-              <th className="px-3 py-2 text-right">Relevance</th>
+              <th className="px-3 py-2 text-right">{t("columns.retrieval")}</th>
+              <th className="px-3 py-2 text-right">{t("columns.citation")}</th>
+              <th className="px-3 py-2 text-right">
+                {t("columns.faithfulness")}
+              </th>
+              <th className="px-3 py-2 text-right">{t("columns.relevance")}</th>
               <th
                 className="px-3 py-2 text-right"
-                title="Fraction of answers whose detected language matches expected_answer_language"
+                title={t("columns.langAdherenceTitle")}
               >
-                Lang adherence
+                {t("columns.langAdherence")}
               </th>
-              <th className="px-3 py-2 text-right">Avg latency</th>
-              <th className="px-3 py-2 text-right">Cost</th>
+              <th className="px-3 py-2 text-right">
+                {t("columns.avgLatency")}
+              </th>
+              <th className="px-3 py-2 text-right">{t("columns.cost")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 bg-white">

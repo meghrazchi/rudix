@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { ChunkingComparisonPanel } from "@/components/evaluations/chunking-comparison-panel";
 import { MultilingualEvalPanel } from "@/components/evaluations/multilingual-eval-panel";
@@ -14,7 +15,6 @@ import type {
 import {
   formatDateTime,
   formatDuration,
-  formatInteger,
   formatPercent,
   runStatusScreenReaderText,
 } from "@/components/evaluations/evaluation-view-model";
@@ -29,9 +29,9 @@ type RunDetailSectionProps = {
   failureType: string | null;
 };
 
-function formatLatency(value: number | null | undefined): string {
+function formatLatency(value: number | null | undefined, na: string): string {
   if (value == null || !Number.isFinite(value)) {
-    return "N/A";
+    return na;
   }
   return `${Math.round(value)} ms`;
 }
@@ -56,6 +56,7 @@ function StatusSummary({
   run: EvaluationRunDetailResponse;
   datasetName: string;
 }) {
+  const t = useTranslations("evaluations.runDetail");
   const started = run.started_at ?? run.created_at;
   const durationMs =
     run.completed_at && started
@@ -66,37 +67,37 @@ function StatusSummary({
     <dl className="grid gap-2 rounded-xl border border-[#ddd8ec] bg-[#fcfbff] p-3 text-sm sm:grid-cols-2">
       <div>
         <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-          Run ID
+          {t("summary.runId")}
         </dt>
         <dd className="font-medium text-[#312b4c]">{run.evaluation_run_id}</dd>
       </div>
       <div>
         <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-          Dataset
+          {t("summary.dataset")}
         </dt>
         <dd className="font-medium text-[#312b4c]">{datasetName}</dd>
       </div>
       <div>
         <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-          Started
+          {t("summary.started")}
         </dt>
         <dd className="text-[#4a4565]">{formatDateTime(started)}</dd>
       </div>
       <div>
         <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-          Completed
+          {t("summary.completed")}
         </dt>
         <dd className="text-[#4a4565]">{formatDateTime(run.completed_at)}</dd>
       </div>
       <div>
         <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-          Duration
+          {t("summary.duration")}
         </dt>
         <dd className="text-[#4a4565]">{formatDuration(durationMs)}</dd>
       </div>
       <div>
         <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-          Updated
+          {t("summary.updated")}
         </dt>
         <dd className="text-[#4a4565]">{formatDateTime(run.updated_at)}</dd>
       </div>
@@ -105,11 +106,12 @@ function StatusSummary({
 }
 
 function ComparisonCard({ comparison }: { comparison: RunComparison }) {
+  const t = useTranslations("evaluations.runDetail");
   if (!comparison.available) {
     return (
       <section className="rounded-xl border border-[#ddd8ec] bg-[#fcfbff] p-3">
         <h3 className="text-sm font-semibold text-[#2f2a48]">
-          Baseline comparison
+          {t("comparison.baseline")}
         </h3>
         <p className="mt-2 text-sm text-[#67627f]">{comparison.message}</p>
       </section>
@@ -119,7 +121,7 @@ function ComparisonCard({ comparison }: { comparison: RunComparison }) {
   return (
     <section className="rounded-xl border border-[#ddd8ec] bg-[#fcfbff] p-3">
       <h3 className="text-sm font-semibold text-[#2f2a48]">
-        Baseline vs latest
+        {t("comparison.baselineVsLatest")}
       </h3>
       <div className="mt-2 grid gap-2 sm:grid-cols-3">
         <div className="rounded-lg border border-[#e7e3f3] bg-white p-2">
@@ -140,7 +142,7 @@ function ComparisonCard({ comparison }: { comparison: RunComparison }) {
         </div>
         <div className="rounded-lg border border-[#e7e3f3] bg-white p-2">
           <p className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-            Delta
+            {t("comparison.delta")}
           </p>
           <p className="text-lg font-semibold text-[#2f2a48]">
             {formatPercent(comparison.delta)}
@@ -159,22 +161,23 @@ function CasesFilterBar({
   filters: ResultFilters;
   onChange: (next: ResultFilters) => void;
 }) {
+  const t = useTranslations("evaluations.runDetail.filters");
   return (
     <div className="grid gap-2 rounded-xl border border-[#ddd8ec] bg-[#fcfbff] p-3 lg:grid-cols-4">
       <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#615c7a] uppercase lg:col-span-2">
-        Search cases
+        {t("searchCases")}
         <input
           type="search"
           value={filters.query}
           onChange={(event) =>
             onChange({ ...filters, query: event.target.value })
           }
-          placeholder="Question, expected answer, actual answer"
+          placeholder={t("searchPlaceholder")}
           className="h-9 rounded-lg border border-[#d1cce4] bg-white px-2 text-sm font-medium tracking-normal text-[#2a2640] normal-case"
         />
       </label>
       <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#615c7a] uppercase">
-        Case status
+        {t("caseStatus")}
         <select
           value={filters.status}
           onChange={(event) =>
@@ -185,14 +188,14 @@ function CasesFilterBar({
           }
           className="h-9 rounded-lg border border-[#d1cce4] bg-white px-2 text-sm font-medium tracking-normal text-[#2a2640] normal-case"
         >
-          <option value="all">All</option>
-          <option value="failed">Failed</option>
-          <option value="low_quality">Low quality</option>
-          <option value="completed">Completed</option>
+          <option value="all">{t("all")}</option>
+          <option value="failed">{t("failed")}</option>
+          <option value="low_quality">{t("lowQuality")}</option>
+          <option value="completed">{t("completed")}</option>
         </select>
       </label>
       <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#615c7a] uppercase">
-        Sort
+        {t("sort")}
         <select
           value={filters.sortBy}
           onChange={(event) =>
@@ -203,11 +206,11 @@ function CasesFilterBar({
           }
           className="h-9 rounded-lg border border-[#d1cce4] bg-white px-2 text-sm font-medium tracking-normal text-[#2a2640] normal-case"
         >
-          <option value="created_desc">Newest first</option>
-          <option value="latency_desc">Latency high to low</option>
-          <option value="latency_asc">Latency low to high</option>
-          <option value="quality_desc">Quality high to low</option>
-          <option value="quality_asc">Quality low to high</option>
+          <option value="created_desc">{t("newest")}</option>
+          <option value="latency_desc">{t("latencyDesc")}</option>
+          <option value="latency_asc">{t("latencyAsc")}</option>
+          <option value="quality_desc">{t("qualityDesc")}</option>
+          <option value="quality_asc">{t("qualityAsc")}</option>
         </select>
       </label>
     </div>
@@ -215,6 +218,7 @@ function CasesFilterBar({
 }
 
 function CaseRow({ row }: { row: EvaluationCaseView }) {
+  const t = useTranslations("evaluations.runDetail");
   const [expanded, setExpanded] = useState(false);
   const status = row.result.status.trim().toLowerCase();
   const link = citationHref(row);
@@ -234,10 +238,14 @@ function CaseRow({ row }: { row: EvaluationCaseView }) {
             {row.result.question}
           </p>
           <p className="mt-1 text-xs text-[#66627d]">
-            Expected: {row.expectedAnswer ?? "Unavailable"}
+            {t("case.expected", {
+              value: row.expectedAnswer ?? t("case.unavailable"),
+            })}
           </p>
           <p className="text-xs text-[#66627d]">
-            Actual: {row.result.generated_answer ?? "Unavailable"}
+            {t("case.actual", {
+              value: row.result.generated_answer ?? t("case.unavailable"),
+            })}
           </p>
         </div>
         <div className="text-right">
@@ -264,21 +272,37 @@ function CaseRow({ row }: { row: EvaluationCaseView }) {
             )}
           </span>
           <p className="mt-1 text-xs text-[#66627d]">
-            Quality {formatPercent(row.qualityScore)}
+            {t("case.quality", { value: formatPercent(row.qualityScore) })}
           </p>
           <p className="text-xs text-[#66627d]">
-            Confidence {formatPercent(row.confidenceScore)}
+            {t("case.confidence", {
+              value: formatPercent(row.confidenceScore),
+            })}
           </p>
         </div>
       </div>
 
       <div className="mt-2 grid gap-2 text-xs text-[#4f4a69] sm:grid-cols-4">
-        <p>Latency: {formatLatency(row.result.latency_ms)}</p>
         <p>
-          Citation accuracy: {formatPercent(row.result.citation_accuracy_score)}
+          {t("case.latency", {
+            value: formatLatency(row.result.latency_ms, t("na")),
+          })}
         </p>
-        <p>Retrieval: {formatPercent(row.result.retrieval_score)}</p>
-        <p>Faithfulness: {formatPercent(row.result.faithfulness_score)}</p>
+        <p>
+          {t("case.citationAccuracy", {
+            value: formatPercent(row.result.citation_accuracy_score),
+          })}
+        </p>
+        <p>
+          {t("case.retrieval", {
+            value: formatPercent(row.result.retrieval_score),
+          })}
+        </p>
+        <p>
+          {t("case.faithfulness", {
+            value: formatPercent(row.result.faithfulness_score),
+          })}
+        </p>
       </div>
 
       {failure ? (
@@ -294,11 +318,11 @@ function CaseRow({ row }: { row: EvaluationCaseView }) {
             href={link}
             className="rounded border border-[#c8c2df] bg-white px-2 py-1 text-xs font-semibold text-[#3f3a5e] hover:bg-[#f3f0fb]"
           >
-            Open source document
+            {t("case.openSource")}
           </Link>
         ) : (
           <span className="rounded border border-[#d8d3e7] bg-[#f8f7fc] px-2 py-1 text-xs text-[#7e7a95]">
-            Citation link unavailable
+            {t("case.linkUnavailable")}
           </span>
         )}
 
@@ -307,7 +331,7 @@ function CaseRow({ row }: { row: EvaluationCaseView }) {
           onClick={() => setExpanded((previous) => !previous)}
           className="rounded border border-[#c8c2df] bg-white px-2 py-1 text-xs font-semibold text-[#3f3a5e] hover:bg-[#f3f0fb]"
         >
-          {expanded ? "Hide details" : "Show details"}
+          {expanded ? t("case.hideDetails") : t("case.showDetails")}
         </button>
       </div>
 
@@ -315,22 +339,22 @@ function CaseRow({ row }: { row: EvaluationCaseView }) {
         <div className="mt-2 grid gap-2 lg:grid-cols-2">
           <div className="rounded border border-[#e5e1f2] bg-[#fbfaff] p-2">
             <p className="text-xs font-semibold tracking-wide text-[#68647f] uppercase">
-              Retrieved citations
+              {t("case.retrievedCitations")}
             </p>
             {row.citations.length === 0 ? (
               <p className="mt-1 text-xs text-[#6f6b87]">
-                No citation payload available.
+                {t("case.noCitationPayload")}
               </p>
             ) : (
               <ul className="mt-1 space-y-1 text-xs text-[#4f4a69]">
                 {row.citations.map((citation, index) => (
                   <li key={`${citation.chunkId ?? "chunk"}:${index + 1}`}>
-                    {(citation.filename ?? "Unknown document") +
+                    {(citation.filename ?? t("case.unknownDocument")) +
                       (citation.pageNumber != null
-                        ? ` • page ${citation.pageNumber}`
+                        ? ` • ${t("case.page", { page: citation.pageNumber })}`
                         : "")}
                     {citation.score != null
-                      ? ` • score ${citation.score.toFixed(2)}`
+                      ? ` • ${t("case.score", { score: citation.score.toFixed(2) })}`
                       : ""}
                   </li>
                 ))}
@@ -339,7 +363,7 @@ function CaseRow({ row }: { row: EvaluationCaseView }) {
           </div>
           <div className="rounded border border-[#e5e1f2] bg-[#fbfaff] p-2">
             <p className="text-xs font-semibold tracking-wide text-[#68647f] uppercase">
-              Error and metrics payload
+              {t("case.errorPayload")}
             </p>
             <pre className="mt-1 max-h-44 overflow-auto text-[11px] text-[#4f4a69]">
               {JSON.stringify(
@@ -382,35 +406,36 @@ function ModelProfileCard({
 }: {
   summary: Record<string, unknown> | null | undefined;
 }) {
+  const t = useTranslations("evaluations.runDetail.modelProfile");
   const mp = extractModelProfile(summary);
   if (!mp) return null;
 
   return (
     <section className="rounded-xl border border-[#ddd8ec] bg-[#fcfbff] p-3">
-      <h3 className="text-sm font-semibold text-[#2f2a48]">Model profile</h3>
+      <h3 className="text-sm font-semibold text-[#2f2a48]">{t("title")}</h3>
       <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
         <div>
           <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-            Provider
+            {t("provider")}
           </dt>
           <dd className="font-medium text-[#312b4c]">
             {mp.provider_type ?? "—"}
             {mp.is_local ? (
               <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
-                local
+                {t("local")}
               </span>
             ) : null}
           </dd>
         </div>
         <div>
           <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-            Base model
+            {t("baseModel")}
           </dt>
           <dd className="font-medium text-[#312b4c]">{mp.base_model ?? "—"}</dd>
         </div>
         <div>
           <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-            Source
+            {t("source")}
           </dt>
           <dd className="text-[#4a4565]">{mp.source ?? "—"}</dd>
         </div>
@@ -420,6 +445,7 @@ function ModelProfileCard({
 }
 
 function ProviderProfileCard({ run }: { run: EvaluationRunDetailResponse }) {
+  const t = useTranslations("evaluations.runDetail.localMetrics");
   const summary = run.summary ?? {};
   const invalidJsonRate =
     typeof summary["invalid_json_rate"] === "number"
@@ -443,13 +469,11 @@ function ProviderProfileCard({ run }: { run: EvaluationRunDetailResponse }) {
 
   return (
     <section className="rounded-xl border border-[#ddd8ec] bg-[#fcfbff] p-3">
-      <h3 className="text-sm font-semibold text-[#2f2a48]">
-        Local model metrics
-      </h3>
+      <h3 className="text-sm font-semibold text-[#2f2a48]">{t("title")}</h3>
       <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
         {invalidJsonRate != null && (
           <div>
-            <dt className="text-xs text-[#6b6682]">Invalid JSON rate</dt>
+            <dt className="text-xs text-[#6b6682]">{t("invalidJson")}</dt>
             <dd
               className={`font-medium tabular-nums ${
                 invalidJsonRate > 0.05 ? "text-red-600" : "text-[#312b4c]"
@@ -461,7 +485,7 @@ function ProviderProfileCard({ run }: { run: EvaluationRunDetailResponse }) {
         )}
         {timeoutRate != null && (
           <div>
-            <dt className="text-xs text-[#6b6682]">Timeout rate</dt>
+            <dt className="text-xs text-[#6b6682]">{t("timeout")}</dt>
             <dd
               className={`font-medium tabular-nums ${
                 timeoutRate > 0.1 ? "text-red-600" : "text-[#312b4c]"
@@ -473,7 +497,7 @@ function ProviderProfileCard({ run }: { run: EvaluationRunDetailResponse }) {
         )}
         {fallbackFrequency != null && (
           <div>
-            <dt className="text-xs text-[#6b6682]">Fallback frequency</dt>
+            <dt className="text-xs text-[#6b6682]">{t("fallback")}</dt>
             <dd
               className={`font-medium tabular-nums ${
                 fallbackFrequency > 0.15 ? "text-amber-700" : "text-[#312b4c]"
@@ -495,6 +519,7 @@ export function EvaluationRunDetailSection({
   failureReason,
   failureType,
 }: RunDetailSectionProps) {
+  const t = useTranslations("evaluations.runDetail");
   const runStatus = run.status.trim().toLowerCase();
   const statusForBadge =
     runStatus === "queued" ||
@@ -507,11 +532,13 @@ export function EvaluationRunDetailSection({
 
   return (
     <section
-      aria-label="Run detail"
+      aria-label={t("detail.ariaLabel")}
       className="space-y-3 rounded-2xl border border-[#d8d4e8] bg-white p-4 shadow-sm"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-[#292442]">Run detail</h2>
+        <h2 className="text-lg font-semibold text-[#292442]">
+          {t("detail.ariaLabel")}
+        </h2>
         <div className="flex items-center gap-2">
           <EvaluationStatusBadge status={statusForBadge} />
           <Link
@@ -521,12 +548,14 @@ export function EvaluationRunDetailSection({
             })}
             className="rounded border border-[#cfc9e4] bg-white px-2 py-1 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
           >
-            Open pipeline trace
+            {t("detail.openTrace")}
           </Link>
         </div>
       </div>
 
-      <p className="text-sm text-[#65617c]">Dataset: {datasetName}</p>
+      <p className="text-sm text-[#65617c]">
+        {t("detail.dataset", { name: datasetName })}
+      </p>
       <StatusSummary run={run} datasetName={datasetName} />
       <ModelProfileCard summary={run.summary} />
       <ProviderProfileCard run={run} />
@@ -542,9 +571,9 @@ export function EvaluationRunDetailSection({
       <ChunkingComparisonPanel summaryValue={run.summary} />
 
       {run.status === "completed" && (
-        <section aria-label="Multilingual quality breakdown">
+        <section aria-label={t("detail.multilingualAria")}>
           <h3 className="mb-2 text-sm font-semibold text-[#2f2a48]">
-            Quality by language
+            {t("detail.qualityByLanguage")}
           </h3>
           <MultilingualEvalPanel evaluationRunId={run.evaluation_run_id} />
         </section>
@@ -562,16 +591,18 @@ export function EvaluationCasesSection({
   filters: ResultFilters;
   onFilterChange: (next: ResultFilters) => void;
 }) {
+  const t = useTranslations("evaluations.runDetail");
   return (
     <section
-      aria-label="Run case results"
+      aria-label={t("cases.ariaLabel")}
       className="space-y-3 rounded-2xl border border-[#d8d4e8] bg-white p-4 shadow-sm"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-[#292442]">Case results</h2>
+        <h2 className="text-lg font-semibold text-[#292442]">
+          {t("cases.title")}
+        </h2>
         <p className="text-sm text-[#66627d]">
-          Showing {formatInteger(rows.length)} case
-          {rows.length === 1 ? "" : "s"}
+          {t("cases.showing", { count: rows.length })}
         </p>
       </div>
 
@@ -580,8 +611,8 @@ export function EvaluationCasesSection({
       {rows.length === 0 ? (
         <EmptyState
           compact
-          title="No cases match the selected filters."
-          description="Change case filters to inspect failed, low-quality, or completed answers."
+          title={t("cases.emptyTitle")}
+          description={t("cases.emptyDescription")}
         />
       ) : (
         <div className="space-y-2">
