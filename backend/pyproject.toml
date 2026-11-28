@@ -127,6 +127,6 @@ source = ["app"]
 branch = false
 
 [tool.coverage.report]
-fail_under = 82.2
+fail_under = 82.4
 precision = 1
 show_missing = false
