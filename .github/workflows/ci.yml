@@ -169,6 +169,10 @@ jobs:
         with:
           version: v3.19.0
 
+      # Tests block network access, so fetch the tiktoken encodings first.
+      - name: Warm tiktoken cache
+        run: make -C backend warm-tiktoken
+
       - name: Run backend tests
         run: |
           mkdir -p artifacts

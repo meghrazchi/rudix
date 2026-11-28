@@ -608,6 +608,9 @@ pull request. The `backend-alembic` job in `ci.yml` keeps only the migration rou
   `TEST_MIGRATIONS_DATABASE_URL`, or `TEST_REDIS_URL`. Unix sockets and name resolution are
   allowed. Running the suite against live providers on purpose is not supported: use the
   fakes, or a separate script outside `tests/`.
+- The chunker's `tiktoken` encodings (`cl100k_base`, `o200k_base`) are downloaded on first
+  use, which the guard blocks. Run `make warm-tiktoken` once after a fresh install (CI runs it
+  before pytest); otherwise ingestion tests fail with the guard error for an Azure blob host.
 - `tests/test_migrations_0_9_0_pg.py` runs the 0.9.0 migrations up, down to
   `20261128_0003`, and up again on `TEST_MIGRATIONS_DATABASE_URL` (a database that is safe to
   downgrade); it is skipped when the variable is unset.

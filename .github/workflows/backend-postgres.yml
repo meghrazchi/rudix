@@ -92,6 +92,10 @@ jobs:
       - name: Install backend tooling
         run: make -C backend install
 
+      # Tests block network access, so fetch the tiktoken encodings first.
+      - name: Warm tiktoken cache
+        run: make -C backend warm-tiktoken
+
       - name: Run PostgreSQL and Redis marked tests
         # The pg_migrated_url fixture runs `alembic upgrade head` against TEST_DATABASE_URL.
         run: >-
