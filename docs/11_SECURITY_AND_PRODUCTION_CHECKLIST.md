@@ -513,6 +513,42 @@ allowlist unless production refuses that value.
 
 Frontend `NEXT_PUBLIC_*` values are baked into the browser bundle. `next build` (`frontend/config/build-env-validation.mjs`) fails in staging/production when `NEXT_PUBLIC_AUTH_LOCAL_FALLBACK` or `NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK` is `true`, or `NEXT_PUBLIC_AUTH_LOCAL_PASSWORD`, `NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_PASSWORD`, `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN` or `NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN` is non-empty (R02-11).
 
+## Edge and TLS
+
+Staging and production compose put a Caddy edge in front of every public service (`R08-01`;
+[docs/10](./10_DEPLOYMENT_DOCKER.md), "Edge proxy, scaling, and environment parity"). The Helm
+chart uses NGINX Ingress objects instead ([docs/28](./28_KUBERNETES_HELM_DEPLOYMENT.md), "Edge
+and ingress").
+
+- Only `edge` publishes host ports, and only 80 and 443 (plus 443/udp for HTTP/3).
+  `deploy/scripts/check_compose_config.sh` and `backend/tests/test_compose_parity.py` fail on
+  any other published port. Matomo's public 8081 is closed; it is served through the edge on
+  its own host when `EDGE_MATOMO=on`.
+- TLS: automatic ACME certificates (`EDGE_TLS_MODE=acme`) or operator files
+  (`EDGE_TLS_MODE=files`, `deploy/compose/edge/certs/`, git-ignored). HSTS comes from the
+  frontend and the API, not the edge.
+- Forwarded headers: the edge has no `trusted_proxies`, so client-sent `X-Forwarded-*` values
+  are replaced. The API's `last_used_ip` reads the leftmost `X-Forwarded-For`, which is then
+  the edge's view of the client. `FORWARDED_ALLOW_IPS` defaults to `*` on api and mcp because
+  only compose-network containers can reach them; narrow it to the compose subnet on a shared
+  network. On Kubernetes, keep the ingress-nginx default `use-forwarded-headers: "false"`
+  unless a trusted load balancer sits in front.
+- Body limit: `EDGE_MAX_REQUEST_BODY` (26MB) and `ingress.maxBodySize` (`26m`) sit just above
+  `MAX_UPLOAD_SIZE_MB` (25); raise them together.
+- Log redaction: edge access logs drop the query string (`?redacted`) and delete
+  `Authorization`, `Proxy-Authorization`, `Cookie`, `X-Api-Key`, and `Set-Cookie`. The ingress
+  controller's log format must also leave out the query string (docs/28 gives the ConfigMap).
+- Staging hosts send `X-Robots-Tag: noindex, nofollow` (`EDGE_NOINDEX=true`,
+  `ingress.noindex: true`).
+- [ ] Host firewall (or cloud security group) allows only 80 and 443 from outside on staging
+  and production (operator, 0.8.0)
+- [ ] External TLS scan of the app, API, and Matomo hosts run on staging and production, with
+  the result and date recorded here (operator, 0.8.0)
+- [ ] `CADDY_IMAGE` pinned to an exact tag or digest in the production env file, and
+  `PGBOUNCER_IMAGE` when the `pooler` profile is used (operator, 0.8.0)
+- [ ] ACME account email (`EDGE_ACME_EMAIL`) or operator certificate files set, and DNS for
+  every edge host points at the edge (operator, 0.8.0)
+
 ## Security headers
 
 Frontend (`frontend/config/security-headers.mjs`, wired from `next.config.ts` `headers()`):

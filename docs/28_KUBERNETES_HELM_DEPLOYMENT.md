@@ -117,6 +117,62 @@ schemas); that step is first exercised in CI, not on a development machine.
 
 <!-- v080-A1 -->
 
+`templates/ingress.yaml` (values key `ingress`, owner A1) renders one `networking.k8s.io/v1`
+Ingress per host for an operator-installed NGINX ingress controller (`R08-01`). It is off in
+`values.yaml` and on in the staging, production, and CI values files. Compose uses a Caddy
+edge instead ([docs/10](./10_DEPLOYMENT_DOCKER.md), "Edge proxy, scaling, and environment
+parity").
+
+| Ingress | Host | Path | Backend (C1 Service, port `http`) |
+| --- | --- | --- | --- |
+| `<fullname>-frontend` | `ingress.app.host` | `/` | `<fullname>-frontend` |
+| `<fullname>-api` | `ingress.api.host` | `/` | `<fullname>-api` |
+| `<fullname>-mcp` (only when `mcp.enabled`) | `ingress.mcp.host`, or the API host when empty | `ingress.mcp.path` (`/mcp`) | `<fullname>-mcp` |
+
+- `ingress.className` (`nginx`) sets `ingressClassName`. Hosts are `.invalid` placeholders and
+  TLS secret names are placeholders; each Ingress has one TLS entry for its host. MCP on the API
+  host reuses the API secret; with its own host it uses `ingress.mcp.tlsSecretName` (falling
+  back to the API secret). An empty host or secret name stops the render.
+- `cert-manager.io/cluster-issuer` is added only when `ingress.certManager.clusterIssuer` is
+  set (empty by default); otherwise the operator provides the TLS secrets.
+- `nginx.ingress.kubernetes.io/proxy-body-size` comes from `ingress.maxBodySize` (`26m`,
+  `MAX_UPLOAD_SIZE_MB` 25 plus headroom; raise both together).
+- The API and MCP ingresses set `proxy-read-timeout` and `proxy-send-timeout` to
+  `ingress.streamTimeoutSeconds` (3600) and `proxy-buffering: "off"`, for WebSockets and
+  server-sent events. The frontend ingress keeps the controller defaults.
+- `ingress.noindex: true` (staging) renders a `<fullname>-ingress-headers` ConfigMap with
+  `X-Robots-Tag: noindex, nofollow` and points every Ingress at it with
+  `nginx.ingress.kubernetes.io/custom-headers`. The controller must allow that header
+  (`global-allowed-response-headers: "X-Robots-Tag"` in its ConfigMap). No snippet annotation
+  is used.
+- `ingress.annotations` adds extra annotations to every Ingress.
+
+Controller settings the chart cannot set. Access logs without query strings (share links and
+tokens can travel in them) and no trust in client-sent forwarded headers belong to the
+ingress-nginx controller ConfigMap, which the operator owns:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+data:
+  # $uri is the path without the query string; $request (which includes it) is not logged.
+  log-format-escape-json: "true"
+  log-format-upstream: >-
+    {"time":"$time_iso8601","request_id":"$req_id","remote_addr":"$remote_addr",
+    "method":"$request_method","host":"$host","path":"$uri","status":$status,
+    "bytes_sent":$bytes_sent,"request_time":$request_time,"upstream":"$upstream_addr"}
+  # Keep the default: client X-Forwarded-* headers are not trusted.
+  use-forwarded-headers: "false"
+  # Needed only when ingress.noindex is true.
+  global-allowed-response-headers: "X-Robots-Tag"
+```
+
+`backend/tests/test_helm_chart_ingress.py` renders every values file with `mcp.enabled=true`
+and checks hosts, backends, TLS, annotations, and the noindex ConfigMap.
+
 ## Data stores, backups, and restore
 
 <!-- v080-A2 -->

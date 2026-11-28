@@ -426,8 +426,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_BUCKET: ${MINIO_BUCKET}
-      # R08-05: object versioning on the bucket (opt-in; needs erasure-coded storage
-      # on a real deployment, see docs/10).
+      # R08-05: opt-in object versioning on the bucket. Overwritten and deleted objects
+      # keep old versions, so storage grows until a lifecycle rule expires them (docs/10).
       MINIO_BUCKET_VERSIONING: ${MINIO_BUCKET_VERSIONING:-false}
     entrypoint: >
       /bin/sh -c "

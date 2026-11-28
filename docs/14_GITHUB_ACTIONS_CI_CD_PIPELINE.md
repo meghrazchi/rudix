@@ -77,6 +77,28 @@ the chart tests (`tests/test_helm_chart_*.py`) run instead of skipping. `kubecon
 job are first exercised in CI; they were not run on a development machine when the job was
 added, so add `Deploy config` to the required checks only after it has passed on `develop`.
 
+Edge and parity checks in `deploy-config` (`0.8.0`, `R08-01`, `R08-12`): "Check compose files"
+also checks staging and production with `--profile graph --profile analytics --profile pooler
+--profile redis-split --profile mcp`, and fails when any service other than `edge` publishes a
+host port or `edge` publishes one other than 80 or 443 (`docker compose config --format json`).
+"Validate Caddyfile" (after "Check compose files") runs `caddy validate` from the pinned
+`caddy:2.10` image on `deploy/compose/edge/Caddyfile` for every combination of
+`EDGE_TLS_MODE` (`acme`, `files` with a throwaway self-signed certificate), `EDGE_NOINDEX`
+(`true`, `false`), and `EDGE_MATOMO` (`off`, `on`). It is first exercised in CI; Caddy is not
+installed on development machines, where `backend/tests/test_edge_proxy_config.py` checks the
+Caddyfile text instead.
+
+Release deploys (`0.8.0`): both Terraform steps set the new variable `TF_VAR_compose_profiles`
+(staging `graph`, production `analytics`, which keeps Neo4j on staging and Matomo on
+production running now that both sit behind profiles). Terraform writes it to the host `.env`
+as `COMPOSE_PROFILES=` when not empty and uploads `deploy/compose/edge/` (the Caddyfile and
+its snippets, each hashed into the rollout triggers) next to the compose file. The edge image
+is pinned like the data stores: the production env file must set `CADDY_IMAGE` (and
+`PGBOUNCER_IMAGE` when `COMPOSE_PROFILES` includes `pooler`) to an exact tag or digest, or
+`deploy/scripts/check_deploy_env.sh` fails the production deploy unless
+`DEPLOY_ALLOW_UNPINNED_IMAGES=true`; staging only warns. Add `CADDY_IMAGE` to
+`PRODUCTION_ENV_FILE` before the first `0.8.0` production deploy.
+
 Coverage thresholds are ratchets: raise them when coverage rises and never lower them without
 a reason in the pull request.
 
