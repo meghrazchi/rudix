@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -115,16 +116,36 @@ def test_runner_dispatch_and_keys(tmp_path: Path) -> None:
 def test_runner_builds_default_clients(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import app.clients.factory as factory
 
-    cfg = backup_config(tmp_path)
+    cfg = backup_config(tmp_path, backup_qdrant_timeout_seconds=1800)
     store = make_store()
-    monkeypatch.setattr(factory, "create_qdrant_client", lambda _: FakeQdrant(["documents"]))
+    timeouts: list[float | None] = []
+
+    def fake_qdrant(_: object, *, timeout_seconds: float | None = None) -> FakeQdrant:
+        timeouts.append(timeout_seconds)
+        return FakeQdrant(["documents"])
+
+    monkeypatch.setattr(factory, "create_qdrant_client", fake_qdrant)
     monkeypatch.setattr(factory, "create_minio_client", lambda _: source_bucket({"a": b"1"}))
     real_client = httpx.Client
     monkeypatch.setattr(
         runner.httpx, "Client", lambda: real_client(transport=snapshot_transport([]))
     )
     assert runner.run_backup("qdrant", cfg, store=store).kind == "qdrant"
+    # Snapshots block until written: the backup client never uses the 2 s request timeout.
+    assert timeouts == [1800]
     assert runner.run_backup("objects", cfg, store=store).kind == "objects"
+
+
+def test_qdrant_factory_timeout_override() -> None:
+    from app.clients.factory import create_qdrant_client
+
+    cfg = SimpleNamespace(
+        qdrant_url="http://qdrant:6333", qdrant_api_key=None, qdrant_timeout_seconds=2.0
+    )
+    default = create_qdrant_client(cfg)  # type: ignore[arg-type]
+    backup = create_qdrant_client(cfg, timeout_seconds=1800)  # type: ignore[arg-type]
+    assert default._client._timeout == 2
+    assert backup._client._timeout == 1800
 
 
 def test_backup_run_cli(tmp_path: Path) -> None:

@@ -53,12 +53,14 @@ def create_minio_client(config: Settings) -> Any:
     )
 
 
-def create_qdrant_client(config: Settings) -> QdrantClient:
-    timeout_seconds = max(1, round(config.qdrant_timeout_seconds))
+def create_qdrant_client(config: Settings, *, timeout_seconds: float | None = None) -> QdrantClient:
+    """Sync Qdrant client. ``timeout_seconds`` overrides ``QDRANT_TIMEOUT_SECONDS`` for
+    long operations (backup snapshots, R08-06); request paths keep the configured value."""
+    seconds = config.qdrant_timeout_seconds if timeout_seconds is None else timeout_seconds
     return QdrantClient(
         url=str(config.qdrant_url),
         api_key=config.qdrant_api_key.get_secret_value() if config.qdrant_api_key else None,
-        timeout=timeout_seconds,
+        timeout=max(1, round(seconds)),
     )
 
 

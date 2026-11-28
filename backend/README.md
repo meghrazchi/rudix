@@ -129,7 +129,9 @@ make seed-dev
   - `BACKUP_S3_ENDPOINT` (unset = AWS; set = path-style), `BACKUP_S3_REGION`,
     `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY` (unset = default credential chain),
     `BACKUP_S3_KMS_KEY_ID`, `BACKUP_WORK_DIR` (`/tmp/rudix-backup`; the postgres kind reads
-    `postgres.dump` from it, produced by `pg_dump -Fc` in the `postgres:16` image).
+    `postgres.dump` from it, produced by `pg_dump -Fc` in the `postgres:16` image),
+    `BACKUP_QDRANT_TIMEOUT_SECONDS` (1800; the qdrant kind's snapshot calls block until done,
+    so they never use the request-path `QDRANT_TIMEOUT_SECONDS`).
   - `BACKUP_FRESHNESS_CHECK_ENABLED` (false), `BACKUP_FRESHNESS_INTERVAL_SECONDS` (900),
     `BACKUP_MAX_AGE_HOURS` (26), `BACKUP_KINDS` (`postgres,qdrant,objects`): beat task
     `ops.backups.check_freshness` sets `rudix_backup_last_success_timestamp_seconds{kind}` and

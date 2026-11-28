@@ -48,6 +48,9 @@ class BackupSettings(BaseModel):
     # File holding the base64 of 32 random bytes (``openssl rand -base64 32``). Required when
     # backups are enabled; mounted from a secret, never logged, never written to a marker.
     backup_encryption_key_file: Path | None = None
+    # Timeout of the Qdrant calls of the qdrant backup (snapshot create and delete, which
+    # block until done). QDRANT_TIMEOUT_SECONDS stays the request-path timeout.
+    backup_qdrant_timeout_seconds: int = Field(default=1800, ge=10, le=86_400)
     # Working directory of the runner: the pg_dump output and temporary ciphertext.
     backup_work_dir: Path = Path("/tmp/rudix-backup")
     # A kind whose marker is older than this is stale (same value as the release workflow's

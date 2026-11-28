@@ -85,7 +85,11 @@ def _run_qdrant(
     if qdrant_client is None:
         from app.clients.factory import create_qdrant_client
 
-        qdrant_client = create_qdrant_client(config)
+        # A snapshot with wait=True blocks until it is written: the request-path
+        # QDRANT_TIMEOUT_SECONDS (2 s by default) would abort it on any real collection.
+        qdrant_client = create_qdrant_client(
+            config, timeout_seconds=config.backup_qdrant_timeout_seconds
+        )
     api_key = config.qdrant_api_key.get_secret_value() if config.qdrant_api_key else None
     owned_http = http is None
     client = http or httpx.Client()
