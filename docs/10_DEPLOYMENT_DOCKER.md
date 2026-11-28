@@ -565,15 +565,18 @@ Qdrant: daily snapshot
 
 Scale these independently:
 
-| Component      | Scaling method                  |
-| -------------- | ------------------------------- |
-| FastAPI        | More API containers             |
-| Celery workers | Per pool: `WORKER_POOL_<NAME>_CONCURRENCY` or more `worker-<pool>` replicas |
-| PostgreSQL     | Managed DB, read replicas later |
-| Qdrant         | Dedicated node/cluster          |
-| MinIO          | Distributed MinIO or managed S3 |
-| RabbitMQ       | Managed RabbitMQ                |
-| Redis          | Managed Redis                   |
+| Component      | Scaling method (Compose) | Scaling method (Helm chart, docs/28) |
+| -------------- | ------------------------ | ------------------------------------ |
+| Frontend       | More frontend containers behind the edge proxy | `frontend.replicas` (2), or HPA / KEDA on CPU and memory |
+| FastAPI        | More API containers (one uvicorn process each) | `api.replicas` (2); KEDA on in-flight requests and open streams per replica (min 2), or HPA on CPU and memory |
+| MCP server     | One `mcp` service (profile) | `mcp.replicas` (2) when `mcp.enabled` |
+| Celery workers | Per pool: `WORKER_POOL_<NAME>_CONCURRENCY` or more `worker-<pool>` replicas | Per pool: `workers.pools.<pool>.replicas` and `concurrency`; KEDA on queue depth and p95 queue wait (min 1) |
+| Celery beat    | Exactly one, never scaled | Exactly one (`Recreate`), never autoscaled |
+| PostgreSQL     | Managed DB, read replicas later | External; the chart's connection budget bounds the connections all replicas can open |
+| Qdrant         | Dedicated node/cluster          | External |
+| MinIO          | Distributed MinIO or managed S3 | External |
+| RabbitMQ       | Managed RabbitMQ                | External |
+| Redis          | Managed Redis                   | External |
 
 ## Production readiness diagram
 

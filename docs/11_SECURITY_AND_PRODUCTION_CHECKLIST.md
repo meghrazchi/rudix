@@ -932,6 +932,11 @@ never document text.
 - [ ] Production deploys only from a `vX.Y.Z` tag on `main` whose `api`/`worker` digests passed staging; `cosign verify` passes for all three images.
 - [ ] `Secret scan`, `Backend dependency audit`, `Frontend dependency audit`, `Filesystem vulnerability scan`, and `Image scan` are required checks on `main`.
 - [ ] Rollback uses `deploy/scripts/rollback.sh <environment> <version>` and never downgrades the database automatically.
+- [ ] Kubernetes: `networkPolicy.ingressControllerNamespaceSelector` names the real ingress controller namespace, the default-deny policy is in place, and in-cluster data stores (if any) are listed in `networkPolicy.dataStores` so only Rudix application pods reach them (operator, 0.8.0).
+- [ ] Kubernetes: `connectionBudget.maxDatabaseConnections` is set from the database's (or pooler's) connection limit, so a scale-out cannot exhaust PostgreSQL connections (operator, 0.8.0).
+- [ ] Kubernetes: the `DATABASE_MIGRATION_URL` key exists in the existing Secret (schema owner) for the migrate hook Job; the application role in `DATABASE_URL` cannot alter the schema (operator, 0.8.0).
+- [ ] Kubernetes: releases are installed by image digest (`image.<name>.digest`), roll back with `helm rollback` (which never runs migrations or downgrades the database), and a deploy under load plus an API replica kill show zero failed requests on staging (operator, 0.8.0).
+- [ ] Kubernetes: when `autoscaling.mode=keda`, KEDA is installed and `autoscaling.prometheus.serverAddress` points at a Prometheus that scrapes the API and worker metrics (operator, 0.8.0).
 
 ## Threat model diagram
 
