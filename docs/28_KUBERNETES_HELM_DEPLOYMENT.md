@@ -367,8 +367,9 @@ publicly). Put its auth headers, if any, into `secrets.existingSecret` under
 `tracing.endpoint`, and the same two values in `config.env`. If a NetworkPolicy with egress
 rules is on (C1), allow egress from the api, worker, and mcp pods to the collector. Each
 component reports as `rudix-api`, `rudix-worker`, or `rudix-mcp`. Worker children set up
-tracing after the fork; shutdown flushes pending spans within 5 seconds, inside the existing
-grace period.
+tracing after the fork (`worker_process_init`); a pool on the `threads` pool gets no such
+signal and runs without tracing, like the rest of the per-child setup. Shutdown flushes
+pending spans within 5 seconds, inside the existing grace period.
 
 **Image.** The OpenTelemetry packages are regular backend dependencies in `backend/uv.lock`,
 so the images install them from the lockfile like every other package; nothing is added at
