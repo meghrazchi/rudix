@@ -355,6 +355,45 @@ CI fails when a route's first-load JavaScript grows past its budget.
   `class-variance-authority` (no imports in `src`) and five unreferenced default SVGs from
   `public/`. `eslint-config-next` already equals `next` (16.4.6).
 
+### Assets, error boundaries and Web Vitals (R07-04, R07-08, R07-11)
+
+- **Icons and fonts are self-hosted.** Material Symbols Outlined is a subset served from
+  `public/fonts/material-symbols/material-symbols-outlined.woff2` (about 70 KB; the former
+  stylesheet loaded the full font from Google). `@font-face` and
+  `.material-symbols-outlined` live in `src/app/globals.css`; the page makes no request to
+  `fonts.googleapis.com` or `fonts.gstatic.com` and the CSP allows neither.
+  - `config/material-symbols.json` lists the names. `npm run icons:check` fails when `src`
+    uses a name not listed. Names are found in `name=`/`icon=`/`icon:` props and in the text
+    of elements with class `material-symbols-outlined`; names that only appear in maps or
+    helper returns are added to the list by hand (the script keeps existing entries).
+  - To regenerate after adding a name: run `node scripts/material-symbols-subset.mjs`, then
+    request `https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&icon_names=<comma list>&display=block`
+    with a browser User-Agent and save the `.woff2` it points to over the file above (axes:
+    optical size 20 to 48, FILL 0 to 1, weight 400, grade 0; the code only uses FILL and
+    weight 400).
+- **Brand mark.** `public/brand/rudix-mark.svg` is 303,577 bytes before and 16,093 after
+  (embedded PNG resampled from 441x589 to 78x104, twice the largest rendered size of 26 px);
+  `src/app/icon.svg` and `favicon.svg` went from 303,577 to 11,541 bytes (64x85). Paths,
+  `width`, `height` and `viewBox` are unchanged. `next.config.ts` sets
+  `images.formats` to AVIF and WebP.
+- **Route error boundaries.** `src/components/errors/RouteErrorFallback.tsx` (translated,
+  `errors.routeBoundary.*`) has a `page` variant (full screen, public routes) and a `segment`
+  variant (inline card inside the app shell). `error.tsx` and `loading.tsx` exist for
+  `chat`, `documents`, `collections`, `admin`, `settings` and `reports`, so an error in one
+  page leaves the sidebar and header usable. `src/app/global-error.tsx` replaces the root
+  layout when that itself fails and uses `src/i18n/global-error-messages.ts` (all six
+  locales, chosen from `<html lang>` or the `NEXT_LOCALE` cookie). `/admin/error-probe`
+  throws on purpose when `NEXT_PUBLIC_E2E_ERROR_PROBE=true` (Playwright only; staging and
+  production builds refuse the variable) and is a 404 otherwise.
+- **Web Vitals (first-party, off by default).** With `NEXT_PUBLIC_WEB_VITALS_ENABLED=true`
+  **and** analytics consent, `WebVitalsReporter` batches LCP, INP, CLS, FCP and TTFB (route
+  patterns only) and posts them to `${NEXT_PUBLIC_API_URL}/telemetry/web-vitals`, which also
+  needs `WEB_VITALS_INGEST_ENABLED=true` on the API. Nothing is sent otherwise.
+- **Sentry** uses the envelope endpoint (`/api/<project>/envelope/`) instead of the legacy
+  store endpoint; same DSN, sampling and redaction, no SDK.
+- Environment variables: `NEXT_PUBLIC_WEB_VITALS_ENABLED` (default `false`),
+  `NEXT_PUBLIC_E2E_ERROR_PROBE` (test only; never set in staging or production).
+
 ## Dashboard Design Sample
 
 ![Rudix Dashboard Sample](../docs/screenshots/dashboard_overview.png)

@@ -929,6 +929,31 @@ after the production build and fails when a route's first-load JavaScript exceed
   set the budget to `ceil(measured x 1.05)`. Never lower the headroom or raise a figure
   without a measurement to make a failing check pass.
 
+### Frontend Web Vitals (R07-11)
+
+First-party field measurement of LCP, INP, CLS, FCP and TTFB. No third-party service and no
+outbound request: the browser posts to our own API.
+
+- Switches (both default off): the backend `WEB_VITALS_INGEST_ENABLED` (the endpoint answers
+  404 otherwise) and the frontend build flag `NEXT_PUBLIC_WEB_VITALS_ENABLED`. The reporter
+  also needs the visitor's **analytics consent**; without it nothing is collected or sent.
+- Client: `useReportWebVitals`, samples batched (at most 10) and flushed when the page becomes
+  hidden; `route` is a pattern (`/[locale]/pricing`, `/documents/[id]`), never a URL or query.
+- Endpoint: `POST /telemetry/web-vitals` (docs/07 "Frontend telemetry"), per-IP limit
+  `WEB_VITALS_RATE_LIMIT_PER_MINUTE` (default 60).
+- Metrics (same registry as `app/core/metrics.py`, defined in `app/core/metrics_frontend.py`):
+  `rudix_web_vitals_value_ms{metric,route}` (histogram; LCP, INP, FCP, TTFB),
+  `rudix_web_vitals_cls{route}` (histogram) and
+  `rudix_web_vitals_samples_total{metric,outcome}` (`accepted`, `rejected`, `rate_limited`;
+  `metric="all"` when the body could not be read). The `route` label keeps at most
+  `WEB_VITALS_MAX_ROUTES` (default 200) distinct values per process; later routes are
+  reported as `other`.
+- Dashboard: `infra/observability/grafana/dashboards/web-vitals.json` (p75 per route for each
+  metric, plus sample outcomes), picked up by the existing dashboards provisioning folder.
+- Privacy: no database writes, no IP addresses or values in logs.
+- No field data has been collected yet; targets (LCP 2500 ms, INP 200 ms, CLS 0.1, FCP
+  1800 ms, TTFB 800 ms at p75) are the Core Web Vitals "good" thresholds, not measurements.
+
 ## Continuous evaluation
 
 Run evaluations:

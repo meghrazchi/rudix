@@ -1259,6 +1259,7 @@ conversion on staging volume first.
 - Optional bearer authentication: set `METRICS_REQUIRE_AUTH=true` and `METRICS_BEARER_TOKEN=<token>`.
 - Celery worker metrics: set `WORKER_METRICS_ENABLED=true` to expose Celery task metrics on `WORKER_METRICS_PORT=9808`.
 - Start Prometheus, Alertmanager, Grafana, and infrastructure exporters with `make up-observability` from repository root.
+- Browser Web Vitals (R07-11): set `WEB_VITALS_INGEST_ENABLED=true` to accept `POST /api/v1/telemetry/web-vitals` (404 otherwise). Samples go to `rudix_web_vitals_value_ms`, `rudix_web_vitals_cls` and `rudix_web_vitals_samples_total` only (nothing stored or logged); `WEB_VITALS_MAX_ROUTES` (200) bounds the `route` label and `WEB_VITALS_RATE_LIMIT_PER_MINUTE` (60) limits each client IP. Dashboard: `infra/observability/grafana/dashboards/web-vitals.json`.
 
 ## Directory overview
 

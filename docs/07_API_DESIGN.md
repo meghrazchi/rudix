@@ -2866,6 +2866,46 @@ endpoint), and honours `RATE_LIMIT_REDIS_FAILURE_MODE` through the same limiter 
 started; the connection stays open. In `open` mode the command proceeds and the degradation is
 logged. Decisions are counted in `rudix_rate_limit_decisions_total{scope,decision,failure_mode}`.
 
+## Frontend telemetry
+
+### `POST /api/v1/telemetry/web-vitals` (R07-11)
+
+First-party browser Web Vitals ingest. Unauthenticated (like the public contact form), CORS
+as for every route, and **off by default**: with `WEB_VITALS_INGEST_ENABLED=false` it answers
+`404`. Samples are aggregated into Prometheus histograms only; nothing is stored in the
+database and neither IP addresses nor values are logged.
+
+Request body (`extra` fields are rejected):
+
+```json
+{
+  "samples": [
+    {
+      "name": "LCP",
+      "value": 1834.2,
+      "route": "/[locale]/pricing",
+      "rating": "good",
+      "navigation_type": "navigate"
+    }
+  ]
+}
+```
+
+| Field | Rule |
+| --- | --- |
+| `samples` | 1 to 10 items |
+| `name` | `LCP`, `INP`, `CLS`, `FCP` or `TTFB` |
+| `value` | number, 0 or more; at most 60000 (CLS at most 10) |
+| `route` | route pattern matching `^/[A-Za-z0-9\[\]_/-]{0,120}$`, never a concrete URL (the client sends `[locale]` and `[id]` placeholders) |
+| `rating` | `good`, `needs-improvement`, `poor` |
+| `navigation_type` | optional: `navigate`, `reload`, `back-forward`, `back-forward-cache`, `prerender`, `restore` |
+
+Responses: `204` accepted; `404` disabled; `422` invalid body; `429` more than
+`WEB_VITALS_RATE_LIMIT_PER_MINUTE` requests per minute from one client IP (the same limiter
+and `RATE_LIMIT_REDIS_FAILURE_MODE` behaviour as the contact form: `closed` answers `503` when
+Redis is unavailable, `open` lets the request through). Metrics and dashboards:
+`docs/12_EVALUATION_AND_MONITORING.md` "Frontend Web Vitals (R07-11)".
+
 ## Status codes
 
 | Code | Meaning                       |

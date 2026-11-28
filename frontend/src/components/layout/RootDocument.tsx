@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { AppQueryProvider } from "@/components/providers/AppQueryProvider";
 import { ConsentProvider } from "@/components/consent/ConsentProvider";
 import { CookieConsentBanner } from "@/components/consent/CookieConsentBanner";
+import { WebVitalsReporter } from "@/components/observability/WebVitalsReporter";
 import { getFrontendRuntimeConfigErrors } from "@/lib/runtime-config";
 import { getHtmlLang } from "@/lib/i18n-format";
 import type { SupportedLocale } from "@/i18n/routing";
@@ -50,6 +51,7 @@ export function RootDocument({
                 {children}
                 <CookieConsentBanner />
                 {/* anchor: A2 body */}
+                <WebVitalsReporter />
               </ConsentProvider>
             </AppQueryProvider>
           )}
