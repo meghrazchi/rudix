@@ -18,7 +18,8 @@
 
 Turn the `0.8.0` spec into nine work packages with exact files, shared-file anchors, tests,
 and owners. Every reference was read on `develop` at `9eb0acd3` (`0.2.0` to `0.7.0` merged, not
-tagged). Line numbers drift; search for the quoted symbol.
+tagged; `27c2e2ef` later changed only the documents page bundle). Line numbers drift; search
+for the quoted symbol.
 
 Most of `0.8.0` is infrastructure that cannot run on a development machine. This release builds
 the repository part: a Helm chart, hardened Compose files, an edge proxy configuration,
@@ -257,9 +258,9 @@ cd frontend && node scripts/check-bundle-budgets.mjs && PLAYWRIGHT_USE_BUNDLED_B
 
 Coverage stays at or above the ratchets (backend 82.4; frontend statements 68.6, branches
 60.8, functions 62.1, lines 69.5). `alembic heads` reports `20261128_0003`. The prerender check
-finds all 144 static routes and the 162 parity tests pass. The bundle budget check fails on
-`/documents` as recorded in `0.7.0`; D1 must not add to any route's first-load size in the
-default build. First exercised in CI, not here: `kubeconform`, `promtool check/test rules`,
+finds all 144 static routes and the 162 parity tests pass. The bundle budget check passes
+(`/documents` was brought back within budget at `27c2e2ef`); D1 must not add to any route's
+first-load size in the default build and never raises a budget. First exercised in CI, not here: `kubeconform`, `promtool check/test rules`,
 `amtool check-config`, `caddy validate`, `terraform fmt/validate`.
 
 ## 8. Operator steps (not done in the repository)
@@ -323,7 +324,7 @@ routing and restore verification on PostgreSQL, tracing redaction with the in-me
 - Neo4j online backup (Community edition); rotation of `CONNECTOR_CREDENTIAL_ENCRYPTION_KEY`
   (needs re-encryption of stored credentials).
 - API `--workers` above 1 (would need multiprocess metrics in the API).
-- `R05-12` rich answer rendering; the `/documents` bundle budget decision from `0.7.0`.
+- `R05-12` rich answer rendering (renderer not approved).
 
 ## 11. Change Notes
 
