@@ -59,6 +59,12 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # 'manual' | 'sso' | 'scim'
     provisioned_by: Mapped[str] = mapped_column(String(16), nullable=False, default="manual")
     scim_external_id: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    # 0.9.0 (R09-01, migration 20261129_0001): when the user proved the mailbox (verification
+    # link or invitation acceptance). NULL means not proven; nothing enforces it by default.
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     organization = relationship("Organization", back_populates="users")
     memberships = relationship(

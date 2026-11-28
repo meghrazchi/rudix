@@ -20,6 +20,11 @@ MIGRATION_PATH = (
 )
 MIGRATION_0_6_0_PATH = MIGRATION_PATH.with_name("20261128_0001_document_processing_stages.py")
 MIGRATION_0_6_0_OUTBOX_PATH = MIGRATION_PATH.with_name("20261128_0002_outbox_and_worker_schema.py")
+MIGRATIONS_0_9_0_PATHS = (
+    MIGRATION_PATH.with_name("20261129_0001_account_tokens_and_verification.py"),
+    MIGRATION_PATH.with_name("20261129_0002_mfa_and_login_policy.py"),
+    MIGRATION_PATH.with_name("20261129_0003_billing_and_stage_limits.py"),
+)
 
 
 def _load_migration(path: Path = MIGRATION_PATH) -> ModuleType:
@@ -102,7 +107,7 @@ def test_migration_literal_lists_match_constants() -> None:
     assert migration.revision == "20261127_0004"
     assert migration.down_revision == "20261127_0003"
     assert tuple(migration.STRICT_TABLES) == rls.RLS_STRICT_TABLES_0_4_0
-    assert tuple(migration.LOOKUP_TABLES) == rls.RLS_LOOKUP_TABLES
+    assert tuple(migration.LOOKUP_TABLES) == rls.RLS_LOOKUP_TABLES_0_4_0
     assert tuple(migration.IDENTITY_TABLES) == rls.RLS_IDENTITY_TABLES
     assert tuple(migration.LEGACY_TABLES) == rls.TENANT_RLS_TABLES
     assert migration.STRICT_CONDITION == rls.STRICT_RLS_CONDITION
@@ -114,7 +119,9 @@ def test_0_6_0_migration_literal_matches_the_prefix_it_created() -> None:
     assert migration.revision == "20261128_0001"
     created = tuple(migration.STRICT_TABLES)
     assert created == rls.RLS_STRICT_TABLES_0_6_0[: len(created)]
-    assert rls.RLS_STRICT_TABLES == rls.RLS_STRICT_TABLES_0_4_0 + rls.RLS_STRICT_TABLES_0_6_0
+    assert rls.RLS_STRICT_TABLES == (
+        rls.RLS_STRICT_TABLES_0_4_0 + rls.RLS_STRICT_TABLES_0_6_0 + rls.RLS_STRICT_TABLES_0_9_0
+    )
 
 
 def test_0_6_0_outbox_migration_literal_continues_the_0_6_0_list() -> None:
@@ -131,6 +138,34 @@ def test_0_6_0_outbox_migration_literal_continues_the_0_6_0_list() -> None:
     # The global generation table has no tenant column and therefore no policy.
     assert "vector_index_generations" not in rls.RLS_STRICT_TABLES
     assert "organization_id" not in Base.metadata.tables["vector_index_generations"].c
+
+
+def test_0_9_0_migration_literals_match_the_0_9_0_lists() -> None:
+    lookup: tuple[str, ...] = ()
+    strict: tuple[str, ...] = ()
+    previous = "20261128_0003"
+    for index, path in enumerate(MIGRATIONS_0_9_0_PATHS, start=1):
+        migration = _load_migration(path)
+        assert migration.revision == f"20261129_000{index}"
+        assert migration.down_revision == previous
+        previous = migration.revision
+        lookup += tuple(getattr(migration, "LOOKUP_TABLES", ()))
+        strict += tuple(getattr(migration, "STRICT_TABLES", ()))
+    assert lookup == rls.RLS_LOOKUP_TABLES_0_9_0
+    assert strict == rls.RLS_STRICT_TABLES_0_9_0
+    assert rls.RLS_LOOKUP_TABLES == rls.RLS_LOOKUP_TABLES_0_4_0 + rls.RLS_LOOKUP_TABLES_0_9_0
+    # User-scoped MFA tables and the global plan catalogue have no tenant column.
+    for table in ("user_mfa_factors", "user_mfa_recovery_codes", "billing_plans"):
+        assert "organization_id" not in Base.metadata.tables[table].c
+        assert table not in rls.RLS_LOOKUP_TABLES + rls.RLS_STRICT_TABLES
+
+
+def test_0_9_0_lookup_tables_are_not_soft_denied() -> None:
+    # Token lookups, login, and webhooks read these before a tenant is bound; the soft-mode
+    # detector only counts strict tables, and the guard filters them only when enforced.
+    for table in rls.RLS_LOOKUP_TABLES_0_9_0:
+        assert table not in tenant_context._STRICT_TABLES
+    assert "billing_invoices" in tenant_context._STRICT_TABLES
 
 
 def test_legacy_builder_is_unchanged() -> None:
