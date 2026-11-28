@@ -26,12 +26,14 @@ from app.core.settings.auth import (
     validate_auth_cookies,
     validate_auth_provider,
 )
+from app.core.settings.backup import BackupSettings
 from app.core.settings.celery import CelerySettings
 from app.core.settings.connectors import (
     ConnectorsSettings,
     validate_connector_rollout,
 )
 from app.core.settings.database import DatabaseSettings
+from app.core.settings.deployment import DeploymentSettings
 from app.core.settings.email_bots import EmailBotsSettings
 from app.core.settings.enums import (
     AuthProvider,
@@ -77,6 +79,7 @@ from app.core.settings.storage import (
     StorageSettings,
     validate_upload_security,
 )
+from app.core.settings.tracing import TracingSettings
 from app.core.settings.workers import WorkersSettings
 
 __all__ = [
@@ -124,6 +127,10 @@ class Settings(
     FeaturesSettings,
     WorkersSettings,
     RealtimeSettings,
+    # Production infrastructure (0.8.0): B1, B3, and A2 fill these.
+    DeploymentSettings,
+    TracingSettings,
+    BackupSettings,
     BaseSettings,
 ):
     model_config = SettingsConfigDict(

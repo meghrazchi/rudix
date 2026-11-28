@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import app.core.metrics_infra  # noqa: F401 - registers the 0.8.0 gauges for /metrics
 from app.application.realtime import stream_http
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal

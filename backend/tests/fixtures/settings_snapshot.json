@@ -176,6 +176,7 @@
     "retrieval_parallel_timeout_ms": 8000
   },
   "frontend_base_url": "http://localhost:3000/",
+  "infrastructure": {},
   "langfuse_base_url_set": false,
   "langfuse_capture_input_output": true,
   "langfuse_enabled": false,

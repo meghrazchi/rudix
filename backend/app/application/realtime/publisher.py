@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, SessionTransaction
 from sqlalchemy.util import await_only
 
+import app.core.metrics_infra  # noqa: F401 - registers the 0.8.0 gauges for /metrics
 from app.clients import redis_client as redis_module
 from app.core.config import settings
 from app.core.logging import get_logger

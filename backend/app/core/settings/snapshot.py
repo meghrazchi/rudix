@@ -333,4 +333,14 @@ def sanitized_snapshot(settings: Settings) -> dict[str, Any]:
                 for server in settings.mcp_external_servers
             ],
         },
+        # Production infrastructure (0.8.0): booleans (``*_set``) and sanitized values only,
+        # never URLs with credentials. Each task adds its keys after its anchor.
+        "infrastructure": {
+            # anchor: v080-A2
+            # anchor: v080-B1
+            # anchor: v080-B2
+            # anchor: v080-B3
+            # anchor: v080-C2
+            # anchor: v080-D1
+        },
     }

@@ -58,6 +58,8 @@ INCLUDE: list[str] = [
     # anchor: C1
     # anchor: C2
     # anchor: D1
+    # anchor: v080-A2
+    # anchor: v080-B2
 ]
 
 # Stage tasks of the staged ingestion chain (R06-01): extract..chunk on the processing
@@ -106,6 +108,8 @@ TASK_ROUTES: dict[str, dict[str, str]] = {
     "agents.runs.reap": _route(settings.celery_task_default_queue),
     # anchor: D1
     "connectors.sync.reap": _route(settings.celery_queue_connector_sync),
+    # anchor: v080-A2
+    # anchor: v080-B2
 }
 
 BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
@@ -160,6 +164,8 @@ BEAT_SCHEDULE: dict[str, dict[str, Any]] = {
         "task": "connectors.sync.reap",
         "schedule": settings.connector_sync_reap_interval_seconds,
     },
+    # anchor: v080-A2
+    # anchor: v080-B2
 }
 
 

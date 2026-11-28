@@ -28,6 +28,7 @@ from typing import Any
 
 from starlette.responses import StreamingResponse
 
+import app.core.metrics_infra  # noqa: F401 - registers the 0.8.0 gauges for /metrics
 from app.application.chat.transports.sse import (
     SSE_HEADERS,
     SSE_KEEPALIVE_FRAME,
