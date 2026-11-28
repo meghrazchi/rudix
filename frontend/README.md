@@ -304,6 +304,41 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   `robots.txt`, `llms.txt` and `icon.svg` are byte-identical; `sitemap.xml` is identical
   except `<lastmod>` (the build time).
 
+### Token storage and route gate (R07-09)
+
+- The access token is kept only in memory (`src/lib/auth/session-store.ts`, read through
+  `useAuthSession`, which uses `useSyncExternalStore`). Nothing token-bearing is written to
+  `localStorage`. A reload or a new tab calls the refresh endpoint with the HttpOnly refresh
+  cookie (`credentials: "include"`) and is signed out on `401`, so set
+  `NEXT_PUBLIC_AUTH_REFRESH_URL` in every deployment; without it a reload signs the user out.
+- `src/lib/auth-session.ts` keeps its exported names: `readSessionFromStorage()` returns the
+  in-memory session, `writeSessionToStorage()` writes memory, `clearSessionStorage()` clears
+  memory and the legacy keys.
+- Compatibility: a session stored by 0.6.x in `localStorage["rudix.session.v1"]` is loaded
+  once into memory (`NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ`, default on) and removed after the
+  first successful refresh or authenticated response, so signed-in users stay signed in across
+  the deploy. Removed in 0.8.0. Playwright specs still seed that key.
+- The dev-only local fallback (`NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=true` or
+  `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN`) has no refresh cookie and keeps a tab-scoped copy
+  in `sessionStorage["rudix.session.dev.v1"]`.
+- Refreshes across tabs are serial: the token-free lease `rudix.auth.refresh.lock.v1` is held
+  during each refresh, and a waiting tab runs its own refresh after the holder releases
+  (never reusing a rotated refresh token). Sign-out still reaches other tabs through the
+  auth-boundary storage event.
+- The SSO callback page moves the token from the query into memory and replaces the URL.
+- Route gate: with `RUDIX_ROUTE_GATE=enforce` (server env, default `off`), `src/proxy.ts`
+  redirects an app-route request without the `RUDIX_SESSION_HINT_COOKIE_NAME` cookie
+  (default `rudix_session_hint`, set by the backend when
+  `APP_AUTH_SESSION_HINT_COOKIE_ENABLED=true`) with `307` to
+  `/{locale}/login?next=...` before the shell renders. It never reads roles or claims; role
+  checks stay in `ProtectedAppLayout` and the backend. Enable the backend hint for one
+  refresh-token lifetime before enforcing the gate (docs/11 `## Authentication`).
+- `AUTHENTICATED_APP_ROUTE_SEGMENTS` now includes `knowledge`; a test derives the segment list
+  from `src/app/(app)` so new app routes cannot be missed. `robots.txt` now disallows
+  `/knowledge`.
+- E2E: the `chromium-route-gate` project runs `e2e/route-gate.spec.ts` against a third dev
+  server (`PLAYWRIGHT_GATE_FRONTEND_PORT`, default 3103, dist dir `.next-e2e-gate`).
+
 ### Generated API client (R07-05)
 
 `npm run api:check-handwritten` (`scripts/check-api-handwritten-types.mjs`, run in CI directly after `api:check`) scans `src/lib/api/*.ts` and fails on an exported type or interface whose name ends in `Response`, `Item`, `Record`, `Summary`, `Detail`, `Entry`, `Result`, `Payload` or `Request` unless its declaration references `Schemas[`, `components[` or `operations[` (directly or through a local alias of the schema).
@@ -477,6 +512,100 @@ No list silently stops at one page: each shows a count ("Showing 20 of 45") or a
   another package) and the `collectionViews.allDocuments` cache key. The chat
   `NEXT_PUBLIC_CHAT_MAX_INDEXED_DOCS` request is a validation cache with its `total`, not
   a displayed list.
+
+### Translation coverage (R07-12)
+
+User-facing text in `src/components/chat`, `src/components/evaluations` and
+`src/components/states` comes from `next-intl` messages in all six locales
+(en, de, es, fr, ar, fa). ESLint enforces it: in those directories the
+`no-restricted-syntax` rule is an error for literal JSX text and for literal
+`aria-label`, `title`, `placeholder` and `alt` attributes (tests, `tests/`
+folders and the files owned by other work packages are excluded: the
+scope selector files, `DocumentPreviewModal*`, `TrustPanelModal*`). Icon-font
+glyph names such as `open_in_new` (lowercase snake case) are not flagged. That
+exemption also lets a lone lowercase word through (for example `run` or `of`),
+so check those by hand in review; any other non-UI literal needs an
+`eslint-disable-next-line` with a reason. Case-list cache: the dataset builder
+and the evaluations page share `queryKeys.evaluations.setQuestions(setId)`;
+invalidate it without params so every page size of the set refreshes.
+
+- Keys live in the existing namespaces: `chat.trustPanel.*`, `chat.feedback.*`,
+  `chat.share.*`, `chat.activity.*`, `evaluations.<panel>.*` and the new
+  top-level `states` namespace (also in `PUBLIC_NAMESPACES`, because
+  `ForbiddenState` renders on the public `/forbidden` page).
+- English values equal the previous literals, so existing tests assert the same
+  text. Plurals use ICU (`{count, plural, one {...} other {...}}`); rich text
+  uses tags (`<strong>`, `<code>`). `src/i18n/message-keys.test.ts` checks key
+  parity; `src/i18n/message-placeholders.test.ts` checks that every translation
+  keeps the English placeholders and tags.
+- Pure helpers (`trust-badges.ts`, `trust-format.ts`, `trust-warnings.ts`,
+  `agreementLevelLabel`) take a translator argument instead of returning
+  English strings.
+- Dataset builder: the case list pages by offset (`DATASET_CASES_PAGE_SIZE`, 50) with a count and a "Load more" button.
+- Browsers: set `PLAYWRIGHT_EXTRA_BROWSERS=true` (CI does) to add Firefox and
+  WebKit projects that run the smoke, public SEO and responsive specs. Install
+  them once with `npx playwright install firefox webkit`.
+  Some sandboxed macOS environments cannot launch Firefox or WebKit; CI is the
+  reference for those two projects.
+
+What remains untranslated: admin, connectors, settings and verified-answers
+screens (deferred), public marketing and legal pages (owner decision), the scope
+selector and document preview files (other packages), server-supplied text
+(comparison messages from `evaluation-view-model.ts`, release-gate
+recommendations, backend error messages), the percentage placeholder `N/A` in
+`trust-format.ts` (`pct`, `score`), and language names from
+`EVAL_LANGUAGE_OPTIONS`. In the trust panel, preselecting a category in the
+report dialog matches warning text against English keywords, so it only works
+for English warnings.
+
+Automated accessibility checks (`@axe-core/playwright`) are deferred: the
+package is not approved as a dependency.
+
+### Assets, error boundaries and Web Vitals (R07-04, R07-08, R07-11)
+
+- **Icons and fonts are self-hosted.** Material Symbols Outlined is a subset served from
+  `public/fonts/material-symbols/material-symbols-outlined.woff2` (21,436 bytes for 234
+  names; the former stylesheet loaded the whole static font, 324,816 bytes, from Google).
+  `@font-face` and `.material-symbols-outlined` live in `src/app/globals.css`; the page
+  makes no request to `fonts.googleapis.com` or `fonts.gstatic.com` and the CSP allows
+  neither.
+  - `config/material-symbols.json` lists the names. `npm run icons:check` fails when `src`
+    uses a name not listed. Names are found in `name=`/`icon=`/`icon:` props, in the text of
+    elements with class `material-symbols-outlined`, and in `return "x"` inside helpers
+    whose name contains `Icon` (such as `getFileIcon`); names that only appear in other maps
+    are added to the list by hand (the script keeps existing entries).
+  - To regenerate after adding a name: run `node scripts/material-symbols-subset.mjs`, then
+    request `https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&icon_names=<comma list>&display=block`
+    with a browser User-Agent and save the `.woff2` it points to over the file above. Request
+    **no axes**: the former stylesheet served the static default instance (FILL 0, weight
+    400, grade 0, optical size 24), so `font-variation-settings: 'FILL' 1` has no visible
+    effect and must keep having none; a variable subset would fill those icons and change
+    shapes through optical sizing.
+- **Brand mark.** `public/brand/rudix-mark.svg` is 303,577 bytes before and 16,093 after
+  (embedded PNG resampled from 441x589 to 78x104; the largest rendered size is 32 px high on
+  the SSO callback page, so 104 px covers it at 3x);
+  `src/app/icon.svg` and `favicon.svg` went from 303,577 to 11,541 bytes (64x85). Paths,
+  `width`, `height` and `viewBox` are unchanged. `next.config.ts` sets
+  `images.formats` to AVIF and WebP.
+- **Route error boundaries.** `src/components/errors/RouteErrorFallback.tsx` (translated,
+  `errors.routeBoundary.*`) has a `page` variant (full screen, public routes) and a `segment`
+  variant (inline card inside the app shell). `error.tsx` and `loading.tsx` exist for
+  `chat`, `documents`, `collections`, `admin`, `settings` and `reports`, so an error in one
+  page leaves the sidebar and header usable; `app/(app)/error.tsx` uses the segment variant
+  too (it renders inside the shell), and `app/[locale]/error.tsx` the page variant.
+  `src/app/global-error.tsx` replaces the root
+  layout when that itself fails and uses `src/i18n/global-error-messages.ts` (all six
+  locales, chosen from `<html lang>` or the `NEXT_LOCALE` cookie). `/admin/error-probe`
+  throws on purpose when `NEXT_PUBLIC_E2E_ERROR_PROBE=true` (Playwright only; staging and
+  production builds refuse the variable) and is a 404 otherwise.
+- **Web Vitals (first-party, off by default).** With `NEXT_PUBLIC_WEB_VITALS_ENABLED=true`
+  **and** analytics consent, `WebVitalsReporter` batches LCP, INP, CLS, FCP and TTFB (route
+  patterns only) and posts them to `${NEXT_PUBLIC_API_URL}/telemetry/web-vitals`, which also
+  needs `WEB_VITALS_INGEST_ENABLED=true` on the API. Nothing is sent otherwise.
+- **Sentry** uses the envelope endpoint (`/api/<project>/envelope/`) instead of the legacy
+  store endpoint; same DSN, sampling and redaction, no SDK.
+- Environment variables: `NEXT_PUBLIC_WEB_VITALS_ENABLED` (default `false`),
+  `NEXT_PUBLIC_E2E_ERROR_PROBE` (test only; never set in staging or production).
 
 ## Dashboard Design Sample
 
@@ -694,6 +823,11 @@ NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=true
 NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN=
 NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN=
 NEXT_PUBLIC_AUTH_REFRESH_URL=
+# Read a 0.6.x localStorage session once (removed in 0.8.0)
+NEXT_PUBLIC_AUTH_LEGACY_SESSION_READ=true
+# Server env, read per request by src/proxy.ts: off | enforce
+RUDIX_ROUTE_GATE=off
+RUDIX_SESSION_HINT_COOKIE_NAME=rudix_session_hint
 # Development-only: NEXT_PUBLIC_AUTH_LOCAL_FALLBACK, NEXT_PUBLIC_AUTH_LOCAL_PASSWORD,
 # NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK, NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_PASSWORD,
 # NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN and NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN
@@ -808,7 +942,7 @@ Open `http://localhost:3000`.
 
 ### Security headers
 
-`next.config.ts` applies security headers to every route from `config/security-headers.mjs`: `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options: DENY`, HSTS in staging/production, and a `Content-Security-Policy-Report-Only` header by default. Set `NEXT_PUBLIC_CSP_ENFORCE=true` (default `false`) to send the same policy as an enforced `Content-Security-Policy` header instead; flip it after a clean report-only period. Analytics, Sentry, API, and contact-submit (`NEXT_PUBLIC_CONTACT_SUBMIT_API_URL`, a `fetch` target) origins are added to the policy only when their `NEXT_PUBLIC_*` variables are set. The external submit and scheduler URLs are navigations and are not listed. When `NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER` is `turnstile`, `hcaptcha`, or `recaptcha` (case-insensitive), that provider's script, frame, and connect hosts are allowed (and styles for hCaptcha); `frame-src` is `'none'` otherwise. Unknown providers add nothing. Set `NEXT_PUBLIC_CSP_REPORT_URI` to send violation reports to a collector. The `config/` directory is copied into the runtime image because `next.config.ts` imports it at `next start`. See `docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md`.
+`next.config.ts` applies security headers to every route from `config/security-headers.mjs`: `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `X-Frame-Options: DENY`, HSTS in staging/production, and a `Content-Security-Policy-Report-Only` header by default. Set `NEXT_PUBLIC_CSP_ENFORCE=true` (default `false`) to send the same policy as an enforced `Content-Security-Policy` header instead; flip it after a clean report-only period. Analytics, Sentry, API, and contact-submit (`NEXT_PUBLIC_CONTACT_SUBMIT_API_URL`, a `fetch` target) origins are added to the policy only when their `NEXT_PUBLIC_*` variables are set. The external submit and scheduler URLs are navigations and are not listed. When `NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER` is `turnstile`, `hcaptcha`, or `recaptcha` (case-insensitive), that provider's script, frame, and connect hosts are allowed (and styles for hCaptcha); `frame-src` is `'none'` otherwise. Unknown providers add nothing. Fonts and icons are self-hosted, so the policy allows no Google Fonts hosts (R07-04). Set `NEXT_PUBLIC_CSP_REPORT_URI` to send violation reports to a collector. The `config/` directory is copied into the runtime image because `next.config.ts` imports it at `next start`. See `docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md`.
 
 ## Scripts
 

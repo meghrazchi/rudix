@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import {
   formatInteger,
   formatPercent,
@@ -59,6 +61,7 @@ export function ChunkingComparisonPanel({
 }: {
   summaryValue: unknown;
 }) {
+  const t = useTranslations("evaluations.chunkingComparison");
   const summary = asRecord(summaryValue);
   const targets = asRecordArray(summary?.comparison_targets);
   if (targets.length === 0) {
@@ -74,16 +77,11 @@ export function ChunkingComparisonPanel({
     <section className="space-y-3 rounded-xl border border-[#ddd8ec] bg-[#fcfbff] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h3 className="text-sm font-semibold text-[#2f2a48]">
-            Chunking strategy comparison
-          </h3>
-          <p className="mt-1 text-xs text-[#6a6581]">
-            Question-level results below reflect the primary target. This panel
-            compares all configured profiles on the same evaluation set.
-          </p>
+          <h3 className="text-sm font-semibold text-[#2f2a48]">{t("title")}</h3>
+          <p className="mt-1 text-xs text-[#6a6581]">{t("description")}</p>
         </div>
         <span className="rounded-full border border-[#d7d2e8] bg-white px-2 py-1 text-xs font-semibold text-[#4d4668]">
-          {targets.length} target{targets.length === 1 ? "" : "s"}
+          {t("targets", { count: targets.length })}
         </span>
       </div>
 
@@ -91,16 +89,16 @@ export function ChunkingComparisonPanel({
         <table className="min-w-full divide-y divide-[#ece8f6] text-sm">
           <thead className="bg-[#f7f5fd] text-left text-xs font-semibold tracking-wide text-[#665f81] uppercase">
             <tr>
-              <th className="px-3 py-2">Profile</th>
-              <th className="px-3 py-2">Strategy</th>
-              <th className="px-3 py-2">Score</th>
-              <th className="px-3 py-2">Retrieval</th>
-              <th className="px-3 py-2">Citation</th>
-              <th className="px-3 py-2">Faithfulness</th>
-              <th className="px-3 py-2">Chunks</th>
-              <th className="px-3 py-2">Avg tokens</th>
-              <th className="px-3 py-2">Not found</th>
-              <th className="px-3 py-2">Regression</th>
+              <th className="px-3 py-2">{t("columns.profile")}</th>
+              <th className="px-3 py-2">{t("columns.strategy")}</th>
+              <th className="px-3 py-2">{t("columns.score")}</th>
+              <th className="px-3 py-2">{t("columns.retrieval")}</th>
+              <th className="px-3 py-2">{t("columns.citation")}</th>
+              <th className="px-3 py-2">{t("columns.faithfulness")}</th>
+              <th className="px-3 py-2">{t("columns.chunks")}</th>
+              <th className="px-3 py-2">{t("columns.avgTokens")}</th>
+              <th className="px-3 py-2">{t("columns.notFound")}</th>
+              <th className="px-3 py-2">{t("columns.regression")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#f0edf7]">
@@ -110,15 +108,15 @@ export function ChunkingComparisonPanel({
                 <tr key={`${asString(target.label) ?? "target"}-${index + 1}`}>
                   <td className="px-3 py-2 align-top text-[#2f2a48]">
                     <div className="font-semibold">
-                      {asString(target.label) ?? `Target ${index + 1}`}
+                      {asString(target.label) ?? t("targetN", { n: index + 1 })}
                     </div>
                     <div className="text-xs text-[#6a6581]">
                       {asString(target.profile_version) ??
-                        "Version unavailable"}
+                        t("versionUnavailable")}
                     </div>
                   </td>
                   <td className="px-3 py-2 align-top text-[#4b4564]">
-                    {asString(target.chunking_strategy) ?? "Unknown"}
+                    {asString(target.chunking_strategy) ?? t("unknown")}
                   </td>
                   <td className="px-3 py-2 align-top text-[#4b4564]">
                     {formatPercent(asNumber(target.overall_score))}
@@ -144,7 +142,7 @@ export function ChunkingComparisonPanel({
                   <td className="px-3 py-2 align-top">
                     {regressionFlags.length === 0 ? (
                       <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
-                        Clear
+                        {t("clear")}
                       </span>
                     ) : (
                       <div className="space-y-1">
@@ -153,7 +151,7 @@ export function ChunkingComparisonPanel({
                             key={`${asString(flag.metric) ?? "flag"}-${flagIndex + 1}`}
                             className="rounded border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-900"
                           >
-                            {asString(flag.metric) ?? "metric"}:{" "}
+                            {asString(flag.metric) ?? t("metricFallback")}:{" "}
                             {formatPercent(asNumber(flag.value))}
                           </div>
                         ))}
@@ -171,11 +169,11 @@ export function ChunkingComparisonPanel({
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="rounded-lg border border-[#e7e3f3] bg-white p-3">
             <h4 className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-              Best by document type
+              {t("bestByDocumentType")}
             </h4>
             {bestByDocumentType.length === 0 ? (
               <p className="mt-2 text-xs text-[#6a6581]">
-                No document-type breakdown available.
+                {t("noDocumentTypes")}
               </p>
             ) : (
               <ul className="mt-2 space-y-2 text-sm text-[#403b5b]">
@@ -186,7 +184,7 @@ export function ChunkingComparisonPanel({
                   >
                     <span className="font-medium">{label}</span>
                     <span className="text-right text-xs text-[#6a6581]">
-                      {asString(entry.label) ?? "Unknown"} •{" "}
+                      {asString(entry.label) ?? t("unknown")} •{" "}
                       {formatPercent(asNumber(entry.score))}
                     </span>
                   </li>
@@ -197,12 +195,10 @@ export function ChunkingComparisonPanel({
 
           <div className="rounded-lg border border-[#e7e3f3] bg-white p-3">
             <h4 className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-              Best by use case
+              {t("bestByUseCase")}
             </h4>
             {bestByUseCase.length === 0 ? (
-              <p className="mt-2 text-xs text-[#6a6581]">
-                No use-case breakdown available.
-              </p>
+              <p className="mt-2 text-xs text-[#6a6581]">{t("noUseCases")}</p>
             ) : (
               <ul className="mt-2 space-y-2 text-sm text-[#403b5b]">
                 {bestByUseCase.map(([label, entry]) => (
@@ -212,7 +208,7 @@ export function ChunkingComparisonPanel({
                   >
                     <span className="font-medium">{label}</span>
                     <span className="text-right text-xs text-[#6a6581]">
-                      {asString(entry.label) ?? "Unknown"} •{" "}
+                      {asString(entry.label) ?? t("unknown")} •{" "}
                       {formatPercent(asNumber(entry.score))}
                     </span>
                   </li>

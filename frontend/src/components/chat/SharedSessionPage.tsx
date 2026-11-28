@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import { getSharedSession } from "@/lib/api/shares";
 import { getApiErrorMessage } from "@/lib/api/errors";
@@ -47,6 +48,7 @@ function getFileTypeColorClass(filename: string | null | undefined): string {
 
 function freshnessLabel(
   citation: ChatCitationResponse,
+  t: (key: string) => string,
 ): { label: string; className: string } | null {
   const trust = citation.source_trust_status ?? null;
   if (!trust) {
@@ -54,21 +56,21 @@ function freshnessLabel(
   }
   if (trust === "stale") {
     return {
-      label: "Stale",
+      label: t("trustPanel.badge.stale"),
       className:
         "rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 uppercase",
     };
   }
   if (trust === "revoked") {
     return {
-      label: "Revoked",
+      label: t("trustPanel.badge.revoked"),
       className:
         "rounded-full bg-rose-100 px-1.5 py-0.5 text-[9px] font-semibold text-rose-800 uppercase",
     };
   }
   if (trust === "deleted") {
     return {
-      label: "Deleted",
+      label: t("trustPanel.badge.deleted"),
       className:
         "rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700 uppercase",
     };
@@ -83,12 +85,14 @@ function CitationCard({
   citation: ChatCitationResponse;
   onClick?: () => void;
 }) {
+  const t = useTranslations("chat");
   const providerLabel =
     citation.source_provider_label ?? citation.source_provider ?? null;
-  const sourceTitle = citation.source_title ?? citation.filename ?? "Document";
+  const sourceTitle =
+    citation.source_title ?? citation.filename ?? t("share.page.document");
   const sourceSection = citation.source_section ?? null;
   const trustStatus = citation.source_trust_status ?? null;
-  const freshness = freshnessLabel(citation);
+  const freshness = freshnessLabel(citation, t);
   return (
     <button
       type="button"
@@ -138,7 +142,7 @@ function CitationCard({
         ) : null}
         {citation.page_number != null && (
           <p className="text-[10px] text-[#6a6780]">
-            Page {citation.page_number}
+            {t("share.page.pageN", { page: citation.page_number })}
           </p>
         )}
         {citation.text_snippet && (
@@ -152,6 +156,7 @@ function CitationCard({
 }
 
 export function SharedSessionPage({ token }: Props) {
+  const t = useTranslations("chat.share.page");
   const [previewCitationSet, setPreviewCitationSet] = useState<{
     citations: ChatCitationResponse[];
     initialIndex: number;
@@ -170,7 +175,7 @@ export function SharedSessionPage({ token }: Props) {
   if (sharedQuery.isLoading) {
     return (
       <section className="px-4 py-8">
-        <LoadingState title="Loading shared session..." />
+        <LoadingState title={t("loadingSession")} />
       </section>
     );
   }
@@ -180,8 +185,8 @@ export function SharedSessionPage({ token }: Props) {
       return (
         <section className="px-4 py-8">
           <ForbiddenState
-            title="Access denied"
-            description="This share link is not accessible with your account. You must be a member of the organization that created it."
+            title={t("accessDenied")}
+            description={t("sessionForbidden")}
             compact={false}
           />
         </section>
@@ -190,7 +195,7 @@ export function SharedSessionPage({ token }: Props) {
     return (
       <section className="px-4 py-8">
         <ErrorState
-          title="Share link not found"
+          title={t("notFound")}
           error={sharedQuery.error}
           description={getApiErrorMessage(sharedQuery.error)}
         />
@@ -201,7 +206,7 @@ export function SharedSessionPage({ token }: Props) {
   const data = sharedQuery.data;
   if (!data) return null;
 
-  const sessionTitle = data.title?.trim() || "Shared session";
+  const sessionTitle = data.title?.trim() || t("sessionFallbackTitle");
 
   function handleDownload() {
     const md = formatTranscriptAsMarkdown(turns, sessionTitle);
@@ -219,14 +224,16 @@ export function SharedSessionPage({ token }: Props) {
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-              Shared Session
+              {t("sessionHeading")}
             </p>
             <h1 className="truncate text-xl font-semibold text-[#2a2640] lg:text-2xl">
               {sessionTitle}
             </h1>
             <p className="mt-1 text-xs text-[#6a6780]">
-              Shared {formatDate(data.shared_at)} • {data.total_messages}{" "}
-              messages
+              {t("sharedMessages", {
+                date: formatDate(data.shared_at),
+                count: data.total_messages,
+              })}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -241,7 +248,7 @@ export function SharedSessionPage({ token }: Props) {
               >
                 content_copy
               </span>
-              Copy all
+              {t("copyAll")}
             </button>
             <button
               type="button"
@@ -254,7 +261,7 @@ export function SharedSessionPage({ token }: Props) {
               >
                 download
               </span>
-              Download .md
+              {t("downloadMd")}
             </button>
           </div>
         </div>
@@ -269,8 +276,7 @@ export function SharedSessionPage({ token }: Props) {
             >
               info
             </span>
-            Answers are AI-generated and grounded in cited source evidence.
-            Verify against source documents before acting on them.
+            {t("aiNoticeSession")}
           </div>
           {turns.some((turn) =>
             turn.citations.some(
@@ -281,20 +287,19 @@ export function SharedSessionPage({ token }: Props) {
             ),
           ) ? (
             <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              Some citations in this shared session come from stale, revoked, or
-              deleted sources.
+              {t("staleSession")}
             </div>
           ) : null}
 
           {turns.length === 0 ? (
-            <EmptyState compact title="No messages in this shared session." />
+            <EmptyState compact title={t("noMessages")} />
           ) : (
             <ul className="space-y-6">
               {turns.map((turn, i) => (
                 <li key={`${i}-${turn.created_at}`} className="space-y-3">
                   <div className="flex justify-end">
                     <article className="max-w-[80%] rounded-xl rounded-tr-none bg-[#f0ecf9] px-4 py-3 shadow-sm">
-                      <p className="sr-only">Question</p>
+                      <p className="sr-only">{t("question")}</p>
                       <p className="text-sm break-words whitespace-pre-wrap text-[#1b1b24]">
                         {turn.question}
                       </p>
@@ -321,7 +326,7 @@ export function SharedSessionPage({ token }: Props) {
                           >
                             check_circle
                           </span>
-                          AI-generated answer
+                          {t("aiAnswer")}
                         </span>
                         <span className="font-mono text-xs text-[#6a6780]">
                           {formatDate(turn.created_at)}

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { AppQueryProvider } from "@/components/providers/AppQueryProvider";
 import { ConsentProvider } from "@/components/consent/ConsentProvider";
 import { CookieConsentBanner } from "@/components/consent/CookieConsentBanner";
+import { WebVitalsReporter } from "@/components/observability/WebVitalsReporter";
 import { getFrontendRuntimeConfigErrors } from "@/lib/runtime-config";
 import { getHtmlLang } from "@/lib/i18n-format";
 import type { SupportedLocale } from "@/i18n/routing";
@@ -39,14 +40,7 @@ export function RootDocument({
     >
       {/* Rendered by the root layouts, where <head> is the App Router way. */}
       {/* eslint-disable-next-line @next/next/no-head-element */}
-      <head>
-        {/* anchor: A2 head */}
-        {/* eslint-disable-next-line @next/next/google-font-display, @next/next/no-page-custom-font */}
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
-        />
-      </head>
+      <head>{/* anchor: A2 head */}</head>
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider locale={locale} messages={messages}>
           {runtimeConfigErrors.length > 0 ? (
@@ -57,6 +51,7 @@ export function RootDocument({
                 {children}
                 <CookieConsentBanner />
                 {/* anchor: A2 body */}
+                <WebVitalsReporter />
               </ConsentProvider>
             </AppQueryProvider>
           )}

@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 type SkeletonBlockProps = {
   rows?: number;
   compact?: boolean;
@@ -28,10 +30,11 @@ export function SkeletonBlock({
   compact = false,
   className,
 }: SkeletonBlockProps) {
+  const t = useTranslations("states");
   return (
     <div
       role="status"
-      aria-label="Loading content"
+      aria-label={t("skeleton.aria")}
       aria-live="polite"
       className={
         className ??
@@ -47,7 +50,7 @@ export function SkeletonBlock({
           />
         ))}
       </div>
-      <span className="sr-only">Loading…</span>
+      <span className="sr-only">{t("skeleton.text")}</span>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createChatShare,
@@ -19,14 +20,13 @@ type Props = {
 type ExpiryOption = "never" | "24h" | "7d" | "30d";
 
 const EXPIRY_OPTIONS: {
-  label: string;
   value: ExpiryOption;
   hours: number | null;
 }[] = [
-  { label: "Never", value: "never", hours: null },
-  { label: "24 hours", value: "24h", hours: 24 },
-  { label: "7 days", value: "7d", hours: 168 },
-  { label: "30 days", value: "30d", hours: 720 },
+  { value: "never", hours: null },
+  { value: "24h", hours: 24 },
+  { value: "7d", hours: 168 },
+  { value: "30d", hours: 720 },
 ];
 
 function buildShareUrl(token: string): string {
@@ -34,8 +34,8 @@ function buildShareUrl(token: string): string {
   return `${window.location.origin}/chat/shared/${encodeURIComponent(token)}`;
 }
 
-function formatExpiry(expiresAt: string | null): string {
-  if (!expiresAt) return "Never";
+function formatExpiry(expiresAt: string | null, never: string): string {
+  if (!expiresAt) return never;
   try {
     return new Date(expiresAt).toLocaleString();
   } catch {
@@ -44,6 +44,7 @@ function formatExpiry(expiresAt: string | null): string {
 }
 
 export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
+  const t = useTranslations("chat.share");
   const queryClient = useQueryClient();
   const overlayRef = useRef<HTMLDivElement>(null);
   const [selectedExpiry, setSelectedExpiry] = useState<ExpiryOption>("never");
@@ -96,14 +97,14 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
   }, [onClose]);
 
   const shares = sharesQuery.data?.items ?? [];
-  const displayTitle = sessionTitle?.trim() || "Untitled session";
+  const displayTitle = sessionTitle?.trim() || t("sessionModal.untitled");
 
   return (
     <div
       ref={overlayRef}
       role="dialog"
       aria-modal="true"
-      aria-label="Share session"
+      aria-label={t("sessionModal.title")}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose();
@@ -114,7 +115,7 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
         <div className="flex items-center justify-between border-b border-[#e2dff1] px-5 py-4">
           <div>
             <h2 className="text-base font-semibold text-[#2a2640]">
-              Share session
+              {t("sessionModal.title")}
             </h2>
             <p className="mt-0.5 truncate text-xs text-[#6a6780]">
               {displayTitle}
@@ -123,7 +124,7 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("close")}
             className="rounded-lg p-1 text-[#6a6780] hover:bg-[#f5f2ff] hover:text-[#2f2a46]"
           >
             <span
@@ -144,21 +145,20 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
             >
               lock
             </span>
-            Share links are only accessible to signed-in members of your
-            organization.
+            {t("sessionModal.notice")}
           </div>
 
           {/* Create new share */}
           <div className="space-y-2">
             <p className="text-xs font-semibold tracking-wide text-[#464555] uppercase">
-              Create link
+              {t("createLink")}
             </p>
             <div className="flex items-center gap-2">
               <label
                 htmlFor="share-expiry"
                 className="shrink-0 text-xs text-[#6a6780]"
               >
-                Expires:
+                {t("expiresLabel")}
               </label>
               <select
                 id="share-expiry"
@@ -170,7 +170,7 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
               >
                 {EXPIRY_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
-                    {opt.label}
+                    {t(`expiry.${opt.value}`)}
                   </option>
                 ))}
               </select>
@@ -180,7 +180,7 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
                 onClick={() => createMutation.mutate()}
                 className="rounded-lg bg-[#3525cd] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {createMutation.isPending ? "Creating..." : "Generate link"}
+                {createMutation.isPending ? t("creating") : t("generate")}
               </button>
             </div>
             {createMutation.isError ? (
@@ -192,7 +192,7 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
 
           {/* Active shares */}
           {sharesQuery.isLoading ? (
-            <p className="text-xs text-[#6a6780]">Loading share links...</p>
+            <p className="text-xs text-[#6a6780]">{t("loadingLinks")}</p>
           ) : sharesQuery.isError ? (
             <p className="text-xs text-rose-700">
               {getApiErrorMessage(sharesQuery.error)}
@@ -200,7 +200,7 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
           ) : shares.length > 0 ? (
             <div className="space-y-2">
               <p className="text-xs font-semibold tracking-wide text-[#464555] uppercase">
-                Active links
+                {t("activeLinks")}
               </p>
               <ul className="space-y-2">
                 {shares.map((share) => (
@@ -213,12 +213,17 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
                         {buildShareUrl(share.token)}
                       </p>
                       <p className="mt-0.5 text-[10px] text-[#6a6780]">
-                        Expires: {formatExpiry(share.expires_at)}
+                        {t("expiresValue", {
+                          value: formatExpiry(
+                            share.expires_at,
+                            t("expiry.never"),
+                          ),
+                        })}
                       </p>
                     </div>
                     <button
                       type="button"
-                      aria-label="Copy link"
+                      aria-label={t("copyLink")}
                       onClick={() => void handleCopy(share)}
                       className="shrink-0 rounded p-1 text-[#6a6780] hover:bg-[#e9e6f8] hover:text-[#3525cd]"
                     >
@@ -233,7 +238,7 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
                     </button>
                     <button
                       type="button"
-                      aria-label="Revoke link"
+                      aria-label={t("revokeLink")}
                       disabled={revokeMutation.isPending}
                       onClick={() => revokeMutation.mutate(share.share_id)}
                       className="shrink-0 rounded p-1 text-[#6a6780] hover:bg-rose-100 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
@@ -251,7 +256,7 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
             </div>
           ) : (
             <p className="text-xs text-[#6a6780]">
-              No active share links for this session.
+              {t("sessionModal.noActive")}
             </p>
           )}
         </div>

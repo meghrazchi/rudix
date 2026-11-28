@@ -31,6 +31,7 @@ export function CitationDetails({
   activePreviewCitation: ChatCitationResponse;
 }) {
   const tc = useTranslations("chat.page");
+  const tt = useTranslations("chat.trustPanel");
   const {
     previewCitationSet,
     setPreviewCitationSet,
@@ -144,13 +145,17 @@ export function CitationDetails({
         <div className="rounded-2xl border border-[#e4e1ee] bg-white p-4 shadow-sm">
           {activePreviewCitationChunkQuery.isLoading ? (
             <p className="rounded-2xl border border-dashed border-[#d7d4e8] bg-[#faf9ff] p-4 text-sm text-[#6a6780]">
-              Loading chunk text...
+              {tc("loadingChunkText")}
             </p>
           ) : (
             (renderChunkCitationExcerpt(
               activePreviewCitationChunk,
               activePreviewCitation.text_snippet,
-            ) ?? renderCitationExcerpt(activePreviewCitation.text_snippet))
+              tt("excerpt.chunk"),
+            ) ??
+            renderCitationExcerpt(activePreviewCitation.text_snippet, {
+              label: tt("excerpt.cited"),
+            }))
           )}
           <div className="mt-4 flex flex-wrap gap-2">
             {activePreviewCitation.page_number ? (
@@ -258,6 +263,7 @@ export function CitationDetails({
                     <div className="mt-2">
                       {renderCitationExcerpt(citation.text_snippet, {
                         compact: true,
+                        label: tt("excerpt.cited"),
                       })}
                     </div>
                   ) : null}

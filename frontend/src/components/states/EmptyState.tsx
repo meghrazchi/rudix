@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { useTranslations } from "next-intl";
+
 type EmptyStateProps = {
   title?: string;
   description?: string;
@@ -9,15 +11,16 @@ type EmptyStateProps = {
 };
 
 export function EmptyState({
-  title = "No data available",
+  title,
   description,
   action,
   compact = false,
   className,
 }: EmptyStateProps) {
+  const t = useTranslations("states");
   return (
     <section
-      aria-label="Empty state"
+      aria-label={t("empty.aria")}
       className={
         className ??
         `rounded-lg border border-[#e4e1f2] bg-[#faf9ff] ${
@@ -28,7 +31,7 @@ export function EmptyState({
       <p
         className={`${compact ? "text-sm" : "text-base"} font-semibold text-[#2a2640]`}
       >
-        {title}
+        {title ?? t("empty.title")}
       </p>
       {description ? (
         <p

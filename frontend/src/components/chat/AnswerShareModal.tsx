@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createAnswerShare,
@@ -19,14 +20,13 @@ type Props = {
 type ExpiryOption = "never" | "24h" | "7d" | "30d";
 
 const EXPIRY_OPTIONS: {
-  label: string;
   value: ExpiryOption;
   hours: number | null;
 }[] = [
-  { label: "Never", value: "never", hours: null },
-  { label: "24 hours", value: "24h", hours: 24 },
-  { label: "7 days", value: "7d", hours: 168 },
-  { label: "30 days", value: "30d", hours: 720 },
+  { value: "never", hours: null },
+  { value: "24h", hours: 24 },
+  { value: "7d", hours: 168 },
+  { value: "30d", hours: 720 },
 ];
 
 function buildAnswerShareUrl(token: string): string {
@@ -34,8 +34,8 @@ function buildAnswerShareUrl(token: string): string {
   return `${window.location.origin}/chat/answer-shared/${encodeURIComponent(token)}`;
 }
 
-function formatExpiry(expiresAt: string | null): string {
-  if (!expiresAt) return "Never";
+function formatExpiry(expiresAt: string | null, never: string): string {
+  if (!expiresAt) return never;
   try {
     return new Date(expiresAt).toLocaleString();
   } catch {
@@ -43,12 +43,10 @@ function formatExpiry(expiresAt: string | null): string {
   }
 }
 
-function accessModeLabel(mode: AnswerShareAccessMode): string {
-  if (mode === "specific_users") return "Specific users";
-  return "Organization";
-}
-
 export function AnswerShareModal({ messageId, onClose }: Props) {
+  const t = useTranslations("chat.share");
+  const accessModeLabel = (mode: AnswerShareAccessMode): string =>
+    mode === "specific_users" ? t("accessSpecific") : t("accessOrg");
   const queryClient = useQueryClient();
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -124,7 +122,7 @@ export function AnswerShareModal({ messageId, onClose }: Props) {
       ref={overlayRef}
       role="dialog"
       aria-modal="true"
-      aria-label="Share answer"
+      aria-label={t("answerModal.title")}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose();
@@ -135,16 +133,16 @@ export function AnswerShareModal({ messageId, onClose }: Props) {
         <div className="flex items-center justify-between border-b border-[#e2dff1] px-5 py-4">
           <div>
             <h2 className="text-base font-semibold text-[#2a2640]">
-              Share answer
+              {t("answerModal.title")}
             </h2>
             <p className="mt-0.5 text-xs text-[#6a6780]">
-              Create a permission-controlled link to this Q&amp;A turn.
+              {t("answerModal.description")}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t("close")}
             className="rounded-lg p-1 text-[#6a6780] hover:bg-[#f5f2ff] hover:text-[#2f2a46]"
           >
             <span
@@ -165,14 +163,13 @@ export function AnswerShareModal({ messageId, onClose }: Props) {
             >
               lock
             </span>
-            Viewers must be signed-in members of your organization. Citations
-            show excerpt text only — underlying document IDs are not exposed.
+            {t("answerModal.notice")}
           </div>
 
           {/* Access mode */}
           <div className="space-y-1.5">
             <p className="text-xs font-semibold tracking-wide text-[#464555] uppercase">
-              Access
+              {t("answerModal.access")}
             </p>
             <div className="flex gap-2">
               {(["org_only", "specific_users"] as AnswerShareAccessMode[]).map(
@@ -198,13 +195,13 @@ export function AnswerShareModal({ messageId, onClose }: Props) {
                   htmlFor="answer-share-users"
                   className="mb-1 block text-[11px] text-[#6a6780]"
                 >
-                  User IDs (comma or space separated)
+                  {t("answerModal.userIds")}
                 </label>
                 <textarea
                   id="answer-share-users"
                   value={allowedUsersInput}
                   onChange={(e) => setAllowedUsersInput(e.target.value)}
-                  placeholder="uuid-1, uuid-2, ..."
+                  placeholder={t("answerModal.userIdsPlaceholder")}
                   rows={2}
                   className="w-full rounded border border-[#d2cee6] px-2 py-1.5 font-mono text-xs text-[#2f2a46] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
                 />
@@ -221,14 +218,16 @@ export function AnswerShareModal({ messageId, onClose }: Props) {
                 onChange={(e) => setUsePassword(e.target.checked)}
                 className="h-3.5 w-3.5 accent-[#3525cd]"
               />
-              <span className="font-semibold">Require password</span>
+              <span className="font-semibold">
+                {t("answerModal.requirePassword")}
+              </span>
             </label>
             {usePassword && (
               <input
                 type="password"
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="Enter link password (min 4 characters)"
+                placeholder={t("answerModal.passwordPlaceholder")}
                 className="w-full rounded border border-[#d2cee6] px-2 py-1.5 text-xs text-[#2f2a46] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
                 minLength={4}
                 maxLength={128}
@@ -239,14 +238,14 @@ export function AnswerShareModal({ messageId, onClose }: Props) {
           {/* Expiry + generate */}
           <div className="space-y-2">
             <p className="text-xs font-semibold tracking-wide text-[#464555] uppercase">
-              Create link
+              {t("createLink")}
             </p>
             <div className="flex items-center gap-2">
               <label
                 htmlFor="answer-share-expiry"
                 className="shrink-0 text-xs text-[#6a6780]"
               >
-                Expires:
+                {t("expiresLabel")}
               </label>
               <select
                 id="answer-share-expiry"
@@ -258,7 +257,7 @@ export function AnswerShareModal({ messageId, onClose }: Props) {
               >
                 {EXPIRY_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
-                    {opt.label}
+                    {t(`expiry.${opt.value}`)}
                   </option>
                 ))}
               </select>
@@ -272,7 +271,7 @@ export function AnswerShareModal({ messageId, onClose }: Props) {
                 onClick={() => createMutation.mutate()}
                 className="rounded-lg bg-[#3525cd] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {createMutation.isPending ? "Creating..." : "Generate link"}
+                {createMutation.isPending ? t("creating") : t("generate")}
               </button>
             </div>
             {createMutation.isError ? (
@@ -284,7 +283,7 @@ export function AnswerShareModal({ messageId, onClose }: Props) {
 
           {/* Active shares */}
           {sharesQuery.isLoading ? (
-            <p className="text-xs text-[#6a6780]">Loading share links...</p>
+            <p className="text-xs text-[#6a6780]">{t("loadingLinks")}</p>
           ) : sharesQuery.isError ? (
             <p className="text-xs text-rose-700">
               {getApiErrorMessage(sharesQuery.error)}
@@ -292,7 +291,7 @@ export function AnswerShareModal({ messageId, onClose }: Props) {
           ) : shares.length > 0 ? (
             <div className="space-y-2">
               <p className="text-xs font-semibold tracking-wide text-[#464555] uppercase">
-                Active links
+                {t("activeLinks")}
               </p>
               <ul className="space-y-2">
                 {shares.map((share) => (
@@ -306,13 +305,20 @@ export function AnswerShareModal({ messageId, onClose }: Props) {
                       </p>
                       <p className="mt-0.5 text-[10px] text-[#6a6780]">
                         {accessModeLabel(share.access_mode)} ·{" "}
-                        {share.has_password ? "Password protected · " : ""}
-                        Expires: {formatExpiry(share.expires_at)}
+                        {share.has_password
+                          ? `${t("passwordProtected")} · `
+                          : ""}
+                        {t("expiresValue", {
+                          value: formatExpiry(
+                            share.expires_at,
+                            t("expiry.never"),
+                          ),
+                        })}
                       </p>
                     </div>
                     <button
                       type="button"
-                      aria-label="Copy link"
+                      aria-label={t("copyLink")}
                       onClick={() => void handleCopy(share)}
                       className="shrink-0 rounded p-1 text-[#6a6780] hover:bg-[#e9e6f8] hover:text-[#3525cd]"
                     >
@@ -327,7 +333,7 @@ export function AnswerShareModal({ messageId, onClose }: Props) {
                     </button>
                     <button
                       type="button"
-                      aria-label="Revoke link"
+                      aria-label={t("revokeLink")}
                       disabled={revokeMutation.isPending}
                       onClick={() => revokeMutation.mutate(share.share_id)}
                       className="shrink-0 rounded p-1 text-[#6a6780] hover:bg-rose-100 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
@@ -345,7 +351,7 @@ export function AnswerShareModal({ messageId, onClose }: Props) {
             </div>
           ) : (
             <p className="text-xs text-[#6a6780]">
-              No active share links for this answer.
+              {t("answerModal.noActive")}
             </p>
           )}
         </div>

@@ -549,4 +549,41 @@ describe("EvaluationsPage redesign", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("No evaluation runs yet")).toBeInTheDocument();
   });
+
+  it("refreshes the dataset builder's paged case list after adding a case", async () => {
+    // R07-06: the builder pages cases with its own query key, so adding a
+    // case from the page must invalidate every question list of the set.
+    const builderCalls = () =>
+      mockApi.listEvaluationQuestions.mock.calls.filter(
+        ([setId, params]) =>
+          setId === "set-1" &&
+          (params as { limit?: number }).limit === 50 &&
+          (params as { offset?: number }).offset === 0,
+      ).length;
+    mockApi.createEvaluationQuestion.mockResolvedValue({
+      evaluation_question_id: "q-new",
+    });
+
+    renderPage();
+
+    await screen.findByText("Evaluation datasets");
+    await waitFor(() => expect(builderCalls()).toBeGreaterThan(0));
+    const before = builderCalls();
+
+    fireEvent.change(
+      screen.getByPlaceholderText("What is the data retention policy?"),
+      { target: { value: "How long are invoices kept?" } },
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add test case" }),
+    );
+
+    await waitFor(() =>
+      expect(mockApi.createEvaluationQuestion).toHaveBeenCalledWith(
+        "set-1",
+        expect.objectContaining({ question: "How long are invoices kept?" }),
+      ),
+    );
+    await waitFor(() => expect(builderCalls()).toBeGreaterThan(before));
+  });
 });

@@ -72,10 +72,24 @@ describe("frontend observability", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
 
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("https://sentry.example.com/api/42/store/");
+    expect(url).toContain("https://sentry.example.com/api/42/envelope/");
+    expect(url).not.toContain("/store/");
     expect(url).toContain("sentry_key=public");
 
-    const payload = JSON.parse(String(init.body)) as Record<string, unknown>;
+    expect((init.headers as Record<string, string>)["Content-Type"]).toBe(
+      "application/x-sentry-envelope",
+    );
+
+    const lines = String(init.body).split("\n");
+    expect(lines).toHaveLength(3);
+    const envelopeHeader = JSON.parse(lines[0]) as Record<string, unknown>;
+    expect(JSON.parse(lines[1])).toEqual({ type: "event" });
+    const payload = JSON.parse(lines[2]) as Record<string, unknown>;
+    expect(envelopeHeader.event_id).toBe(payload.event_id);
+    expect(envelopeHeader.dsn).toBe("https://public@sentry.example.com/42");
+    expect(new Date(String(envelopeHeader.sent_at)).toISOString()).toBe(
+      envelopeHeader.sent_at,
+    );
     const tags = payload.tags as Record<string, unknown>;
     const extra = payload.extra as Record<string, unknown>;
     const context = extra.context as Record<string, unknown>;

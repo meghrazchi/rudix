@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "format": "prettier . --check",
     "format:write": "prettier . --write",
+    "icons:check": "node scripts/material-symbols-subset.mjs --check",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest --passWithNoTests",

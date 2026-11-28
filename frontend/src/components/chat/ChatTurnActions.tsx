@@ -57,7 +57,7 @@ export function ChatTurnActions({
             </span>
           </button>
           <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100">
-            Explain answer
+            {tc("explainAnswerShort")}
           </span>
         </div>
       ) : null}
@@ -97,7 +97,7 @@ export function ChatTurnActions({
             </span>
           </button>
           <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover:opacity-100">
-            Share answer
+            {tc("shareAnswer")}
           </span>
         </div>
       ) : null}

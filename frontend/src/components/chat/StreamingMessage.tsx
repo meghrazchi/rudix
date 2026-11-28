@@ -69,7 +69,7 @@ export function StreamingMessage({
                 R
               </span>
               <span className="text-[10px] font-bold tracking-widest text-[#3525cd] uppercase">
-                Rudix AI
+                {tc("assistantName")}
               </span>
             </div>
             <p

@@ -66,6 +66,19 @@ describe("validateBuildEnvironment", () => {
       ).toEqual([]);
     });
 
+    it("rejects the e2e error probe flag", () => {
+      const errors = validateBuildEnvironment(
+        env(e, { NEXT_PUBLIC_E2E_ERROR_PROBE: "true" }),
+      );
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toContain("NEXT_PUBLIC_E2E_ERROR_PROBE");
+      expect(
+        validateBuildEnvironment(
+          env(e, { NEXT_PUBLIC_E2E_ERROR_PROBE: "false" }),
+        ),
+      ).toEqual([]);
+    });
+
     it("reports all variables together", () => {
       expect(validateBuildEnvironment(env(e, DEV_VARS))).toHaveLength(6);
     });

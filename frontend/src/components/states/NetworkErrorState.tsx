@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import { RetryAction } from "@/components/states/RetryAction";
 
 type NetworkErrorStateProps = {
@@ -8,14 +10,15 @@ type NetworkErrorStateProps = {
 
 export function NetworkErrorState({
   onRetry,
-  retryLabel = "Retry",
+  retryLabel,
   compact = false,
 }: NetworkErrorStateProps) {
+  const t = useTranslations("states");
   return (
     <section
       role="alert"
       aria-live="assertive"
-      aria-label="Network error state"
+      aria-label={t("network.aria")}
       className={`rounded-lg border border-amber-200 bg-amber-50 ${
         compact ? "px-3 py-2" : "px-4 py-4"
       } text-amber-900`}
@@ -25,10 +28,10 @@ export function NetworkErrorState({
           compact ? "text-sm font-semibold" : "text-base font-semibold"
         }
       >
-        No connection
+        {t("network.title")}
       </p>
       <p className={compact ? "mt-1 text-xs" : "mt-1 text-sm"}>
-        Could not reach the server. Check your network connection and try again.
+        {t("network.description")}
       </p>
       <div className="mt-2">
         <RetryAction

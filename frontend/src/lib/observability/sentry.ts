@@ -13,7 +13,8 @@ const SENTRY_CLIENT = "rudix-frontend/0.1.0";
 const MAX_BREADCRUMBS = 50;
 
 type SentryTransportConfig = {
-  storeUrl: string;
+  envelopeUrl: string;
+  dsn: string;
   publicKey: string;
   environment: string;
   release: string | null;
@@ -61,7 +62,7 @@ function parseSentryConfig(): SentryTransportConfig | null {
       return null;
     }
 
-    const storeUrl = `${url.protocol}//${url.host}${prefixPath}/api/${projectId}/store/`;
+    const envelopeUrl = `${url.protocol}//${url.host}${prefixPath}/api/${projectId}/envelope/`;
     const environment =
       trimToNull(process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT) ??
       trimToNull(process.env.NODE_ENV) ??
@@ -69,7 +70,8 @@ function parseSentryConfig(): SentryTransportConfig | null {
     const release = trimToNull(process.env.NEXT_PUBLIC_SENTRY_RELEASE);
 
     return {
-      storeUrl,
+      envelopeUrl,
+      dsn,
       publicKey,
       environment,
       release,
@@ -176,7 +178,28 @@ function buildBreadcrumbPayload(): Array<Record<string, unknown>> {
   }));
 }
 
-async function sendSentryStoreEvent(
+/**
+ * Serialises one event as a Sentry envelope: a header line, an item header
+ * line and the event payload, newline separated.
+ */
+export function buildSentryEnvelope(
+  payload: Record<string, unknown>,
+  dsn: string,
+  sentAt: Date = new Date(),
+): string {
+  const header = {
+    event_id: payload.event_id,
+    sent_at: sentAt.toISOString(),
+    dsn,
+  };
+  return [
+    JSON.stringify(header),
+    JSON.stringify({ type: "event" }),
+    JSON.stringify(payload),
+  ].join("\n");
+}
+
+async function sendSentryEnvelope(
   payload: Record<string, unknown>,
 ): Promise<void> {
   const config = getSentryConfig();
@@ -184,13 +207,13 @@ async function sendSentryStoreEvent(
     return;
   }
 
-  const url = `${config.storeUrl}?sentry_key=${encodeURIComponent(config.publicKey)}&sentry_version=${SENTRY_VERSION}&sentry_client=${encodeURIComponent(SENTRY_CLIENT)}`;
+  const url = `${config.envelopeUrl}?sentry_key=${encodeURIComponent(config.publicKey)}&sentry_version=${SENTRY_VERSION}&sentry_client=${encodeURIComponent(SENTRY_CLIENT)}`;
   await fetch(url, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/x-sentry-envelope",
     },
-    body: JSON.stringify(payload),
+    body: buildSentryEnvelope(payload, config.dsn),
     keepalive: true,
   });
 }
@@ -263,7 +286,7 @@ export async function captureFrontendException(
   }
 
   try {
-    await sendSentryStoreEvent(
+    await sendSentryEnvelope(
       redactObservabilityValue(event) as Record<string, unknown>,
     );
   } catch {

@@ -459,6 +459,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/telemetry/web-vitals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive browser Web Vitals samples */
+        post: operations["ingest_web_vitals_api_v1_telemetry_web_vitals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/upload": {
         parameters: {
             query?: never;
@@ -22751,6 +22768,30 @@ export interface components {
              */
             citation_validation_failed_count: number;
         };
+        /** WebVitalSample */
+        WebVitalSample: {
+            /**
+             * Name
+             * @enum {string}
+             */
+            name: "LCP" | "INP" | "CLS" | "FCP" | "TTFB";
+            /** Value */
+            value: number;
+            /** Route */
+            route: string;
+            /**
+             * Rating
+             * @enum {string}
+             */
+            rating: "good" | "needs-improvement" | "poor";
+            /** Navigation Type */
+            navigation_type?: ("navigate" | "reload" | "back-forward" | "back-forward-cache" | "prerender" | "restore") | null;
+        };
+        /** WebVitalsBatchRequest */
+        WebVitalsBatchRequest: {
+            /** Samples */
+            samples: components["schemas"]["WebVitalSample"][];
+        };
         /**
          * WebhookCreatedResponse
          * @description Returned only at creation / secret rotation — raw secret shown exactly once.
@@ -23953,6 +23994,51 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PublicStatusSnapshot"];
                 };
+            };
+        };
+    };
+    ingest_web_vitals_api_v1_telemetry_web_vitals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebVitalsBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ingest is disabled (WEB_VITALS_INGEST_ENABLED=false). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Per-client rate limit exceeded. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

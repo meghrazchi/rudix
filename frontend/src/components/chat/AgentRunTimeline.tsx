@@ -50,7 +50,9 @@ export function AgentRunTimeline({
                   {selectedAgentRunQuery.data.status}
                 </span>
                 <span className="truncate text-[#6a6780]">
-                  run {selectedAgentRunQuery.data.run_id.slice(0, 8)}…
+                  {tc("agentRunShortId", {
+                    id: selectedAgentRunQuery.data.run_id.slice(0, 8),
+                  })}
                 </span>
               </div>
               {selectedAgentRunQuery.data.approvals.length > 0 && (

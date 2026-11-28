@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import {
   addVariant,
@@ -37,7 +38,24 @@ const abKeys = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function statusBadge(s: string): React.ReactNode {
+const KNOWN_STATUSES = new Set([
+  "completed",
+  "running",
+  "failed",
+  "draft",
+  "pending",
+  "approved",
+  "rejected",
+  "cancelled",
+]);
+
+function useStatusText(): (s: string) => string {
+  const t = useTranslations("evaluations.abTest");
+  return (s) => (KNOWN_STATUSES.has(s) ? t(`status.${s}`) : s);
+}
+
+function StatusBadge({ status: s }: { status: string }): React.ReactNode {
+  const statusText = useStatusText();
   const cls =
     s === "completed"
       ? "bg-green-100 text-green-800"
@@ -50,12 +68,13 @@ function statusBadge(s: string): React.ReactNode {
     <span
       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}
     >
-      {s.toUpperCase()}
+      {statusText(s).toUpperCase()}
     </span>
   );
 }
 
-function approvalBadge(s: string): React.ReactNode {
+function ApprovalBadge({ status: s }: { status: string }): React.ReactNode {
+  const statusText = useStatusText();
   const cls =
     s === "approved"
       ? "bg-green-100 text-green-800"
@@ -66,7 +85,7 @@ function approvalBadge(s: string): React.ReactNode {
     <span
       className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}
     >
-      {s.toUpperCase()}
+      {statusText(s).toUpperCase()}
     </span>
   );
 }
@@ -105,8 +124,9 @@ function ComparisonTable({
 }: {
   summaries: VariantRunSummary[];
 }): React.ReactNode {
+  const t = useTranslations("evaluations.abTest");
   if (!summaries.length)
-    return <p className="text-sm text-gray-500">No variant results yet.</p>;
+    return <p className="text-sm text-gray-500">{t("noVariantResults")}</p>;
 
   const metrics = summaries[0].deltas_vs_reference.length
     ? summaries[0].deltas_vs_reference.map((d) => ({
@@ -114,10 +134,16 @@ function ComparisonTable({
         label: d.label,
       }))
     : [
-        { key: "faithfulness_score", label: "Faithfulness" },
-        { key: "citation_accuracy_score", label: "Citation Accuracy" },
-        { key: "answer_relevance_score", label: "Answer Relevance" },
-        { key: "latency_ms_p95", label: "Latency p95 (ms)" },
+        { key: "faithfulness_score", label: t("metrics.faithfulness") },
+        {
+          key: "citation_accuracy_score",
+          label: t("metrics.citationAccuracy"),
+        },
+        {
+          key: "answer_relevance_score",
+          label: t("metrics.answerRelevance"),
+        },
+        { key: "latency_ms_p95", label: t("metrics.latencyP95") },
       ];
 
   return (
@@ -125,12 +151,12 @@ function ComparisonTable({
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b text-left text-xs text-gray-500 uppercase">
-            <th className="py-2 pr-4 font-medium">Metric</th>
+            <th className="py-2 pr-4 font-medium">{t("columns.metric")}</th>
             {summaries.map((s) => (
               <th key={s.variant_id} className="py-2 pr-4 font-medium">
                 {s.variant_label}
                 <span className="ml-1 font-normal">
-                  ({statusBadge(s.status)})
+                  (<StatusBadge status={s.status} />)
                 </span>
               </th>
             ))}
@@ -170,7 +196,9 @@ function ComparisonTable({
                       </span>
                     )}
                     {idx === 0 && (
-                      <span className="ml-1 text-xs text-gray-400">(ref)</span>
+                      <span className="ml-1 text-xs text-gray-400">
+                        {t("ref")}
+                      </span>
                     )}
                   </td>
                 );
@@ -200,6 +228,7 @@ function VariantCard({
   onReject: (variantId: string) => void;
   onRemove: (variantId: string) => void;
 }): React.ReactNode {
+  const t = useTranslations("evaluations.abTest");
   return (
     <div className="rounded border p-3">
       <div className="flex items-start justify-between gap-2">
@@ -212,33 +241,41 @@ function VariantCard({
           )}
           <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
             {variant.rag_profile_id && (
-              <span>RAG profile v{variant.rag_profile_version ?? "?"}</span>
+              <span>
+                {t("variant.ragProfile", {
+                  version: variant.rag_profile_version ?? "?",
+                })}
+              </span>
             )}
             {variant.model_profile_key && (
-              <span>Model: {variant.model_profile_key}</span>
+              <span>
+                {t("variant.model", { key: variant.model_profile_key })}
+              </span>
             )}
             {variant.prompt_template_version_id && (
               <span>
-                Prompt version: {variant.prompt_template_version_id.slice(0, 8)}
+                {t("variant.promptVersion", {
+                  id: variant.prompt_template_version_id.slice(0, 8),
+                })}
               </span>
             )}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {approvalBadge(variant.approval_status)}
+          <ApprovalBadge status={variant.approval_status} />
           {variant.approval_status === "pending" && (
             <>
               <button
                 onClick={() => onApprove(variant.variant_id)}
                 className="rounded bg-green-50 px-2 py-0.5 text-xs text-green-700 hover:bg-green-100"
               >
-                Approve
+                {t("variant.approve")}
               </button>
               <button
                 onClick={() => onReject(variant.variant_id)}
                 className="rounded bg-red-50 px-2 py-0.5 text-xs text-red-700 hover:bg-red-100"
               >
-                Reject
+                {t("variant.reject")}
               </button>
             </>
           )}
@@ -246,7 +283,7 @@ function VariantCard({
             onClick={() => onRemove(variant.variant_id)}
             className="rounded px-2 py-0.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
           >
-            Remove
+            {t("variant.remove")}
           </button>
         </div>
       </div>
@@ -267,6 +304,7 @@ function CreateExperimentForm({
   onCancel: () => void;
   loading: boolean;
 }): React.ReactNode {
+  const t = useTranslations("evaluations.abTest");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [evaluationSetId, setEvaluationSetId] = useState("");
@@ -283,23 +321,23 @@ function CreateExperimentForm({
 
   return (
     <form onSubmit={handleSubmit} className="rounded border p-4">
-      <h3 className="mb-3 font-medium">New A/B Experiment</h3>
+      <h3 className="mb-3 font-medium">{t("create.title")}</h3>
       <div className="space-y-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-700">
-            Name *
+            {t("create.name")}
           </label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full rounded border px-2 py-1.5 text-sm"
-            placeholder="e.g. Prompt v2 vs v3 — faithfulness"
+            placeholder={t("create.namePlaceholder")}
             required
           />
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-700">
-            Description
+            {t("create.description")}
           </label>
           <textarea
             value={description}
@@ -310,13 +348,13 @@ function CreateExperimentForm({
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-700">
-            Evaluation Set ID *
+            {t("create.setId")}
           </label>
           <input
             value={evaluationSetId}
             onChange={(e) => setEvaluationSetId(e.target.value)}
             className="w-full rounded border px-2 py-1.5 font-mono text-sm"
-            placeholder="UUID of evaluation dataset"
+            placeholder={t("create.setIdPlaceholder")}
             required
           />
         </div>
@@ -327,14 +365,14 @@ function CreateExperimentForm({
           disabled={loading}
           className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {loading ? "Creating…" : "Create Experiment"}
+          {loading ? t("create.creating") : t("create.submit")}
         </button>
         <button
           type="button"
           onClick={onCancel}
           className="rounded px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
         >
-          Cancel
+          {t("cancel")}
         </button>
       </div>
     </form>
@@ -354,6 +392,7 @@ function AddVariantForm({
   onSuccess: () => void;
   onCancel: () => void;
 }): React.ReactNode {
+  const t = useTranslations("evaluations.abTest");
   const qc = useQueryClient();
   const [label, setLabel] = useState("");
   const [ragProfileId, setRagProfileId] = useState("");
@@ -385,34 +424,35 @@ function AddVariantForm({
 
   return (
     <form onSubmit={handleSubmit} className="mt-2 rounded border p-3">
-      <h4 className="mb-2 text-sm font-medium">Add Variant</h4>
+      <h4 className="mb-2 text-sm font-medium">{t("addVariant.title")}</h4>
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="col-span-2">
           <label className="mb-0.5 block font-medium text-gray-700">
-            Label *
+            {t("addVariant.label")}
           </label>
           <input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             className="w-full rounded border px-2 py-1 text-sm"
-            placeholder="e.g. Control / Prompt-v2 / profile-A"
+            placeholder={t("addVariant.labelPlaceholder")}
             required
           />
         </div>
         <div>
           <label className="mb-0.5 block font-medium text-gray-700">
-            RAG Profile ID
+            {t("addVariant.ragProfileId")}
           </label>
           <input
             value={ragProfileId}
             onChange={(e) => setRagProfileId(e.target.value)}
             className="w-full rounded border px-2 py-1 font-mono text-sm"
+            // eslint-disable-next-line no-restricted-syntax -- UUID is a technical token, not UI copy
             placeholder="UUID"
           />
         </div>
         <div>
           <label className="mb-0.5 block font-medium text-gray-700">
-            Profile Version
+            {t("addVariant.profileVersion")}
           </label>
           <input
             type="number"
@@ -424,23 +464,24 @@ function AddVariantForm({
         </div>
         <div>
           <label className="mb-0.5 block font-medium text-gray-700">
-            Model Profile Key
+            {t("addVariant.modelProfileKey")}
           </label>
           <input
             value={modelProfileKey}
             onChange={(e) => setModelProfileKey(e.target.value)}
             className="w-full rounded border px-2 py-1 text-sm"
-            placeholder="e.g. cloud_baseline"
+            placeholder={t("addVariant.modelProfilePlaceholder")}
           />
         </div>
         <div>
           <label className="mb-0.5 block font-medium text-gray-700">
-            Prompt Version ID
+            {t("addVariant.promptVersionId")}
           </label>
           <input
             value={promptVersionId}
             onChange={(e) => setPromptVersionId(e.target.value)}
             className="w-full rounded border px-2 py-1 font-mono text-sm"
+            // eslint-disable-next-line no-restricted-syntax -- UUID is a technical token, not UI copy
             placeholder="UUID"
           />
         </div>
@@ -456,14 +497,14 @@ function AddVariantForm({
           disabled={mutation.isPending}
           className="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {mutation.isPending ? "Adding…" : "Add Variant"}
+          {mutation.isPending ? t("addVariant.adding") : t("addVariant.title")}
         </button>
         <button
           type="button"
           onClick={onCancel}
           className="rounded px-3 py-1 text-xs text-gray-600 hover:bg-gray-100"
         >
-          Cancel
+          {t("cancel")}
         </button>
       </div>
     </form>
@@ -479,6 +520,7 @@ function ExperimentDetail({
 }: {
   experimentId: string;
 }): React.ReactNode {
+  const t = useTranslations("evaluations.abTest");
   const qc = useQueryClient();
   const [showAddVariant, setShowAddVariant] = useState(false);
 
@@ -529,7 +571,7 @@ function ExperimentDetail({
   });
 
   if (isLoading || !exp) {
-    return <p className="text-sm text-gray-500">Loading…</p>;
+    return <p className="text-sm text-gray-500">{t("loading")}</p>;
   }
 
   const latestRun = runsData?.items[0] ?? null;
@@ -550,12 +592,12 @@ function ExperimentDetail({
           )}
           <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
             <span>
-              Dataset:{" "}
-              <code className="font-mono">
-                {exp.evaluation_set_id.slice(0, 8)}
-              </code>
+              {t.rich("detail.dataset", {
+                id: exp.evaluation_set_id.slice(0, 8),
+                code: (chunks) => <code className="font-mono">{chunks}</code>,
+              })}
             </span>
-            {statusBadge(exp.status)}
+            <StatusBadge status={exp.status} />
           </div>
         </div>
         <button
@@ -567,7 +609,7 @@ function ExperimentDetail({
           }
           className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {startRun.isPending ? "Starting…" : "Run Experiment"}
+          {startRun.isPending ? t("detail.starting") : t("detail.run")}
         </button>
       </div>
 
@@ -575,13 +617,13 @@ function ExperimentDetail({
       <section>
         <div className="mb-2 flex items-center justify-between">
           <h4 className="text-sm font-medium text-gray-700">
-            Variants ({exp.variants.length})
+            {t("detail.variants", { count: exp.variants.length })}
           </h4>
           <button
             onClick={() => setShowAddVariant((v) => !v)}
             className="text-xs text-blue-600 hover:underline"
           >
-            {showAddVariant ? "Cancel" : "+ Add variant"}
+            {showAddVariant ? t("cancel") : t("detail.addVariantToggle")}
           </button>
         </div>
         {showAddVariant && (
@@ -592,9 +634,7 @@ function ExperimentDetail({
           />
         )}
         {exp.variants.length === 0 ? (
-          <p className="text-sm text-gray-400">
-            No variants yet — add at least two to compare.
-          </p>
+          <p className="text-sm text-gray-400">{t("detail.noVariants")}</p>
         ) : (
           <div className="space-y-2">
             {exp.variants.map((v) => (
@@ -605,7 +645,7 @@ function ExperimentDetail({
                 onApprove={(id) => approve.mutate(id)}
                 onReject={(id) => reject.mutate(id)}
                 onRemove={(id) => {
-                  if (confirm(`Remove variant "${v.label}"?`))
+                  if (confirm(t("variant.confirmRemove", { label: v.label })))
                     deleteVariant.mutate(id);
                 }}
               />
@@ -619,7 +659,7 @@ function ExperimentDetail({
         <section>
           <div className="mb-2 flex items-center justify-between">
             <h4 className="text-sm font-medium text-gray-700">
-              Latest Run {statusBadge(latestRun.status)}
+              {t("detail.latestRun")} <StatusBadge status={latestRun.status} />
             </h4>
             {latestRun.status === "running" && (
               <button
@@ -627,7 +667,9 @@ function ExperimentDetail({
                 disabled={finalizeRun.isPending}
                 className="text-xs text-blue-600 hover:underline disabled:opacity-50"
               >
-                {finalizeRun.isPending ? "Finalizing…" : "Finalize & compare"}
+                {finalizeRun.isPending
+                  ? t("detail.finalizing")
+                  : t("detail.finalize")}
               </button>
             )}
           </div>
@@ -637,16 +679,18 @@ function ExperimentDetail({
           ) : (
             <p className="text-sm text-gray-400">
               {latestRun.status === "running"
-                ? "Variant evaluation runs in progress. Finalize when all evaluations complete."
-                : "No comparison data available."}
+                ? t("detail.inProgress")
+                : t("detail.noComparison")}
             </p>
           )}
           {winnerByMetric && Object.keys(winnerByMetric).length > 0 && (
             <div className="mt-3 rounded bg-green-50 p-2 text-xs text-green-800">
-              <strong>Winners by metric:</strong>{" "}
-              {Object.entries(winnerByMetric)
-                .map(([metric, label]) => `${metric}: ${label}`)
-                .join("; ")}
+              {t.rich("detail.winners", {
+                strong: (chunks) => <strong>{chunks}</strong>,
+                value: Object.entries(winnerByMetric)
+                  .map(([metric, label]) => `${metric}: ${label}`)
+                  .join("; "),
+              })}
             </div>
           )}
         </section>
@@ -660,6 +704,7 @@ function ExperimentDetail({
 // ---------------------------------------------------------------------------
 
 export function AbTestPanel(): React.ReactNode {
+  const t = useTranslations("evaluations.abTest");
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -696,13 +741,13 @@ export function AbTestPanel(): React.ReactNode {
       <aside className="col-span-1">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold tracking-wide text-gray-700 uppercase">
-            A/B Experiments
+            {t("panel.title")}
           </h2>
           <button
             onClick={() => setShowCreate((v) => !v)}
             className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700"
           >
-            + New
+            {t("panel.new")}
           </button>
         </div>
 
@@ -721,9 +766,9 @@ export function AbTestPanel(): React.ReactNode {
         )}
 
         {isLoading ? (
-          <p className="text-sm text-gray-400">Loading…</p>
+          <p className="text-sm text-gray-400">{t("loading")}</p>
         ) : experiments.length === 0 ? (
-          <p className="text-sm text-gray-400">No experiments yet.</p>
+          <p className="text-sm text-gray-400">{t("panel.none")}</p>
         ) : (
           <ul className="space-y-1">
             {experiments.map((exp) => (
@@ -738,11 +783,10 @@ export function AbTestPanel(): React.ReactNode {
                 >
                   <div className="flex items-center justify-between gap-1">
                     <span className="truncate font-medium">{exp.name}</span>
-                    {statusBadge(exp.status)}
+                    <StatusBadge status={exp.status} />
                   </div>
                   <div className="mt-0.5 text-xs text-gray-400">
-                    {exp.variants.length} variant
-                    {exp.variants.length !== 1 ? "s" : ""}
+                    {t("panel.variantCount", { count: exp.variants.length })}
                   </div>
                 </button>
               </li>
@@ -758,21 +802,21 @@ export function AbTestPanel(): React.ReactNode {
             <div className="mb-4 flex justify-end">
               <button
                 onClick={() => {
-                  if (confirm("Delete this experiment and all its data?")) {
+                  if (confirm(t("panel.confirmDelete"))) {
                     deleteMutation.mutate(selectedId);
                   }
                 }}
                 disabled={deleteMutation.isPending}
                 className="text-xs text-red-500 hover:underline disabled:opacity-50"
               >
-                Delete experiment
+                {t("panel.delete")}
               </button>
             </div>
             <ExperimentDetail experimentId={selectedId} />
           </>
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-gray-400">
-            Select an experiment to view details.
+            {t("panel.select")}
           </div>
         )}
       </main>

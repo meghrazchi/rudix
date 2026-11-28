@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import {
   agreementLevelClass,
   agreementLevelLabel,
@@ -13,17 +15,17 @@ function SourceConflictSection({
 }: {
   conflict: ConflictStatusRecord;
 }) {
+  const t = useTranslations("chat.trustPanel");
   return (
     <div className="space-y-2" data-testid="source-conflict-section">
-      <SectionHeader icon="warning" label="Source Conflict" />
+      <SectionHeader icon="warning" label={t("conflict.title")} />
       <div className="flex flex-wrap items-center gap-2">
         <span className={agreementLevelClass(conflict.agreement_level)}>
-          {agreementLevelLabel(conflict.agreement_level)}
+          {agreementLevelLabel(conflict.agreement_level, t)}
         </span>
         {conflict.conflict_count > 0 && (
           <span className="text-[11px] text-[#6a6780]">
-            {conflict.conflict_count} conflict pair
-            {conflict.conflict_count !== 1 ? "s" : ""}
+            {t("conflict.pairs", { count: conflict.conflict_count })}
           </span>
         )}
       </div>
@@ -35,20 +37,19 @@ function SourceConflictSection({
       <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
         {conflict.conflicting_document_ids.length > 0 && (
           <StatRow
-            label="Sources in conflict"
+            label={t("conflict.sourcesInConflict")}
             value={conflict.conflicting_document_ids.length}
           />
         )}
         {conflict.preferred_document_ids.length > 0 && (
           <StatRow
-            label="Preferred source count"
+            label={t("conflict.preferredCount")}
             value={conflict.preferred_document_ids.length}
           />
         )}
         {conflict.preferred_document_ids.length === 0 && conflict.detected && (
           <div className="col-span-2 text-[11px] text-[#9d98b5]">
-            No preferred source could be determined — treat all sources with
-            equal caution.
+            {t("conflict.noPreferred")}
           </div>
         )}
       </div>

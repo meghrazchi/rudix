@@ -2,6 +2,8 @@
 
 import { useRef, useState } from "react";
 
+import { useTranslations } from "next-intl";
+
 import type { FeedbackCategory } from "@/lib/api/feedback";
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
 
@@ -34,67 +36,53 @@ type Props = {
 
 const TRUST_PANEL_CATEGORIES: {
   value: FeedbackCategory;
-  label: string;
-  description: string;
   warningKeywords: string[];
 }[] = [
   {
     value: "wrong_answer",
-    label: "Wrong answer",
-    description: "The answer is factually incorrect",
     warningKeywords: ["verification failed", "unsupported", "hallucin"],
   },
   {
     value: "bad_citation",
-    label: "Bad citation",
-    description:
-      "A citation is wrong, irrelevant, or points to the wrong place",
     warningKeywords: ["citation validation failed"],
   },
   {
     value: "missing_citation",
-    label: "Missing citation",
-    description: "A citation that should be there is absent",
     warningKeywords: [],
   },
   {
     value: "missing_source",
-    label: "Missing source",
-    description: "The answer should have used a source that is absent",
     warningKeywords: ["missing source", "missing document"],
   },
   {
     value: "outdated_source",
-    label: "Outdated source",
-    description: "The cited source is outdated or no longer accurate",
     warningKeywords: ["stale", "expired", "outdated", "deprecated"],
   },
   {
     value: "hallucination_risk",
-    label: "Hallucination risk",
-    description: "The answer may be unsupported or fabricated",
     warningKeywords: ["hallucin", "unsupported", "unsupported claim"],
   },
   {
     value: "conflict_not_detected",
-    label: "Conflict not detected",
-    description: "The model missed a conflict between sources",
     warningKeywords: ["conflict", "disagree"],
   },
   {
     value: "unclear_answer",
-    label: "Unclear answer",
-    description: "The answer is too vague or incomplete",
     warningKeywords: ["low confidence", "weak"],
   },
   {
     value: "should_have_said_not_found",
-    label: "Should have said not found",
-    description:
-      "No relevant information exists - the model should have said so",
     warningKeywords: ["not_found", "no context", "should have said not found"],
   },
 ];
+
+const TRUST_DESCRIPTION_KEYS = new Set<FeedbackCategory>([
+  "bad_citation",
+  "missing_source",
+  "outdated_source",
+  "conflict_not_detected",
+  "should_have_said_not_found",
+]);
 
 function inferCategory(warnings: string[]): FeedbackCategory | null {
   const lc = warnings.map((w) => w.toLowerCase()).join(" ");
@@ -116,6 +104,7 @@ export function TrustPanelFeedbackModal({
   onSubmit,
   onClose,
 }: Props) {
+  const t = useTranslations("chat.feedback");
   const dialogRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -180,14 +169,14 @@ export function TrustPanelFeedbackModal({
               id="trust-feedback-modal-title"
               className="text-base font-semibold text-[#2a2640]"
             >
-              Report answer issue
+              {t("trust.title")}
             </h2>
           </div>
           <button
             type="button"
             data-overlay-autofocus="true"
             onClick={onClose}
-            aria-label="Close report dialog"
+            aria-label={t("trust.closeAria")}
             className="rounded-lg p-1 text-[#6a6780] hover:bg-[#f5f2ff] hover:text-[#2f2a46] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
           >
             <span
@@ -207,14 +196,14 @@ export function TrustPanelFeedbackModal({
               id="trust-feedback-category-label"
               className="mb-2 text-xs font-medium text-[#464555]"
             >
-              What is wrong with this answer?
+              {t("trust.question")}
             </p>
             <fieldset
               aria-labelledby="trust-feedback-category-label"
               className="space-y-1"
             >
-              <legend className="sr-only">Issue category</legend>
-              {TRUST_PANEL_CATEGORIES.map(({ value, label, description }) => (
+              <legend className="sr-only">{t("trust.categoryLegend")}</legend>
+              {TRUST_PANEL_CATEGORIES.map(({ value }) => (
                 <label
                   key={value}
                   className="flex cursor-pointer items-start gap-2.5 rounded-lg px-3 py-2 text-sm text-[#2a2640] hover:bg-[#f5f2ff]"
@@ -228,8 +217,15 @@ export function TrustPanelFeedbackModal({
                     className="mt-0.5 accent-[#3525cd]"
                   />
                   <span>
-                    <span className="font-medium">{label}</span>
-                    <span className="ml-1 text-[#777587]">— {description}</span>
+                    <span className="font-medium">
+                      {t(`categoryLabels.${value}`)}
+                    </span>
+                    <span className="ml-1 text-[#777587]">
+                      —{" "}
+                      {TRUST_DESCRIPTION_KEYS.has(value)
+                        ? t(`trustCategoryDescriptions.${value}`)
+                        : t(`categoryDescriptions.${value}`)}
+                    </span>
                   </span>
                 </label>
               ))}
@@ -242,7 +238,7 @@ export function TrustPanelFeedbackModal({
                   onChange={() => setCategory(null)}
                   className="accent-[#3525cd]"
                 />
-                Other / not listed
+                {t("trust.otherNotListed")}
               </label>
             </fieldset>
           </div>
@@ -251,7 +247,7 @@ export function TrustPanelFeedbackModal({
           {citations.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-medium text-[#464555]">
-                Flag specific sources (optional)
+                {t("trust.flagSources")}
               </p>
               <div className="max-h-36 space-y-1 overflow-y-auto rounded-lg border border-[#e2dff1] bg-[#faf9ff] p-2">
                 {citations.map((cit) => (
@@ -278,7 +274,7 @@ export function TrustPanelFeedbackModal({
               htmlFor="trust-feedback-comment"
               className="mb-1 block text-xs font-medium text-[#464555]"
             >
-              Additional details (optional)
+              {t("details")}
             </label>
             <textarea
               id="trust-feedback-comment"
@@ -286,7 +282,7 @@ export function TrustPanelFeedbackModal({
               onChange={(e) => setComment(e.target.value)}
               maxLength={1000}
               rows={3}
-              placeholder="Describe what was wrong…"
+              placeholder={t("trust.placeholder")}
               aria-describedby="trust-feedback-comment-count"
               className="w-full resize-none rounded-lg border border-[#d7d4e8] bg-[#faf9ff] px-3 py-2 text-sm text-[#2a2640] placeholder-[#9d98b5] outline-none focus:border-[#3525cd] focus:ring-1 focus:ring-[#3525cd]"
             />
@@ -303,7 +299,10 @@ export function TrustPanelFeedbackModal({
           {/* Trace context badge */}
           {traceId && (
             <p className="text-[10px] text-[#9d98b5]">
-              Trace ID: <span className="font-mono">{traceId}</span>
+              {t.rich("trust.traceId", {
+                id: traceId,
+                mono: (chunks) => <span className="font-mono">{chunks}</span>,
+              })}
             </p>
           )}
 
@@ -315,14 +314,14 @@ export function TrustPanelFeedbackModal({
               disabled={isSubmitting}
               className="rounded-lg border border-[#d7d4e8] px-3 py-1.5 text-xs text-[#6a6780] hover:bg-[#f5f2ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none disabled:opacity-50"
             >
-              Cancel
+              {t("cancel")}
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
               className="rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-600 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
             >
-              {isSubmitting ? "Reporting…" : "Report issue"}
+              {isSubmitting ? t("trust.reporting") : t("trust.report")}
             </button>
           </div>
         </form>

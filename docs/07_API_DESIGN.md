@@ -102,6 +102,26 @@ Returns the active refresh sessions for the authenticated user.
 
 When the SAML callback is received as a browser form post, the backend issues the refresh cookie and redirects to the frontend callback route with access-token/session metadata in the query string. API clients can still receive JSON when they do not send a browser-form payload.
 
+The frontend callback route moves the access token into memory and replaces the URL so the
+token leaves the address bar and the history entry (R07-09).
+
+#### Session hint cookie
+
+Additive and off by default (`APP_AUTH_SESSION_HINT_COOKIE_ENABLED=false`, R07-09). When
+enabled, every response that sets the refresh cookie (login, refresh, SSO JSON and redirect
+paths) also sets `rudix_session_hint=1` (`APP_AUTH_SESSION_HINT_COOKIE_NAME`) with
+`HttpOnly`, the refresh cookie's `Secure` and `SameSite`, `Path=/`,
+`Domain=APP_AUTH_SESSION_HINT_COOKIE_DOMAIN` and `Max-Age=APP_AUTH_REFRESH_TOKEN_TTL_SECONDS`.
+Logout, logout-all and every `401` or `403` from `/auth/token/refresh` (missing, invalid or
+revoked token `401`; reused token or cross-organisation `403`) clear it; a `429` or the
+Origin-check `403` leaves it. The value carries no secret, claim or role and authorises nothing; the frontend
+route gate (`RUDIX_ROUTE_GATE=enforce`) only checks that it exists. Response bodies and the
+refresh cookie are unchanged.
+
+With `APP_AUTH_COOKIE_SAME_SITE=none`, `POST /auth/token/refresh` and `POST /auth/logout`
+return `403` with `error.code = "csrf_origin_rejected"` when the `Origin` header is missing or
+not in `CORS_ORIGINS`. With `lax` or `strict` nothing changes.
+
 ## Error format
 
 Every error response (HTTP errors, request validation failures, and unhandled exceptions) uses
@@ -2897,6 +2917,46 @@ endpoint), and honours `RATE_LIMIT_REDIS_FAILURE_MODE` through the same limiter 
 `safe_error_code=rate_limiter_unavailable` (the equivalent of HTTP 503) and the pipeline is not
 started; the connection stays open. In `open` mode the command proceeds and the degradation is
 logged. Decisions are counted in `rudix_rate_limit_decisions_total{scope,decision,failure_mode}`.
+
+## Frontend telemetry
+
+### `POST /api/v1/telemetry/web-vitals` (R07-11)
+
+First-party browser Web Vitals ingest. Unauthenticated (like the public contact form), CORS
+as for every route, and **off by default**: with `WEB_VITALS_INGEST_ENABLED=false` it answers
+`404`. Samples are aggregated into Prometheus histograms only; nothing is stored in the
+database and neither IP addresses nor values are logged.
+
+Request body (`extra` fields are rejected):
+
+```json
+{
+  "samples": [
+    {
+      "name": "LCP",
+      "value": 1834.2,
+      "route": "/[locale]/pricing",
+      "rating": "good",
+      "navigation_type": "navigate"
+    }
+  ]
+}
+```
+
+| Field | Rule |
+| --- | --- |
+| `samples` | 1 to 10 items |
+| `name` | `LCP`, `INP`, `CLS`, `FCP` or `TTFB` |
+| `value` | number, 0 or more; at most 60000 (CLS at most 10) |
+| `route` | route pattern matching `^/[A-Za-z0-9\[\]_/-]{0,120}$`, never a concrete URL (the client sends `[locale]` and `[id]` placeholders) |
+| `rating` | `good`, `needs-improvement`, `poor` |
+| `navigation_type` | optional: `navigate`, `reload`, `back-forward`, `back-forward-cache`, `prerender`, `restore` |
+
+Responses: `204` accepted; `404` disabled; `422` invalid body; `429` more than
+`WEB_VITALS_RATE_LIMIT_PER_MINUTE` requests per minute from one client IP (the same limiter
+and `RATE_LIMIT_REDIS_FAILURE_MODE` behaviour as the contact form: `closed` answers `503` when
+Redis is unavailable, `open` lets the request through). Metrics and dashboards:
+`docs/12_EVALUATION_AND_MONITORING.md` "Frontend Web Vitals (R07-11)".
 
 ## Status codes
 

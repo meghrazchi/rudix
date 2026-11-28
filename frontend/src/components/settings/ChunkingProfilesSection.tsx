@@ -311,7 +311,9 @@ export function ChunkingProfilesSection() {
         ) : null}
       </div>
 
-      {!isAdmin ? (
+      {state.status === "loading" ? (
+        <LoadingState compact title="Loading session..." />
+      ) : !isAdmin ? (
         <ForbiddenState
           compact
           title="Chunking profiles restricted"

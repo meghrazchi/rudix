@@ -1,7 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/states/EmptyState";
 import { LanguageCoverageTable } from "@/components/evaluations/multilingual-eval-panel";
@@ -11,6 +17,7 @@ import {
   duplicateEvaluationSet,
   importEvaluationCases,
   listDatasetVersions,
+  listEvaluationQuestions,
   publishEvaluationSet,
   updateEvaluationQuestion,
   updateEvaluationSet,
@@ -29,7 +36,22 @@ import { useOverlayFocus } from "@/lib/use-overlay-focus";
 // Difficulty badge
 // ---------------------------------------------------------------------------
 
+const KNOWN_DIFFICULTIES = new Set(["easy", "medium", "hard"]);
+
+/** Page size of the case list; "Load more" fetches this many more cases. */
+export const DATASET_CASES_PAGE_SIZE = 50;
+
+/**
+ * Matches every cached question list of one evaluation set: the empty params
+ * object partially matches any page size, so the builder's paged list and the
+ * page's own list are refreshed together.
+ */
+function allSetQuestionsKey(evaluationSetId: string) {
+  return queryKeys.evaluations.setQuestions(evaluationSetId);
+}
+
 function DifficultyBadge({ difficulty }: { difficulty: string | null }) {
+  const t = useTranslations("evaluations.datasetBuilder");
   if (!difficulty) return null;
   const colors: Record<string, string> = {
     easy: "bg-green-50 text-green-700 border-green-200",
@@ -40,7 +62,9 @@ function DifficultyBadge({ difficulty }: { difficulty: string | null }) {
     <span
       className={`inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-medium capitalize ${colors[difficulty] ?? "border-gray-200 bg-gray-50 text-gray-600"}`}
     >
-      {difficulty}
+      {KNOWN_DIFFICULTIES.has(difficulty)
+        ? t(`difficulty.${difficulty}`)
+        : difficulty}
     </span>
   );
 }
@@ -50,6 +74,7 @@ function DifficultyBadge({ difficulty }: { difficulty: string | null }) {
 // ---------------------------------------------------------------------------
 
 function DatasetStatusBadge({ status }: { status: string }) {
+  const t = useTranslations("evaluations.datasetBuilder");
   const styles =
     status === "published"
       ? "bg-purple-50 text-purple-700 border-purple-200"
@@ -58,7 +83,9 @@ function DatasetStatusBadge({ status }: { status: string }) {
     <span
       className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-semibold capitalize ${styles}`}
     >
-      {status}
+      {status === "draft" || status === "published"
+        ? t(`status.${status}`)
+        : status}
     </span>
   );
 }
@@ -72,6 +99,7 @@ type ValidationPanelProps = {
 };
 
 function ValidationPanel({ evaluationSetId }: ValidationPanelProps) {
+  const t = useTranslations("evaluations.datasetBuilder");
   const query = useQuery({
     queryKey: queryKeys.evaluations.setValidation(evaluationSetId),
     queryFn: () => validateEvaluationDataset(evaluationSetId),
@@ -81,7 +109,7 @@ function ValidationPanel({ evaluationSetId }: ValidationPanelProps) {
 
   if (query.isLoading) {
     return (
-      <p className="animate-pulse text-xs text-gray-400">Validating dataset…</p>
+      <p className="animate-pulse text-xs text-gray-400">{t("validating")}</p>
     );
   }
 
@@ -92,17 +120,13 @@ function ValidationPanel({ evaluationSetId }: ValidationPanelProps) {
   const { is_valid, issue_count, issues } = query.data;
 
   if (is_valid) {
-    return (
-      <p className="text-xs font-medium text-green-700">
-        Dataset is valid — no issues found.
-      </p>
-    );
+    return <p className="text-xs font-medium text-green-700">{t("valid")}</p>;
   }
 
   return (
     <div className="space-y-1.5">
       <p className="text-xs font-semibold text-red-700">
-        {issue_count} validation {issue_count === 1 ? "issue" : "issues"} found
+        {t("issuesFound", { count: issue_count })}
       </p>
       <ul className="space-y-1">
         {issues.slice(0, 5).map((issue: DatasetValidationIssue) => (
@@ -119,7 +143,7 @@ function ValidationPanel({ evaluationSetId }: ValidationPanelProps) {
         ))}
         {issues.length > 5 && (
           <li className="text-xs text-gray-500">
-            +{issues.length - 5} more issues
+            {t("moreIssues", { count: issues.length - 5 })}
           </li>
         )}
       </ul>
@@ -136,6 +160,7 @@ type VersionsPanelProps = {
 };
 
 function VersionsPanel({ evaluationSetId }: VersionsPanelProps) {
+  const t = useTranslations("evaluations.datasetBuilder");
   const query = useQuery({
     queryKey: queryKeys.evaluations.setVersions(evaluationSetId),
     queryFn: () => listDatasetVersions(evaluationSetId),
@@ -144,18 +169,16 @@ function VersionsPanel({ evaluationSetId }: VersionsPanelProps) {
 
   if (query.isLoading) {
     return (
-      <p className="animate-pulse text-xs text-gray-400">Loading versions…</p>
+      <p className="animate-pulse text-xs text-gray-400">
+        {t("loadingVersions")}
+      </p>
     );
   }
 
   const items = query.data?.items ?? [];
 
   if (items.length === 0) {
-    return (
-      <p className="text-xs text-gray-400">
-        No published versions yet. Publish the dataset to create a snapshot.
-      </p>
-    );
+    return <p className="text-xs text-gray-400">{t("noVersions")}</p>;
   }
 
   return (
@@ -166,7 +189,9 @@ function VersionsPanel({ evaluationSetId }: VersionsPanelProps) {
           className="flex items-center justify-between rounded border border-gray-100 bg-gray-50 px-2 py-1 text-xs text-gray-700"
         >
           <span className="font-semibold">v{version.version_number}</span>
-          <span className="text-gray-500">{version.question_count} cases</span>
+          <span className="text-gray-500">
+            {t("versionCases", { count: version.question_count })}
+          </span>
           {version.published_at && (
             <span className="text-gray-400">
               {new Date(version.published_at).toLocaleDateString()}
@@ -197,6 +222,7 @@ function ImportDialog({
   onClose,
   onSuccess,
 }: ImportDialogProps) {
+  const t = useTranslations("evaluations.datasetBuilder");
   const [format, setFormat] = useState<"json" | "csv">("json");
   const [data, setData] = useState("");
   const [skipDuplicates, setSkipDuplicates] = useState(true);
@@ -245,7 +271,7 @@ function ImportDialog({
           id="import-dialog-title"
           className="mb-4 text-base font-semibold text-gray-900"
         >
-          Import cases
+          {t("import.title")}
         </h2>
 
         <div className="mb-3 flex gap-2">
@@ -280,7 +306,7 @@ function ImportDialog({
             onChange={(e) => setSkipDuplicates(e.target.checked)}
             className="rounded"
           />
-          Skip duplicate questions
+          {t("import.skipDuplicates")}
         </label>
 
         {error && (
@@ -296,14 +322,14 @@ function ImportDialog({
             disabled={importMutation.isPending}
             className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-60"
           >
-            Cancel
+            {t("cancel")}
           </button>
           <button
             type="button"
             onClick={() => {
               setError(null);
               if (!data.trim()) {
-                setError("Import data is required.");
+                setError(t("import.required"));
                 return;
               }
               importMutation.mutate();
@@ -311,7 +337,9 @@ function ImportDialog({
             disabled={importMutation.isPending}
             className="rounded-lg bg-[#6d5bd0] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#5a4ab8] disabled:opacity-60"
           >
-            {importMutation.isPending ? "Importing…" : "Import"}
+            {importMutation.isPending
+              ? t("import.importing")
+              : t("import.submit")}
           </button>
         </div>
       </div>
@@ -340,6 +368,7 @@ function EditQuestionDialog({
   onClose,
   onSaved,
 }: EditQuestionDialogProps) {
+  const t = useTranslations("evaluations.datasetBuilder");
   const [text, setText] = useState(question.question);
   const [answer, setAnswer] = useState(question.expected_answer ?? "");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard" | "">(
@@ -387,11 +416,11 @@ function EditQuestionDialog({
           id="edit-question-title"
           className="mb-4 text-base font-semibold text-gray-900"
         >
-          Edit case
+          {t("edit.title")}
         </h2>
 
         <label className="mb-2 block text-xs font-medium text-gray-700">
-          Question
+          {t("edit.question")}
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -401,7 +430,7 @@ function EditQuestionDialog({
         </label>
 
         <label className="mb-2 block text-xs font-medium text-gray-700">
-          Expected answer
+          {t("edit.expectedAnswer")}
           <textarea
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
@@ -412,7 +441,7 @@ function EditQuestionDialog({
 
         <div className="mb-2 flex gap-3">
           <label className="flex-1 text-xs font-medium text-gray-700">
-            Difficulty
+            {t("edit.difficulty")}
             <select
               value={difficulty}
               onChange={(e) =>
@@ -420,14 +449,14 @@ function EditQuestionDialog({
               }
               className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-800 focus:border-[#6d5bd0] focus:outline-none"
             >
-              <option value="">— none —</option>
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
+              <option value="">{t("edit.none")}</option>
+              <option value="easy">{t("edit.easy")}</option>
+              <option value="medium">{t("edit.medium")}</option>
+              <option value="hard">{t("edit.hard")}</option>
             </select>
           </label>
           <label className="flex-1 text-xs font-medium text-gray-700">
-            Tags (comma-separated)
+            {t("edit.tags")}
             <input
               type="text"
               value={tags}
@@ -450,13 +479,13 @@ function EditQuestionDialog({
             disabled={updateMutation.isPending}
             className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-60"
           >
-            Cancel
+            {t("cancel")}
           </button>
           <button
             type="button"
             onClick={() => {
               if (!text.trim()) {
-                setError("Question is required.");
+                setError(t("edit.questionRequired"));
                 return;
               }
               setError(null);
@@ -465,7 +494,7 @@ function EditQuestionDialog({
             disabled={updateMutation.isPending}
             className="rounded-lg bg-[#6d5bd0] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#5a4ab8] disabled:opacity-60"
           >
-            {updateMutation.isPending ? "Saving…" : "Save"}
+            {updateMutation.isPending ? t("edit.saving") : t("edit.save")}
           </button>
         </div>
       </div>
@@ -492,6 +521,7 @@ function QuestionRow({
   onDeleted,
   onUpdated,
 }: QuestionRowProps) {
+  const t = useTranslations("evaluations.datasetBuilder");
   const [isEditing, setIsEditing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const editDialogRef = useRef<HTMLDivElement | null>(null);
@@ -531,7 +561,7 @@ function QuestionRow({
             ))}
             {question.expected_answer && (
               <span className="text-xs text-gray-400 italic">
-                has expected answer
+                {t("row.hasExpected")}
               </span>
             )}
           </div>
@@ -544,7 +574,7 @@ function QuestionRow({
               onClick={() => setIsEditing(true)}
               className="rounded px-2 py-1 text-xs font-medium text-[#6d5bd0] hover:bg-[#f0eefb]"
             >
-              Edit
+              {t("row.edit")}
             </button>
             {!confirmingDelete ? (
               <button
@@ -552,25 +582,25 @@ function QuestionRow({
                 onClick={() => setConfirmingDelete(true)}
                 className="rounded px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-50"
               >
-                Delete
+                {t("row.delete")}
               </button>
             ) : (
               <div className="flex items-center gap-1">
-                <span className="text-xs text-red-600">Sure?</span>
+                <span className="text-xs text-red-600">{t("row.sure")}</span>
                 <button
                   type="button"
                   onClick={() => deleteMutation.mutate()}
                   disabled={deleteMutation.isPending}
                   className="rounded px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
                 >
-                  Yes
+                  {t("row.yes")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmingDelete(false)}
                   className="rounded px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-50"
                 >
-                  No
+                  {t("row.no")}
                 </button>
               </div>
             )}
@@ -615,7 +645,34 @@ export function DatasetBuilderPanel({
   onSetDeleted,
   onSetDuplicated,
 }: DatasetBuilderPanelProps) {
+  const t = useTranslations("evaluations.datasetBuilder");
   const queryClient = useQueryClient();
+  const setId = evaluationSet.evaluation_set_id;
+
+  // Paged case list: the first page loads automatically, "Load more" fetches
+  // the next DATASET_CASES_PAGE_SIZE cases via offset paging. The `questions`
+  // prop (first page loaded by the parent) is shown until this query resolves.
+  const casesQuery = useInfiniteQuery({
+    queryKey: queryKeys.evaluations.setQuestions(setId, {
+      view: "builder",
+      limit: DATASET_CASES_PAGE_SIZE,
+    }),
+    queryFn: ({ pageParam }) =>
+      listEvaluationQuestions(setId, {
+        limit: DATASET_CASES_PAGE_SIZE,
+        offset: pageParam,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const next = lastPage.offset + lastPage.items.length;
+      return lastPage.items.length > 0 && next < lastPage.total
+        ? next
+        : undefined;
+    },
+  });
+  const pagedCases = casesQuery.data?.pages.flatMap((page) => page.items);
+  const visibleCases = pagedCases ?? questions;
+  const totalCases = casesQuery.data?.pages.at(-1)?.total ?? questions.length;
 
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isEditingMeta, setIsEditingMeta] = useState(false);
@@ -706,14 +763,14 @@ export function DatasetBuilderPanel({
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 className="w-full rounded-lg border border-gray-200 px-2 py-1 text-sm font-semibold text-gray-900 focus:border-[#6d5bd0] focus:outline-none"
-                placeholder="Dataset name"
+                placeholder={t("panel.namePlaceholder")}
               />
               <textarea
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
                 rows={2}
                 className="w-full rounded-lg border border-gray-200 px-2 py-1 text-sm text-gray-600 focus:border-[#6d5bd0] focus:outline-none"
-                placeholder="Description (optional)"
+                placeholder={t("panel.descriptionPlaceholder")}
               />
               {metaError && <p className="text-xs text-red-600">{metaError}</p>}
               <div className="flex gap-2">
@@ -723,7 +780,9 @@ export function DatasetBuilderPanel({
                   disabled={updateSetMutation.isPending}
                   className="rounded-lg bg-[#6d5bd0] px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-60"
                 >
-                  {updateSetMutation.isPending ? "Saving…" : "Save"}
+                  {updateSetMutation.isPending
+                    ? t("edit.saving")
+                    : t("edit.save")}
                 </button>
                 <button
                   type="button"
@@ -734,7 +793,7 @@ export function DatasetBuilderPanel({
                   }}
                   className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600"
                 >
-                  Cancel
+                  {t("cancel")}
                 </button>
               </div>
             </div>
@@ -768,7 +827,7 @@ export function DatasetBuilderPanel({
             }}
             className="shrink-0 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 hover:border-[#6d5bd0] hover:text-[#6d5bd0]"
           >
-            Edit
+            {t("row.edit")}
           </button>
         )}
       </div>
@@ -785,7 +844,7 @@ export function DatasetBuilderPanel({
               }}
               className="rounded-lg border border-[#cbc6dd] px-3 py-1.5 text-xs font-medium text-[#403b5f] hover:border-[#6d5bd0] hover:text-[#6d5bd0]"
             >
-              Import cases
+              {t("import.title")}
             </button>
           )}
 
@@ -799,7 +858,9 @@ export function DatasetBuilderPanel({
               disabled={duplicateMutation.isPending}
               className="rounded-lg border border-[#cbc6dd] px-3 py-1.5 text-xs font-medium text-[#403b5f] hover:border-[#6d5bd0] hover:text-[#6d5bd0] disabled:opacity-60"
             >
-              {duplicateMutation.isPending ? "Duplicating…" : "Duplicate"}
+              {duplicateMutation.isPending
+                ? t("panel.duplicating")
+                : t("panel.duplicate")}
             </button>
           )}
 
@@ -816,12 +877,14 @@ export function DatasetBuilderPanel({
               }
               title={
                 evaluationSet.status === "published"
-                  ? "Already published"
+                  ? t("panel.alreadyPublished")
                   : undefined
               }
               className="rounded-lg border border-[#cbc6dd] px-3 py-1.5 text-xs font-medium text-[#403b5f] hover:border-[#6d5bd0] hover:text-[#6d5bd0] disabled:opacity-60"
             >
-              {publishMutation.isPending ? "Publishing…" : "Publish"}
+              {publishMutation.isPending
+                ? t("panel.publishing")
+                : t("panel.publish")}
             </button>
           )}
 
@@ -833,25 +896,29 @@ export function DatasetBuilderPanel({
                   onClick={() => setConfirmDeleteSet(true)}
                   className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
                 >
-                  Delete dataset
+                  {t("panel.deleteDataset")}
                 </button>
               ) : (
                 <div className="flex items-center gap-1">
-                  <span className="text-xs text-red-700">Delete dataset?</span>
+                  <span className="text-xs text-red-700">
+                    {t("panel.deleteDatasetQuestion")}
+                  </span>
                   <button
                     type="button"
                     onClick={() => deleteSetMutation.mutate()}
                     disabled={deleteSetMutation.isPending}
                     className="rounded-lg bg-red-600 px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-60"
                   >
-                    {deleteSetMutation.isPending ? "Deleting…" : "Yes, delete"}
+                    {deleteSetMutation.isPending
+                      ? t("panel.deleting")
+                      : t("panel.yesDelete")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteSet(false)}
                     className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600"
                   >
-                    Cancel
+                    {t("cancel")}
                   </button>
                 </div>
               )}
@@ -875,7 +942,7 @@ export function DatasetBuilderPanel({
       {/* Validation */}
       <div>
         <p className="mb-1.5 text-xs font-semibold tracking-wide text-gray-400 uppercase">
-          Validation
+          {t("panel.validation")}
         </p>
         <ValidationPanel evaluationSetId={evaluationSet.evaluation_set_id} />
       </div>
@@ -883,7 +950,7 @@ export function DatasetBuilderPanel({
       {/* Versions */}
       <div>
         <p className="mb-1.5 text-xs font-semibold tracking-wide text-gray-400 uppercase">
-          Version history
+          {t("panel.versionHistory")}
         </p>
         <VersionsPanel evaluationSetId={evaluationSet.evaluation_set_id} />
       </div>
@@ -892,18 +959,23 @@ export function DatasetBuilderPanel({
       <div>
         <div className="mb-1.5 flex items-center justify-between">
           <p className="text-xs font-semibold tracking-wide text-gray-400 uppercase">
-            Cases ({questions.length})
+            {visibleCases.length < totalCases
+              ? t("panel.casesPartial", {
+                  loaded: visibleCases.length,
+                  total: totalCases,
+                })
+              : t("panel.cases", { count: totalCases })}
           </p>
         </div>
-        {questions.length === 0 ? (
+        {visibleCases.length === 0 ? (
           <EmptyState
             compact
-            title="No cases yet"
-            description="Add cases manually or import from CSV/JSON."
+            title={t("panel.noCases")}
+            description={t("panel.noCasesHint")}
           />
         ) : (
           <ul className="space-y-1.5">
-            {questions.map((q) => (
+            {visibleCases.map((q) => (
               <QuestionRow
                 key={q.evaluation_question_id}
                 question={q}
@@ -911,9 +983,8 @@ export function DatasetBuilderPanel({
                 canManage={canManage}
                 onDeleted={() => {
                   void queryClient.invalidateQueries({
-                    queryKey: queryKeys.evaluations.setQuestions(
+                    queryKey: allSetQuestionsKey(
                       evaluationSet.evaluation_set_id,
-                      { limit: 200, offset: 0 },
                     ),
                   });
                   void queryClient.invalidateQueries({
@@ -928,9 +999,8 @@ export function DatasetBuilderPanel({
                 }}
                 onUpdated={() => {
                   void queryClient.invalidateQueries({
-                    queryKey: queryKeys.evaluations.setQuestions(
+                    queryKey: allSetQuestionsKey(
                       evaluationSet.evaluation_set_id,
-                      { limit: 200, offset: 0 },
                     ),
                   });
                   void queryClient.invalidateQueries({
@@ -944,11 +1014,30 @@ export function DatasetBuilderPanel({
             ))}
           </ul>
         )}
+        {casesQuery.hasNextPage ? (
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void casesQuery.fetchNextPage()}
+              disabled={casesQuery.isFetchingNextPage}
+              className="rounded-lg border border-[#cbc6dd] px-3 py-1.5 text-xs font-medium text-[#403b5f] hover:border-[#6d5bd0] hover:text-[#6d5bd0] disabled:opacity-60"
+            >
+              {casesQuery.isFetchingNextPage
+                ? t("panel.loadingMore")
+                : t("panel.loadMore")}
+            </button>
+            {casesQuery.isFetchNextPageError ? (
+              <span role="alert" className="text-xs text-red-700">
+                {t("panel.loadMoreFailed")}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
-      <section aria-label="Language coverage">
+      <section aria-label={t("panel.languageCoverage")}>
         <h3 className="mb-2 text-sm font-semibold text-[#2f2a48]">
-          Language coverage
+          {t("panel.languageCoverage")}
         </h3>
         <LanguageCoverageTable
           evaluationSetId={evaluationSet.evaluation_set_id}
@@ -962,13 +1051,12 @@ export function DatasetBuilderPanel({
         onClose={() => setIsImportOpen(false)}
         onSuccess={({ imported, skipped }) => {
           setImportSuccess(
-            `Imported ${imported} case${imported !== 1 ? "s" : ""}${skipped > 0 ? `, skipped ${skipped} duplicate${skipped !== 1 ? "s" : ""}` : ""}.`,
+            skipped > 0
+              ? t("panel.importedSkipped", { imported, skipped })
+              : t("panel.imported", { imported }),
           );
           void queryClient.invalidateQueries({
-            queryKey: queryKeys.evaluations.setQuestions(
-              evaluationSet.evaluation_set_id,
-              { limit: 200, offset: 0 },
-            ),
+            queryKey: allSetQuestionsKey(evaluationSet.evaluation_set_id),
           });
           void queryClient.invalidateQueries({
             queryKey: queryKeys.evaluations.sets,

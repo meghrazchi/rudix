@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import { answerModeBadge } from "@/components/chat/trust-panel/trust-badges";
 import type { TrustPanelProps } from "@/components/chat/AnswerTrustPanel";
 import { trackFeatureEvent } from "@/lib/analytics";
@@ -33,6 +35,7 @@ export function TrustPanelHeader({
   onSaveAsKnowledgeCard: TrustPanelProps["onSaveAsKnowledgeCard"];
   onReportIssue: TrustPanelProps["onReportIssue"];
 }) {
+  const t = useTranslations("chat.trustPanel");
   return (
     <>
       {hideHeader ? (
@@ -41,7 +44,7 @@ export function TrustPanelHeader({
             <div
               className="inline-flex rounded-full border border-[#d7d4e8] bg-white p-0.5 text-[10px] font-semibold shadow-sm"
               role="tablist"
-              aria-label="Retrieval diagnostics mode"
+              aria-label={t("header.modeAria")}
             >
               <button
                 type="button"
@@ -54,7 +57,7 @@ export function TrustPanelHeader({
                     : "text-[#6a6780] hover:text-[#3525cd]"
                 }`}
               >
-                Basic
+                {t("header.basic")}
               </button>
               <button
                 type="button"
@@ -67,7 +70,7 @@ export function TrustPanelHeader({
                     : "text-[#6a6780] hover:text-[#3525cd]"
                 }`}
               >
-                Expert
+                {t("header.expert")}
               </button>
             </div>
           ) : null}
@@ -87,16 +90,15 @@ export function TrustPanelHeader({
               </span>
               <div className="min-w-0">
                 <p className="text-[10px] font-bold tracking-[0.18em] text-[#777587] uppercase">
-                  Answer Explanation
+                  {t("header.answerExplanation")}
                 </p>
                 <p className="truncate text-sm font-semibold text-[#1b1b24]">
-                  Model view
+                  {t("header.modelView")}
                 </p>
               </div>
             </div>
             <p className="mt-2 max-w-2xl text-xs leading-relaxed text-[#6a6780]">
-              Confidence, source selection, and citation support are grouped
-              into a single review panel.
+              {t("header.description")}
             </p>
             {answerModeBadgeRecord ? (
               <div className="mt-2">
@@ -119,7 +121,7 @@ export function TrustPanelHeader({
                 data-testid="trust-panel-save-knowledge-card-btn"
                 onClick={onSaveAsKnowledgeCard}
                 className="flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-[10px] font-medium text-indigo-700 hover:bg-indigo-100 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
-                aria-label="Save as knowledge card"
+                aria-label={t("header.saveAria")}
               >
                 <span
                   className="material-symbols-outlined text-[12px]"
@@ -127,14 +129,14 @@ export function TrustPanelHeader({
                 >
                   bookmark_add
                 </span>
-                Save as card
+                {t("header.saveAsCard")}
               </button>
             ) : null}
             {showInterpretationDetails ? (
               <div
                 className="inline-flex rounded-full border border-[#d7d4e8] bg-white p-0.5 text-[10px] font-semibold"
                 role="tablist"
-                aria-label="Retrieval diagnostics mode"
+                aria-label={t("header.modeAria")}
               >
                 <button
                   type="button"
@@ -147,7 +149,7 @@ export function TrustPanelHeader({
                       : "text-[#6a6780] hover:text-[#3525cd]"
                   }`}
                 >
-                  Basic
+                  {t("header.basic")}
                 </button>
                 <button
                   type="button"
@@ -160,7 +162,7 @@ export function TrustPanelHeader({
                       : "text-[#6a6780] hover:text-[#3525cd]"
                   }`}
                 >
-                  Expert
+                  {t("header.expert")}
                 </button>
               </div>
             ) : null}
@@ -191,7 +193,7 @@ export function TrustPanelHeader({
                   });
                 }}
                 className="flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-medium text-rose-700 hover:bg-rose-100 focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none"
-                aria-label="Report an issue with this answer"
+                aria-label={t("header.reportAria")}
               >
                 <span
                   className="material-symbols-outlined text-[12px]"
@@ -199,7 +201,7 @@ export function TrustPanelHeader({
                 >
                   flag
                 </span>
-                Report issue
+                {t("header.reportIssue")}
               </button>
             ) : null}
           </div>

@@ -610,11 +610,10 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
       setAddQuestionDraft(questionDraftDefaults());
       setAddQuestionError(null);
       if (selectedSetId) {
+        // No params: refreshes every list of the set, including the dataset
+        // builder's paged case list (R07-06).
         await queryClient.invalidateQueries({
-          queryKey: queryKeys.evaluations.setQuestions(selectedSetId, {
-            limit: EVALUATION_QUESTION_LIMIT,
-            offset: 0,
-          }),
+          queryKey: queryKeys.evaluations.setQuestions(selectedSetId),
         });
       }
       await queryClient.invalidateQueries({
@@ -1390,7 +1389,6 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
             void queryClient.invalidateQueries({
               queryKey: queryKeys.evaluations.setQuestions(
                 selectedSet.evaluation_set_id,
-                { limit: EVALUATION_QUESTION_LIMIT, offset: 0 },
               ),
             })
           }

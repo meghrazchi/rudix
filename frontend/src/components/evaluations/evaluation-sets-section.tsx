@@ -1,5 +1,7 @@
 import type { FormEvent } from "react";
 
+import { useTranslations } from "next-intl";
+
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
@@ -112,6 +114,7 @@ export function EvaluationSetsSection({
   addQuestionError,
   isAddingQuestion,
 }: EvaluationSetsSectionProps) {
+  const t = useTranslations("evaluations.setsSection");
   const visibleSets = filteredSets(sets, setSearch);
   const selectedSet =
     sets.find((candidate) => candidate.evaluation_set_id === selectedSetId) ??
@@ -122,30 +125,30 @@ export function EvaluationSetsSection({
   return (
     <section
       className="grid gap-4 xl:grid-cols-[360px_1fr]"
-      aria-label="Evaluation datasets and test cases"
+      aria-label={t("ariaLabel")}
     >
       <div className="rounded-2xl border border-[#d8d4e8] bg-white p-4 shadow-sm">
         <h2 className="text-lg font-semibold text-[#292442]">
-          Evaluation datasets
+          {t("datasetsTitle")}
         </h2>
         <p className="mt-1 text-sm text-[#66627d]">
-          Select a dataset to inspect test cases and run configurations.
+          {t("datasetsDescription")}
         </p>
 
         <label className="mt-3 grid gap-1 text-xs font-semibold tracking-wide text-[#645f7b] uppercase">
-          Search datasets
+          {t("searchDatasets")}
           <input
             type="search"
             value={setSearch}
             onChange={(event) => onSetSearchChange(event.target.value)}
-            placeholder="Dataset name"
+            placeholder={t("datasetNamePlaceholder")}
             className="h-9 rounded-lg border border-[#d1cce4] px-2 text-sm font-medium tracking-normal text-[#2a2640] normal-case"
           />
         </label>
 
         <div className="mt-3">
           {isSetsLoading ? (
-            <LoadingState compact title="Loading evaluation datasets..." />
+            <LoadingState compact title={t("loadingDatasets")} />
           ) : setsError ? (
             <ErrorState
               compact
@@ -156,8 +159,8 @@ export function EvaluationSetsSection({
           ) : visibleSets.length === 0 ? (
             <EmptyState
               compact
-              title="No datasets found."
-              description="Create a set or change search filters."
+              title={t("noDatasets")}
+              description={t("noDatasetsHint")}
             />
           ) : (
             <ul className="max-h-[420px] space-y-2 overflow-auto pr-1">
@@ -176,11 +179,13 @@ export function EvaluationSetsSection({
                       {set.name}
                     </p>
                     <p className="mt-1 text-xs text-[#66627d]">
-                      {set.description ?? "No description"}
+                      {set.description ?? t("noDescription")}
                     </p>
                     <p className="mt-1 text-xs text-[#66627d]">
-                      {set.question_count} questions • updated{" "}
-                      {new Date(set.updated_at).toLocaleDateString()}
+                      {t("questionsUpdated", {
+                        count: set.question_count,
+                        date: new Date(set.updated_at).toLocaleDateString(),
+                      })}
                     </p>
                   </button>
                 </li>
@@ -192,24 +197,25 @@ export function EvaluationSetsSection({
 
       <div className="space-y-4 rounded-2xl border border-[#d8d4e8] bg-white p-4 shadow-sm">
         <div>
-          <h2 className="text-lg font-semibold text-[#292442]">Test cases</h2>
+          <h2 className="text-lg font-semibold text-[#292442]">
+            {t("testCasesTitle")}
+          </h2>
           <p className="mt-1 text-sm text-[#66627d]">
-            Search and sort expected questions/answers for dataset quality
-            checks.
+            {t("testCasesDescription")}
           </p>
         </div>
 
         {!selectedSet ? (
           <EmptyState
             compact
-            title="Select a dataset to inspect test cases."
-            description="Once selected, you can search and manage test cases."
+            title={t("selectDataset")}
+            description={t("selectDatasetHint")}
           />
         ) : (
           <>
             <section className="grid gap-2 rounded-xl border border-[#ddd8ec] bg-[#fcfbff] p-3 lg:grid-cols-3">
               <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#635e7b] uppercase lg:col-span-2">
-                Search test cases
+                {t("searchTestCases")}
                 <input
                   type="search"
                   value={questionFilters.query}
@@ -219,13 +225,13 @@ export function EvaluationSetsSection({
                       query: event.target.value,
                     })
                   }
-                  placeholder="Question, expected answer, or tag"
+                  placeholder={t("searchTestCasesPlaceholder")}
                   className="h-9 rounded-lg border border-[#d1cce4] px-2 text-sm font-medium tracking-normal text-[#2a2640] normal-case"
                 />
               </label>
 
               <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#635e7b] uppercase">
-                Sort
+                {t("sort")}
                 <select
                   value={questionFilters.sortBy}
                   onChange={(event) =>
@@ -237,9 +243,9 @@ export function EvaluationSetsSection({
                   }
                   className="h-9 rounded-lg border border-[#d1cce4] px-2 text-sm font-medium tracking-normal text-[#2a2640] normal-case"
                 >
-                  <option value="created_desc">Newest first</option>
-                  <option value="created_asc">Oldest first</option>
-                  <option value="question_asc">Question A-Z</option>
+                  <option value="created_desc">{t("sortNewest")}</option>
+                  <option value="created_asc">{t("sortOldest")}</option>
+                  <option value="question_asc">{t("sortQuestion")}</option>
                 </select>
               </label>
             </section>
@@ -253,12 +259,12 @@ export function EvaluationSetsSection({
                 }}
               >
                 <p className="text-sm font-semibold text-[#2f2a49]">
-                  Add test case
+                  {t("addTitle")}
                 </p>
 
                 <label className="grid gap-1">
                   <span className="text-xs font-semibold tracking-wide text-[#635e7b] uppercase">
-                    Question
+                    {t("question")}
                   </span>
                   <textarea
                     rows={2}
@@ -270,13 +276,13 @@ export function EvaluationSetsSection({
                       })
                     }
                     className="rounded-lg border border-[#d1cce4] px-2 py-1.5 text-sm text-[#2a2640]"
-                    placeholder="What is the data retention policy?"
+                    placeholder={t("questionPlaceholder")}
                   />
                 </label>
 
                 <label className="grid gap-1">
                   <span className="text-xs font-semibold tracking-wide text-[#635e7b] uppercase">
-                    Expected answer
+                    {t("expectedAnswer")}
                   </span>
                   <textarea
                     rows={2}
@@ -288,14 +294,14 @@ export function EvaluationSetsSection({
                       })
                     }
                     className="rounded-lg border border-[#d1cce4] px-2 py-1.5 text-sm text-[#2a2640]"
-                    placeholder="Optional expected answer"
+                    placeholder={t("expectedAnswerPlaceholder")}
                   />
                 </label>
 
                 <div className="grid gap-2 sm:grid-cols-2">
                   <label className="grid gap-1">
                     <span className="text-xs font-semibold tracking-wide text-[#635e7b] uppercase">
-                      Expected page
+                      {t("expectedPage")}
                     </span>
                     <input
                       value={addQuestionDraft.expectedPage}
@@ -306,12 +312,12 @@ export function EvaluationSetsSection({
                         })
                       }
                       className="h-9 rounded-lg border border-[#d1cce4] px-2 text-sm text-[#2a2640]"
-                      placeholder="Optional"
+                      placeholder={t("optional")}
                     />
                   </label>
                   <label className="grid gap-1">
                     <span className="text-xs font-semibold tracking-wide text-[#635e7b] uppercase">
-                      Tags
+                      {t("tags")}
                     </span>
                     <input
                       value={addQuestionDraft.tags}
@@ -322,7 +328,7 @@ export function EvaluationSetsSection({
                         })
                       }
                       className="h-9 rounded-lg border border-[#d1cce4] px-2 text-sm text-[#2a2640]"
-                      placeholder="compliance, retention"
+                      placeholder={t("tagsPlaceholder")}
                     />
                   </label>
                 </div>
@@ -337,19 +343,18 @@ export function EvaluationSetsSection({
                     disabled={isAddingQuestion}
                     className="rounded bg-[#3525cd] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#2c1ea9] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {isAddingQuestion ? "Adding..." : "Add test case"}
+                    {isAddingQuestion ? t("adding") : t("addTitle")}
                   </button>
                 </div>
               </form>
             ) : (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                Your role can inspect test cases but only owner/admin can add
-                new ones.
+                {t("readOnlyNotice")}
               </p>
             )}
 
             {isQuestionsLoading ? (
-              <LoadingState compact title="Loading test cases..." />
+              <LoadingState compact title={t("loadingTestCases")} />
             ) : questionsError ? (
               <ErrorState
                 compact
@@ -360,28 +365,26 @@ export function EvaluationSetsSection({
             ) : visibleQuestions.length === 0 ? (
               <EmptyState
                 compact
-                title="No test cases match current filters."
-                description="Add new test cases or adjust the filters."
+                title={t("noTestCases")}
+                description={t("noTestCasesHint")}
               />
             ) : (
               <div className="overflow-x-auto rounded-xl border border-[#ddd8ec] bg-white">
                 <table className="min-w-full divide-y divide-[#ece8f7] text-sm">
-                  <caption className="sr-only">
-                    Test cases with expected answers, expected page, and tags.
-                  </caption>
+                  <caption className="sr-only">{t("tableCaption")}</caption>
                   <thead className="bg-[#faf8ff]">
                     <tr>
                       <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#67627e] uppercase">
-                        Question
+                        {t("question")}
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#67627e] uppercase">
-                        Expected answer
+                        {t("expectedAnswer")}
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#67627e] uppercase">
-                        Page
+                        {t("columnPage")}
                       </th>
                       <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#67627e] uppercase">
-                        Tags
+                        {t("tags")}
                       </th>
                     </tr>
                   </thead>
@@ -392,7 +395,7 @@ export function EvaluationSetsSection({
                           {question.question}
                         </td>
                         <td className="px-3 py-2 text-[#4e4968]">
-                          {question.expected_answer ?? "Unavailable"}
+                          {question.expected_answer ?? t("unavailable")}
                         </td>
                         <td className="px-3 py-2 text-[#4e4968]">
                           {question.expected_page_number ?? "-"}

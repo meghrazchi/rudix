@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import {
   SectionHeader,
   StatRow,
@@ -7,15 +9,17 @@ import type {
   PlannerCriticRecord,
 } from "@/lib/api/trust_metadata";
 
-const STRATEGY_LABEL: Record<string, string> = {
-  policy_lookup: "Policy lookup",
-  comparison: "Comparison",
-  legal_compliance: "Legal / compliance",
-  table_heavy: "Table-heavy",
-  graph_assisted: "Graph-assisted",
-  connector_search: "Connector search",
-  standard: "Standard",
-};
+const KNOWN_STRATEGIES = new Set([
+  "policy_lookup",
+  "comparison",
+  "legal_compliance",
+  "table_heavy",
+  "graph_assisted",
+  "connector_search",
+  "standard",
+]);
+
+const KNOWN_SEVERITIES = new Set(["none", "low", "medium", "high"]);
 
 const CRITIC_SEVERITY_COLOR: Record<string, string> = {
   none: "text-[#1a8a4a]",
@@ -36,6 +40,7 @@ export function PlannerCriticSection({
 }: {
   plannerCritic: PlannerCriticRecord | null;
 }) {
+  const t = useTranslations("chat.trustPanel");
   if (
     plannerCritic === null ||
     (plannerCritic.strategy === "standard" &&
@@ -46,42 +51,45 @@ export function PlannerCriticSection({
     return null;
   }
 
-  const strategyLabel =
-    STRATEGY_LABEL[plannerCritic.strategy] ?? plannerCritic.strategy;
+  const strategyLabel = KNOWN_STRATEGIES.has(plannerCritic.strategy)
+    ? t(`pipeline.strategies.${plannerCritic.strategy}`)
+    : plannerCritic.strategy;
   const severityColor =
     CRITIC_SEVERITY_COLOR[plannerCritic.critic_severity] ?? "text-[#464555]";
 
   return (
     <div className="space-y-2">
-      <SectionHeader icon="auto_awesome" label="Answer Pipeline" />
+      <SectionHeader icon="auto_awesome" label={t("pipeline.title")} />
       <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
-        <StatRow label="Strategy" value={strategyLabel} />
+        <StatRow label={t("pipeline.strategy")} value={strategyLabel} />
         {plannerCritic.high_risk ? (
-          <StatRow label="High-risk review" value="Yes" />
+          <StatRow label={t("pipeline.highRisk")} value={t("yes")} />
         ) : null}
         {plannerCritic.critic_severity !== "none" ? (
           <StatRow
-            label="Critic severity"
+            label={t("pipeline.criticSeverity")}
             value={
               <span className={`font-semibold ${severityColor}`}>
-                {plannerCritic.critic_severity}
+                {KNOWN_SEVERITIES.has(plannerCritic.critic_severity)
+                  ? t(`pipeline.severity.${plannerCritic.critic_severity}`)
+                  : plannerCritic.critic_severity}
               </span>
             }
           />
         ) : null}
         {plannerCritic.refiner_applied ? (
           <StatRow
-            label="Refiner"
+            label={t("pipeline.refiner")}
             value={
               plannerCritic.draft_changed
-                ? "Applied — answer revised"
-                : "Applied — no changes"
+                ? t("pipeline.refinerRevised")
+                : t("pipeline.refinerNoChange")
             }
           />
         ) : null}
         {plannerCritic.unsupported_claims_removed > 0 ? (
           <StatRow
-            label="Claims removed"
+            label={t("pipeline.claimsRemoved")}
             value={plannerCritic.unsupported_claims_removed}
           />
         ) : null}
@@ -90,7 +98,7 @@ export function PlannerCriticSection({
       {plannerCritic.critic_warnings.length > 0 ? (
         <div className="mt-1 space-y-1">
           <p className="text-[10px] font-semibold tracking-wide text-[#9896a8] uppercase">
-            Critic warnings
+            {t("pipeline.criticWarnings")}
           </p>
           <ul className="space-y-1">
             {plannerCritic.critic_warnings.map((w, i) => (
@@ -104,12 +112,17 @@ export function PlannerCriticSection({
 }
 
 function CriticWarningRow({ warning }: { warning: CriticWarningRecord }) {
+  const t = useTranslations("chat.trustPanel");
   const badgeClass =
     WARNING_SEVERITY_BADGE[warning.severity] ?? WARNING_SEVERITY_BADGE.low;
   return (
     <li className="flex items-start gap-2 text-xs text-[#464555]">
       <span className="mt-0.5 shrink-0">
-        <span className={badgeClass}>{warning.severity}</span>
+        <span className={badgeClass}>
+          {KNOWN_SEVERITIES.has(warning.severity)
+            ? t(`pipeline.severity.${warning.severity}`)
+            : warning.severity}
+        </span>
       </span>
       <span>
         <span className="font-medium text-[#2d2c3e]">{warning.code}</span>
