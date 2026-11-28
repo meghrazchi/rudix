@@ -338,6 +338,10 @@ def sanitized_snapshot(settings: Settings) -> dict[str, Any]:
         "infrastructure": {
             # anchor: v080-A2
             # anchor: v080-B1
+            "redis_cache_url_set": settings.redis_cache_url is not None,
+            "celery_result_backend_url_set": settings.celery_result_backend_url is not None,
+            "ws_chat_connection_limit_backend": settings.ws_chat_connection_limit_backend,
+            "api_shutdown_drain_seconds": settings.api_shutdown_drain_seconds,
             # anchor: v080-B2
             # anchor: v080-B3
             # anchor: v080-C2

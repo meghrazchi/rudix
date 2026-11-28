@@ -1,0 +1,69 @@
+{{- /*
+The monitoring namespace may scrape the metrics ports when metrics are enabled: the api `http`
+port serves /metrics, each worker pool serves port `metrics`. The mcp server has no /metrics
+route, so its port stays closed to the monitoring namespace.
+*/ -}}
+{{- if and .Values.networkPolicy.enabled .Values.metrics.enabled }}
+{{- $selector := .Values.networkPolicy.monitoringNamespaceSelector -}}
+{{- $workers := list -}}
+{{- range $name := splitList "," (include "rudix.c1.poolNames" .) -}}
+{{- if $name -}}
+{{- $workers = append $workers (printf "worker-%s" $name) -}}
+{{- end -}}
+{{- end -}}
+{{- $web := list "api" }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "rudix.c1.policyName" (dict "root" . "name" "metrics-from-monitoring") }}
+  labels:
+    {{- include "rudix.c1.policyLabels" (dict "root" .) | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "rudix.c1.releaseSelector" . | nindent 6 }}
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values:
+          {{- toYaml $web | nindent 10 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml $selector | nindent 14 }}
+      ports:
+        - port: http
+          protocol: TCP
+{{- if $workers }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "rudix.c1.policyName" (dict "root" . "name" "worker-metrics-from-monitoring") }}
+  labels:
+    {{- include "rudix.c1.policyLabels" (dict "root" .) | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "rudix.c1.releaseSelector" . | nindent 6 }}
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values:
+          {{- toYaml $workers | nindent 10 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml $selector | nindent 14 }}
+      ports:
+        - port: metrics
+          protocol: TCP
+{{- end }}
+{{- end }}

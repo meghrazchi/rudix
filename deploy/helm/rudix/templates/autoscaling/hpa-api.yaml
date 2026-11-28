@@ -1,0 +1,22 @@
+{{- /* autoscaling/v2 HPA for the api on CPU and memory (hpa mode). Never below 2 replicas. */ -}}
+{{- if and .Values.autoscaling.enabled (eq (toString .Values.autoscaling.mode) "hpa") -}}
+{{- $ctx := dict "root" . "component" "api" -}}
+{{- $api := .Values.autoscaling.api -}}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "rudix.componentName" $ctx }}
+  labels:
+    {{- include "rudix.labels" $ctx | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "rudix.componentName" $ctx }}
+  minReplicas: {{ int $api.minReplicas }}
+  maxReplicas: {{ int $api.maxReplicas }}
+  metrics:
+    {{- include "rudix.c1.resourceMetrics" $api | nindent 4 }}
+  behavior:
+    {{- include "rudix.c1.hpaBehavior" $api.scaleDownStabilizationSeconds | nindent 4 }}
+{{- end }}

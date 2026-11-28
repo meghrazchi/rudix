@@ -1,0 +1,23 @@
+{{- /* Frontend server-side calls to the api Service (networkPolicy.allowFrontendToApi). */ -}}
+{{- if and .Values.networkPolicy.enabled .Values.networkPolicy.allowFrontendToApi -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "rudix.c1.policyName" (dict "root" . "name" "api-from-frontend") }}
+  labels:
+    {{- include "rudix.c1.policyLabels" (dict "root" .) | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "rudix.selectorLabels" (dict "root" . "component" "api") | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "rudix.selectorLabels" (dict "root" . "component" "frontend") | nindent 14 }}
+      ports:
+        - port: http
+          protocol: TCP
+{{- end }}

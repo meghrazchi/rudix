@@ -49,6 +49,20 @@ def set_chat_ws_connections(count: int) -> None:
     CHAT_WS_CONNECTIONS.set(max(0, count))
 
 
+def chat_ws_connection_opened() -> None:
+    """B1: one chat WebSocket accepted in this process (``livesum`` across processes)."""
+    if not is_metrics_enabled():
+        return
+    CHAT_WS_CONNECTIONS.inc()
+
+
+def chat_ws_connection_closed() -> None:
+    """B1: one accepted chat WebSocket ended in this process."""
+    if not is_metrics_enabled():
+        return
+    CHAT_WS_CONNECTIONS.dec()
+
+
 def set_beat_heartbeat_timestamp(timestamp_seconds: float) -> None:
     if not is_metrics_enabled():
         return

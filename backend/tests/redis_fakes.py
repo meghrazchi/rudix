@@ -25,6 +25,7 @@ REFERENCE_IMPLS: dict[str, ReferenceImpl] = {
     script_sha1(usage_touch.TOUCH_SCRIPT): usage_touch.touch_reference_impl,
     script_sha1(usage_touch.POP_SCRIPT): usage_touch.pop_reference_impl,
     script_sha1(concurrency.ACQUIRE_SCRIPT): concurrency.acquire_reference_impl,
+    script_sha1(concurrency.REFRESH_SCRIPT): concurrency.refresh_reference_impl,
     script_sha1(resume_buffer.APPEND_SCRIPT): resume_buffer.append_reference_impl,
 }
 
@@ -156,6 +157,10 @@ class _Store:
     def zcard(self, key: str) -> int:
         self._purge(key)
         return len(self.zsets.get(key, {}))
+
+    def zscore(self, key: str, member: str) -> float | None:
+        self._purge(key)
+        return self.zsets.get(key, {}).get(member)
 
     # Lists (R05-13).
     def rpush(self, key: str, value: str) -> int:
@@ -291,6 +296,10 @@ class FakeRedis:
     async def zcard(self, key: str) -> int:
         self._count("ZCARD")
         return self.keyspace.zcard(key)
+
+    async def zscore(self, key: str, member: str) -> float | None:
+        self._count("ZSCORE")
+        return self.keyspace.zscore(key, member)
 
     async def rpush(self, key: str, *values: str) -> int:
         self._count("RPUSH")

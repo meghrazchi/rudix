@@ -260,6 +260,15 @@ Rollback (dispatch `target=rollback`): inputs `environment` (`production` or `st
 swaps the images without running migrations. The three `rollback_*_image` inputs still work
 as a deprecated fallback when `version` is empty (kept for one milestone).
 
+Kubernetes (`0.8.0`): `release.yml` does not deploy to a cluster; it still rolls Compose out
+with Terraform. Installing or upgrading the Helm chart is an operator step: resolve the digests
+the workflow promoted (`api:staging-passed-<sha>` or `api:vX.Y.Z`, the same for `worker`, and
+`frontend-<environment>:<sha>`) with `docker buildx imagetools inspect`, then render and apply
+with `image.<name>.digest` (and `image.frontend.repository=frontend-<environment>`) as in
+[docs/28](./28_KUBERNETES_HELM_DEPLOYMENT.md#workloads-rollout-autoscaling-and-network-policy).
+The chart's migrate Job runs as a `pre-install,pre-upgrade` hook, so no separate migration step
+is needed there; `helm rollback` runs no migrations.
+
 Concurrency: each deploy job (and rollback) holds `rudix-deploy-staging` or
 `rudix-deploy-production`, so two runs never apply Terraform to the same environment at once.
 Terraform 1.9.8 S3 state has no lock file here; this group is the serialization.

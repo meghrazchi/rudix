@@ -36,6 +36,8 @@ config:
     # v080-B2
     # v080-B3
     # v080-C1
+    # Readiness gates only on the stores every request needs (contract 5.2.6, B1 setting).
+    READINESS_REQUIRED_DEPENDENCIES: postgres,redis
     # v080-C2
     # v080-D1
 
@@ -91,28 +93,78 @@ backup: {}
 dataStores: {}
 
 # owner: C1
-frontend: {}
+frontend:
+  podAnnotations:
+    example.invalid/note: placeholder
+  nodeSelector:
+    example.invalid/pool: web
+  tolerations:
+    - key: example.invalid/dedicated
+      operator: Equal
+      value: web
+      effect: NoSchedule
 
 # owner: C1
-api: {}
+api:
+  podAnnotations:
+    example.invalid/note: placeholder
 
 # owner: C1
-mcp: {}
+mcp:
+  enabled: true
 
 # owner: C1
-workers: {}
+workers:
+  pools:
+    ingest:
+      resources:
+        requests:
+          cpu: "1"
+          memory: 2Gi
+        limits:
+          cpu: "2"
+          memory: 4Gi
 
 # owner: C1
 beat: {}
 
 # owner: C1
-migrations: {}
+migrations:
+  useMigrationUrl: true
 
 # owner: C1
-autoscaling: {}
+autoscaling:
+  enabled: true
+  mode: keda
+  prometheus:
+    serverAddress: http://prometheus.monitoring.svc.invalid:9090
 
 # owner: C1
-networkPolicy: {}
+networkPolicy:
+  allowFrontendToApi: true
+  dataStores:
+    - name: postgres
+      podSelector:
+        example.invalid/app: postgres
+      ports:
+        - port: 5432
+          protocol: TCP
+    - name: redis
+      namespace: data
+      podSelector:
+        example.invalid/app: redis
+      ports:
+        - port: 6379
+          protocol: TCP
+  egress:
+    enabled: true
+    extraRules:
+      - to:
+          - ipBlock:
+              cidr: 192.0.2.0/24
+        ports:
+          - port: 443
+            protocol: TCP
 
 # owner: C1
 podDisruptionBudget: {}
@@ -121,7 +173,8 @@ podDisruptionBudget: {}
 rollout: {}
 
 # owner: C1
-connectionBudget: {}
+connectionBudget:
+  maxDatabaseConnections: 2000
 
 # owner: C2
 database: {}

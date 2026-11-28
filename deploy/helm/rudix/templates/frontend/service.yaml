@@ -1,0 +1,1 @@
+{{- include "rudix.c1.service" (dict "root" . "component" "frontend" "port" .Values.frontend.port "portName" "http") }}
