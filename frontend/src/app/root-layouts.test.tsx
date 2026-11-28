@@ -27,7 +27,9 @@ import GlobalNotFound, {
 import LocaleError from "./[locale]/error";
 import AppError from "./(app)/error";
 import AppNotFound from "./(app)/not-found";
-import RouteErrorFallback from "@/components/errors/RouteErrorFallback";
+import RouteErrorFallback, {
+  SegmentRouteError,
+} from "@/components/errors/RouteErrorFallback";
 import { RootDocument } from "@/components/layout/RootDocument";
 import { ProtectedAppLayout } from "@/components/layout/ProtectedAppLayout";
 import { NotFoundPage } from "@/components/public/pages/NotFoundPage";
@@ -125,8 +127,10 @@ describe("app/global-not-found.tsx", () => {
 
 describe("segment error and not-found files", () => {
   it("re-export the shared route error fallback", () => {
+    // Public routes: full-screen page variant. Signed-in app: the inline
+    // segment variant, because (app)/error.tsx renders inside the shell.
     expect(LocaleError).toBe(RouteErrorFallback);
-    expect(AppError).toBe(RouteErrorFallback);
+    expect(AppError).toBe(SegmentRouteError);
   });
 
   it("(app)/not-found renders NotFoundPage", () => {
