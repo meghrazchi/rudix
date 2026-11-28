@@ -175,6 +175,7 @@ make seed-dev
 - Redis, RabbitMQ, and Qdrant are optional at boot: if their init fails the API logs `startup.dependency_unavailable` (dependency and error class) and keeps starting; `/api/v1/ready` reports them down and retries the Redis and Qdrant connection on each probe, so the API recovers without a restart.
 - `GRAPH_MIGRATIONS_ON_STARTUP` controls Neo4j graph migrations at API startup. Unset means on in development/test and off in staging/production. In staging/production run `make migrate-graph` (or `python scripts/run_graph_migrations.py`) as part of the migrate step; it is a no-op unless `ENTERPRISE_GRAPH_ENABLED=true` and exits non-zero on failure.
 - API errors use one envelope (`error.code`, `error.message`, `error.request_id`, `error.details`) with the legacy `detail` alias; see `docs/07_API_DESIGN.md`.
+- 0.9.0 adds two settings modules, both registered on `Settings` and validated from its model validator (`validate_account_security`, `validate_billing`): `app/core/settings/account_security.py` (`AccountSecuritySettings`; verification, recovery, MFA, SAML and SCIM fields land there, plus `AUTH_ONE_TIME_TOKEN_RETENTION_HOURS`, default 24, the age after which the daily `auth.tokens.purge_expired` task deletes expired or consumed single-use tokens) and `app/core/settings/billing.py` (`BillingSettings`; `BILLING_PROVIDER=none` by default, which keeps manual plans and usage-derived invoices). The sanitized snapshot has a `product_completeness` section (booleans and sanitized values only).
 
 ## Authentication quick check
 
@@ -591,6 +592,25 @@ gets no `[postgres]` parameters. PostgreSQL full-text search
 CI runs the lane in `.github/workflows/backend-postgres.yml` (check name
 `Backend PostgreSQL tests`) with PostgreSQL and Redis service containers, on every push and
 pull request. The `backend-alembic` job in `ci.yml` keeps only the migration round trip.
+
+- Hermetic tests (0.9.0): `tests/conftest.py` pins the environment before any application
+  import (`tests/hermetic.py`), so the suite behaves as in CI whatever `.env` or the shell
+  holds. It applies the CI job environment as defaults, pins `ENVIRONMENT=test`, the
+  provider selectors (`EMAIL_PROVIDER=console`, `EMAIL_ENABLED=false`, `BILLING_PROVIDER=none`,
+  `TRACING_ENABLED=false`, `LANGFUSE_ENABLED=false`, `OPENAI_API_KEY=test-placeholder-key`),
+  rebuilds the settings singleton without reading `.env`, and clears every provider
+  credential (Resend, Postmark, SMTP, Stripe, Langfuse, Slack, Teams, local model keys,
+  OTLP headers, backup S3 keys, `SENTRY_DSN`). Tests that need other values keep using
+  `monkeypatch` on `settings`.
+- An autouse session guard makes `socket.connect`/`connect_ex` raise
+  `RuntimeError: tests must not open network connections to <host>:<port>; use the fakes`
+  for any IPv4 or IPv6 address that is not loopback and not the host of `TEST_DATABASE_URL`,
+  `TEST_MIGRATIONS_DATABASE_URL`, or `TEST_REDIS_URL`. Unix sockets and name resolution are
+  allowed. Running the suite against live providers on purpose is not supported: use the
+  fakes, or a separate script outside `tests/`.
+- `tests/test_migrations_0_9_0_pg.py` runs the 0.9.0 migrations up, down to
+  `20261128_0003`, and up again on `TEST_MIGRATIONS_DATABASE_URL` (a database that is safe to
+  downgrade); it is skipped when the variable is unset.
 
 ## Test speed and coverage
 
