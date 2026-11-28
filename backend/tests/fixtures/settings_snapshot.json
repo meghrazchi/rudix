@@ -178,6 +178,12 @@
   "frontend_base_url": "http://localhost:3000/",
   "infrastructure": {
     "api_shutdown_drain_seconds": 0.0,
+    "backup_bucket": null,
+    "backup_encryption_key_file_set": false,
+    "backup_prefix": "rudix",
+    "backup_s3_credentials_set": false,
+    "backup_s3_endpoint_set": false,
+    "backup_s3_kms_key_id_set": false,
     "celery_result_backend_url_set": false,
     "redis_cache_url_set": false,
     "ws_chat_connection_limit_backend": "memory"

@@ -82,6 +82,9 @@ class WorkersSettings(BaseModel):
     qdrant_quantization_always_ram: bool | None = None
     qdrant_shard_number: int | None = Field(default=None, ge=1, le=1024)
     qdrant_replication_factor: int | None = Field(default=None, ge=1, le=64)
+    # R08-05: replicas that must acknowledge a write (Qdrant ``write_consistency_factor``),
+    # at most the replication factor. None leaves the server default (1).
+    qdrant_write_consistency_factor: int | None = Field(default=None, ge=1, le=64)
     # True stores the parent chunk's text on every child point (the 0.5.0 payload). False
     # omits it; vector retrieval then reads parent text from document_chunks by id.
     qdrant_store_parent_text: bool = True
