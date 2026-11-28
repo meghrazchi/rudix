@@ -4,6 +4,7 @@ import type { components } from "@/lib/api/generated/schema";
 import { apiRequest } from "@/lib/api/request";
 import type { AppRole } from "@/lib/auth-session";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
+import { publicEnv } from "@/lib/public-env";
 
 type Schemas = components["schemas"];
 
@@ -207,16 +208,35 @@ function normalizeInviteResponse(payload: unknown): InviteTeamMemberResponse {
 
 function getTeamEndpoints() {
   return {
-    listMembersUrl: trimToNull(process.env.NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL),
-    inviteUrl: trimToNull(process.env.NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL),
+    listMembersUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL",
+        process.env.NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL,
+      ),
+    ),
+    inviteUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL",
+        process.env.NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL,
+      ),
+    ),
     updateRoleTemplate: trimToNull(
-      process.env.NEXT_PUBLIC_TEAM_MEMBER_ROLE_UPDATE_URL_TEMPLATE,
+      publicEnv(
+        "NEXT_PUBLIC_TEAM_MEMBER_ROLE_UPDATE_URL_TEMPLATE",
+        process.env.NEXT_PUBLIC_TEAM_MEMBER_ROLE_UPDATE_URL_TEMPLATE,
+      ),
     ),
     removeMemberTemplate: trimToNull(
-      process.env.NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE,
+      publicEnv(
+        "NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE",
+        process.env.NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE,
+      ),
     ),
     setPasswordTemplate: trimToNull(
-      process.env.NEXT_PUBLIC_TEAM_MEMBER_SET_PASSWORD_URL_TEMPLATE,
+      publicEnv(
+        "NEXT_PUBLIC_TEAM_MEMBER_SET_PASSWORD_URL_TEMPLATE",
+        process.env.NEXT_PUBLIC_TEAM_MEMBER_SET_PASSWORD_URL_TEMPLATE,
+      ),
     ),
   };
 }

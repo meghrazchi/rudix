@@ -116,6 +116,33 @@ make seed-dev
   the `# migration-safety: allow=<rule> reason="..."` marker, and
   `scripts/migration_safety_allowlist.json` are described in docs/CONTRIBUTING.md.
 
+- Signing-key rotation (R08-11): `APP_AUTH_SECRET_PREVIOUS` (unset by default) is tried after
+  `APP_AUTH_SECRET` when verifying access and refresh tokens and the Slack OAuth state; signing
+  always uses `APP_AUTH_SECRET`. Startup refuses an empty previous secret or one equal to the
+  current. `rudix_auth_token_verified_by_previous_key_total{kind}` counts verifications that
+  needed it; remove it when the counter stops growing (at least the access-token TTL, the
+  refresh TTL to keep sessions signed in). It is never used for connector credential
+  encryption. The snapshot shows only `infrastructure.app_auth_secret_previous_set`. Runbook:
+  `docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md` `### Rotation`.
+
+- Stateless API replicas (0.8.0, R08-03, R08-02, R08-05; details in
+  `docs/28_KUBERNETES_HELM_DEPLOYMENT.md`, "Stateless replicas and shutdown"):
+  - `WS_CHAT_CONNECTION_LIMIT_BACKEND` (`memory`, default; or `redis`): `redis` counts
+    `WS_CHAT_MAX_CONNECTIONS_PER_USER` across replicas with one lease per connection
+    (`app/application/chat/ws_connection_limit.py`), refreshed on each heartbeat and expiring
+    after `WS_CHAT_CONNECTION_LEASE_SECONDS` (90; with `redis`, must exceed two heartbeat
+    intervals). Redis
+    errors follow `RATE_LIMIT_REDIS_FAILURE_MODE` (open: in-process count; closed: `4429`).
+  - `API_SHUTDOWN_DRAIN_SECONDS` (0 = off, at most 120): lifespan shutdown waits that long
+    for chat runs whose socket dropped (uvicorn closes sockets with `1012`) before closing
+    clients, then cancels the rest (`drain_dropped_runs` in
+    `app/application/chat/transports/ws.py`).
+  - `READINESS_REQUIRED_DEPENDENCIES` (comma list, unset = all): only these failures make
+    `/api/v1/ready` answer `503`; the body still reports every dependency.
+  - `REDIS_CACHE_URL` (unset = `REDIS_URL`): cached values only; version keys and every
+    other state key stay on `REDIS_URL`. `CELERY_RESULT_BACKEND_URL` (unset = `REDIS_URL`):
+    Celery results. `/ready` adds `redis_cache` when the cache URL is set.
+
 ## Settings layout and startup behavior
 
 - `app/core/config.py` holds the `Settings` class, validation, and `settings`/`get_settings`. The fields live in per-area mixins under `app/core/settings/` (`app.py`, `database.py`, `redis_rate_limit.py`, `storage.py`, `celery.py`, `auth.py`, `ai_providers.py`, `rag.py`, `graph.py`, `mcp.py`, `connectors.py`, `observability.py`, `email_bots.py`, `features.py`); enums are in `enums.py` and the sanitized snapshot in `snapshot.py`. Environment variable names are unchanged and every symbol previously imported from `app.core.config` is still re-exported there. Keep each file under 500 lines.

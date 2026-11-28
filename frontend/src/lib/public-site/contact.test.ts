@@ -91,6 +91,33 @@ describe("resolveContactSubmissionConfig", () => {
   });
 });
 
+describe("resolveContactSubmissionConfig in request mode (R08-11)", () => {
+  afterEach(() => {
+    delete window.__RUDIX_RUNTIME_CONFIG__;
+  });
+
+  it("keeps the build values that the prerendered contact page rendered", () => {
+    process.env.NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE = "request";
+    process.env.NEXT_PUBLIC_CONTACT_SUBMIT_API_URL =
+      "https://api.example.com/contact";
+    window.__RUDIX_RUNTIME_CONFIG__ = Object.freeze({
+      NEXT_PUBLIC_CONTACT_SUBMIT_API_URL: "https://served.example.com/contact",
+      NEXT_PUBLIC_CONTACT_SCHEDULER_URL: "https://served.example.com/book",
+      NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER: "turnstile",
+      NEXT_PUBLIC_CONTACT_CAPTCHA_SITE_KEY: "served-site-key",
+    });
+
+    const config = resolveContactSubmissionConfig(resolvePublicSiteLinks());
+
+    // A served value here would not match the prerendered form (captcha field,
+    // scheduler link) and React would discard the HTML on hydration.
+    expect(config.apiEndpoint).toBe("https://api.example.com/contact");
+    expect(config.schedulerUrl).toBeNull();
+    expect(config.captchaProvider).toBeNull();
+    expect(config.captchaSiteKey).toBeNull();
+  });
+});
+
 describe("submitContactForm", () => {
   it("submits via api mode and returns success", async () => {
     const fetchMock = vi

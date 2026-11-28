@@ -52,6 +52,7 @@ import { canViewAdminUsage, resolveUsageDateRange } from "@/lib/dashboard";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { useAuthSession } from "@/lib/use-auth-session";
+import { publicEnv } from "@/lib/public-env";
 
 type WarningSeverity = "high" | "medium" | "low";
 
@@ -505,15 +506,31 @@ export function AdminSecurityCenterPage() {
   const teamCapabilities = useMemo(() => getTeamCapabilities(), []);
 
   const billingControlsHref =
-    trimToNull(process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL) ??
-    "/settings?tab=billing";
-  const apiKeysHref = trimToNull(process.env.NEXT_PUBLIC_SETTINGS_API_KEYS_URL);
+    trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_SETTINGS_BILLING_URL",
+        process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL,
+      ),
+    ) ?? "/settings?tab=billing";
+  const apiKeysHref = trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_SETTINGS_API_KEYS_URL",
+      process.env.NEXT_PUBLIC_SETTINGS_API_KEYS_URL,
+    ),
+  );
   const webhooksHref = trimToNull(
-    process.env.NEXT_PUBLIC_SETTINGS_WEBHOOKS_URL,
+    publicEnv(
+      "NEXT_PUBLIC_SETTINGS_WEBHOOKS_URL",
+      process.env.NEXT_PUBLIC_SETTINGS_WEBHOOKS_URL,
+    ),
   );
   const ssoHref =
-    trimToNull(process.env.NEXT_PUBLIC_AUTH_SSO_URL) ??
-    "/settings?tab=security";
+    trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_AUTH_SSO_URL",
+        process.env.NEXT_PUBLIC_AUTH_SSO_URL,
+      ),
+    ) ?? "/settings?tab=security";
 
   const auditRange = useMemo(() => resolveUsageDateRange("30d"), []);
 

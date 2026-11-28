@@ -51,7 +51,22 @@ secrets:
   create: false
   # owner: D1
   externalSecret:
-    enabled: false
+    enabled: true
+    refreshInterval: 30m
+    secretStoreRef:
+      name: rudix-ci-secret-store
+      kind: SecretStore
+    data:
+      - secretKey: APP_AUTH_SECRET
+        remoteRef:
+          key: rudix/ci/app-auth-secret
+      - secretKey: APP_AUTH_SECRET_PREVIOUS
+        remoteRef:
+          key: rudix/ci/app-auth
+          property: previous
+      - secretKey: DATABASE_URL
+        remoteRef:
+          key: rudix/ci/database-url
 
 # owner: S1
 serviceAccount:
@@ -72,7 +87,23 @@ metrics:
   enabled: true
 
 # owner: A1
-ingress: {}
+ingress:
+  enabled: true
+  noindex: true
+  certManager:
+    clusterIssuer: ci-issuer
+  annotations:
+    example.invalid/ci: "true"
+  app:
+    host: app.ci.rudix.invalid
+    tlsSecretName: rudix-ci-app-tls
+  api:
+    host: api.ci.rudix.invalid
+    tlsSecretName: rudix-ci-api-tls
+  mcp:
+    host: mcp.ci.rudix.invalid
+    path: /mcp
+    tlsSecretName: rudix-ci-mcp-tls
 
 # owner: A2
 backup: {}
@@ -180,7 +211,13 @@ tracing: {}
 # owner: D1
 runtimeConfig:
   env:
-    NEXT_PUBLIC_CI_PLACEHOLDER: "true"
+    NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE: request
+    NEXT_PUBLIC_DEPLOYMENT_ENV: staging
+    NEXT_PUBLIC_API_URL: https://api.ci.rudix.invalid/api/v1
+    NEXT_PUBLIC_APP_URL: https://app.ci.rudix.invalid
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: staging
 
 # owner: D1
-cdn: {}
+cdn:
+  assetPrefix: https://cdn.ci.rudix.invalid
+  publicAssetCacheControl: public, max-age=3600

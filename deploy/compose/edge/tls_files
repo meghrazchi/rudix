@@ -1,0 +1,4 @@
+# Imported into each site when EDGE_TLS_MODE=files: an operator-provided certificate and key
+# in deploy/compose/edge/certs/ on the host (git-ignored; never committed). The certificate
+# must cover every edge host (app, API, and Matomo when enabled).
+tls /etc/caddy/certs/cert.pem /etc/caddy/certs/key.pem

@@ -47,6 +47,8 @@ secrets:
   # owner: D1
   externalSecret:
     enabled: false
+    secretStoreRef: {}
+    data: []
 
 # owner: S1
 serviceAccount: {}
@@ -64,7 +66,17 @@ tmpVolume: {}
 metrics: {}
 
 # owner: A1
-ingress: {}
+ingress:
+  enabled: true
+  noindex: true
+  certManager:
+    clusterIssuer: ""
+  app:
+    host: app.staging.rudix.invalid
+    tlsSecretName: rudix-staging-app-tls
+  api:
+    host: api.staging.rudix.invalid
+    tlsSecretName: rudix-staging-api-tls
 
 # owner: A2
 backup: {}
@@ -124,7 +136,11 @@ tracing: {}
 
 # owner: D1
 runtimeConfig:
-  env: {}
+  env:
+    NEXT_PUBLIC_DEPLOYMENT_ENV: staging
+    NEXT_PUBLIC_API_URL: https://api.staging.rudix.invalid/api/v1
+    NEXT_PUBLIC_APP_URL: https://app.staging.rudix.invalid
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: staging
 
 # owner: D1
 cdn: {}

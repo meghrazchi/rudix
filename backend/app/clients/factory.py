@@ -12,9 +12,10 @@ from redis.asyncio import Redis
 from app.core.config import QdrantDistance, Settings
 
 
-def create_redis_client(config: Settings) -> Redis:
+def create_redis_client(config: Settings, *, url: str | None = None) -> Redis:
+    """Redis client for ``REDIS_URL``, or for ``url`` (R08-05 ``REDIS_CACHE_URL``)."""
     return Redis.from_url(
-        str(config.redis_url),
+        url or str(config.redis_url),
         encoding="utf-8",
         decode_responses=True,
         socket_connect_timeout=config.redis_socket_connect_timeout_seconds,

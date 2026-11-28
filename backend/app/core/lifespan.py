@@ -11,7 +11,12 @@ from app.clients.minio_client import close_minio, init_minio
 from app.clients.neo4j_client import close_neo4j, init_neo4j
 from app.clients.qdrant_client import close_async_qdrant_clients, close_qdrant, init_qdrant
 from app.clients.rabbitmq_client import close_rabbitmq, init_rabbitmq
-from app.clients.redis_client import close_redis, init_redis
+from app.clients.redis_client import (
+    close_cache_redis,
+    close_redis,
+    init_cache_redis,
+    init_redis,
+)
 from app.core.langfuse_tracer import init_langfuse, shutdown_langfuse
 from app.core.loop_lag import start_loop_lag_monitor, stop_loop_lag_monitor
 from app.core.sentry import init_sentry
@@ -117,6 +122,28 @@ def warn_deprecated_settings() -> None:
         )
 
 
+async def drain_on_shutdown(drain_seconds: float) -> None:
+    """R08-02: before clients close, let dropped chat runs finish their grace window for up
+    to ``API_SHUTDOWN_DRAIN_SECONDS``, then cancel the rest. 0 keeps the old behaviour."""
+    if drain_seconds <= 0:
+        return
+    from app.application.chat.transports.ws import drain_dropped_runs
+
+    try:
+        finished, cancelled = await drain_dropped_runs(drain_seconds)
+    except Exception as exc:
+        logger.warning("api.shutdown.drain_failed", extra={"error": exc.__class__.__name__})
+        return
+    logger.info(
+        "api.shutdown.drain",
+        extra={
+            "finished": finished,
+            "cancelled": cancelled,
+            "drain_seconds": drain_seconds,
+        },
+    )
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     from app.core.config import settings
@@ -126,6 +153,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         init_sentry(runtime="api")
         init_langfuse(runtime="api")
         await _init_optional_dependency("redis", init_redis)
+        await _init_optional_dependency("redis_cache", init_cache_redis)
         await _init_optional_dependency("rabbitmq", init_rabbitmq)
         await _init_optional_dependency("qdrant", init_qdrant)
         await _init_optional_dependency("vector_index", _reconcile_vector_index)
@@ -143,6 +171,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         start_loop_lag_monitor()
         yield
     finally:
+        await drain_on_shutdown(settings.api_shutdown_drain_seconds)
+        await close_cache_redis()
         await close_redis()
         close_rabbitmq()
         close_qdrant()

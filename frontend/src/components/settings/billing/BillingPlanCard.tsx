@@ -10,6 +10,7 @@ import {
   PlanStatusBadge,
   PlanStatusCallout,
 } from "@/components/settings/billing/billingShared";
+import { publicEnv } from "@/lib/public-env";
 
 export function PlanCard({
   plan,
@@ -26,7 +27,12 @@ export function PlanCard({
 
   const manageUrl =
     billingPortalUrl ??
-    trimToNull(process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL);
+    trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_SETTINGS_BILLING_URL",
+        process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL,
+      ),
+    );
 
   const seatsUsed = plan.seats_used ?? 0;
   const seatsTotal = plan.seats_included;

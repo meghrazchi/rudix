@@ -29,6 +29,7 @@ import {
   BillingPortalFallback,
   BillingNotificationsInfo,
 } from "@/components/settings/billing/BillingContactSection";
+import { publicEnv } from "@/lib/public-env";
 
 export function BillingSettingsTab() {
   const t = useTranslations("settings.billing");
@@ -40,7 +41,10 @@ export function BillingSettingsTab() {
   const capabilities = useMemo(() => getBillingCapabilities(), []);
 
   const billingPortalUrl = trimToNull(
-    process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL,
+    publicEnv(
+      "NEXT_PUBLIC_SETTINGS_BILLING_URL",
+      process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL,
+    ),
   );
 
   const planQuery = useQuery({

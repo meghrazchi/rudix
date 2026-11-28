@@ -1,5 +1,7 @@
 "use client";
 
+import { publicEnv } from "@/lib/public-env";
+
 /**
  * Realtime updates for the authenticated app (R07-07).
  *
@@ -17,7 +19,12 @@ import { useAuthSession } from "@/lib/use-auth-session";
 import type { RealtimeStatus } from "@/lib/realtime/types";
 
 export function isRealtimeEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_REALTIME_ENABLED === "true";
+  return (
+    publicEnv(
+      "NEXT_PUBLIC_REALTIME_ENABLED",
+      process.env.NEXT_PUBLIC_REALTIME_ENABLED,
+    ) === "true"
+  );
 }
 
 type RealtimeSnapshot = { status: RealtimeStatus; hidden: boolean };

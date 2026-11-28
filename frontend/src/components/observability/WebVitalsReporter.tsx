@@ -3,6 +3,7 @@
 import { lazy, Suspense } from "react";
 
 import { useConsentContext } from "@/components/consent/ConsentProvider";
+import { publicEnv } from "@/lib/public-env";
 
 // Loaded on demand: with the flag off or no consent, the web-vitals code never
 // reaches the browser (keeps every route inside its bundle budget). React.lazy
@@ -16,7 +17,12 @@ const WebVitalsCollector = lazy(() =>
 
 /** First-party Web Vitals (R07-11): off unless the build flag is "true". */
 export function isWebVitalsEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_WEB_VITALS_ENABLED === "true";
+  return (
+    publicEnv(
+      "NEXT_PUBLIC_WEB_VITALS_ENABLED",
+      process.env.NEXT_PUBLIC_WEB_VITALS_ENABLED,
+    ) === "true"
+  );
 }
 
 /**

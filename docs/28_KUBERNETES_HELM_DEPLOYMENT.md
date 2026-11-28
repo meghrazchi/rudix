@@ -117,6 +117,62 @@ schemas); that step is first exercised in CI, not on a development machine.
 
 <!-- v080-A1 -->
 
+`templates/ingress.yaml` (values key `ingress`, owner A1) renders one `networking.k8s.io/v1`
+Ingress per host for an operator-installed NGINX ingress controller (`R08-01`). It is off in
+`values.yaml` and on in the staging, production, and CI values files. Compose uses a Caddy
+edge instead ([docs/10](./10_DEPLOYMENT_DOCKER.md), "Edge proxy, scaling, and environment
+parity").
+
+| Ingress | Host | Path | Backend (C1 Service, port `http`) |
+| --- | --- | --- | --- |
+| `<fullname>-frontend` | `ingress.app.host` | `/` | `<fullname>-frontend` |
+| `<fullname>-api` | `ingress.api.host` | `/` | `<fullname>-api` |
+| `<fullname>-mcp` (only when `mcp.enabled`) | `ingress.mcp.host`, or the API host when empty | `ingress.mcp.path` (`/mcp`) | `<fullname>-mcp` |
+
+- `ingress.className` (`nginx`) sets `ingressClassName`. Hosts are `.invalid` placeholders and
+  TLS secret names are placeholders; each Ingress has one TLS entry for its host. MCP on the API
+  host reuses the API secret; with its own host it uses `ingress.mcp.tlsSecretName` (falling
+  back to the API secret). An empty host or secret name stops the render.
+- `cert-manager.io/cluster-issuer` is added only when `ingress.certManager.clusterIssuer` is
+  set (empty by default); otherwise the operator provides the TLS secrets.
+- `nginx.ingress.kubernetes.io/proxy-body-size` comes from `ingress.maxBodySize` (`26m`,
+  `MAX_UPLOAD_SIZE_MB` 25 plus headroom; raise both together).
+- The API and MCP ingresses set `proxy-read-timeout` and `proxy-send-timeout` to
+  `ingress.streamTimeoutSeconds` (3600) and `proxy-buffering: "off"`, for WebSockets and
+  server-sent events. The frontend ingress keeps the controller defaults.
+- `ingress.noindex: true` (staging) renders a `<fullname>-ingress-headers` ConfigMap with
+  `X-Robots-Tag: noindex, nofollow` and points every Ingress at it with
+  `nginx.ingress.kubernetes.io/custom-headers`. The controller must allow that header
+  (`global-allowed-response-headers: "X-Robots-Tag"` in its ConfigMap). No snippet annotation
+  is used.
+- `ingress.annotations` adds extra annotations to every Ingress.
+
+Controller settings the chart cannot set. Access logs without query strings (share links and
+tokens can travel in them) and no trust in client-sent forwarded headers belong to the
+ingress-nginx controller ConfigMap, which the operator owns:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+data:
+  # $uri is the path without the query string; $request (which includes it) is not logged.
+  log-format-escape-json: "true"
+  log-format-upstream: >-
+    {"time":"$time_iso8601","request_id":"$req_id","remote_addr":"$remote_addr",
+    "method":"$request_method","host":"$host","path":"$uri","status":$status,
+    "bytes_sent":$bytes_sent,"request_time":$request_time,"upstream":"$upstream_addr"}
+  # Keep the default: client X-Forwarded-* headers are not trusted.
+  use-forwarded-headers: "false"
+  # Needed only when ingress.noindex is true.
+  global-allowed-response-headers: "X-Robots-Tag"
+```
+
+`backend/tests/test_helm_chart_ingress.py` renders every values file with `mcp.enabled=true`
+and checks hosts, backends, TLS, annotations, and the noindex ConfigMap.
+
 ## Data stores, backups, and restore
 
 <!-- v080-A2 -->
@@ -124,6 +180,112 @@ schemas); that step is first exercised in CI, not on a development machine.
 ## Stateless replicas and shutdown
 
 <!-- v080-B1 -->
+
+An API replica holds no per-user or per-tenant state that another replica needs, so any pod
+can serve any request and a pod can be removed at any time. The settings below default to
+the single-instance behaviour of `0.7.0`; the chart and production Compose set them.
+
+### Shared WebSocket connection limit (R08-03)
+
+`WS_CHAT_MAX_CONNECTIONS_PER_USER` (default 3) is enforced per process with
+`WS_CHAT_CONNECTION_LIMIT_BACKEND=memory` (default) and across every replica with `redis`:
+
+- Each accepted `/chat/ws` connection holds one lease in the sorted set
+  `rudix:{env}:chat:ws:conn:v1:{organization_id}:{user_id}` (the semaphore script of
+  `app/rate_limit/concurrency.py`, scored by Redis `TIME` plus the lease). Code:
+  `app/application/chat/ws_connection_limit.py`.
+- The lease lasts `WS_CHAT_CONNECTION_LEASE_SECONDS` (default 90; with the `redis` backend
+  it must be more than twice `WS_CHAT_HEARTBEAT_INTERVAL_SECONDS`, 30, or settings validation
+  fails at startup) and every heartbeat tick refreshes it
+  (`REFRESH_SCRIPT`). A replica that crashes without releasing frees its slots once the
+  lease runs out, so no per-replica heartbeat key is needed.
+- A closed connection removes its lease at once (`ZREM`). A refresh that finds the lease gone
+  (for example after a long event-loop stall) takes it again when a slot is free and never
+  closes the open socket (log `ws_chat.connection.lease_lost`).
+- Redis errors follow `RATE_LIMIT_REDIS_FAILURE_MODE`: `open` (default) counts the connection
+  in the in-process counter instead (outcome `fallback`), `closed` closes it with `4429`.
+- Metrics: `rudix_chat_ws_connections` (open sockets, `livesum` per process) and
+  `rudix_chat_ws_connection_limit_total{backend,outcome}`; see
+  `docs/12_EVALUATION_AND_MONITORING.md`.
+
+### Process-local state audit (R08-03)
+
+Module-level dictionaries, sets, and caches in `backend/app` that hold per-user, per-tenant,
+or per-run data, and why each is safe with several replicas:
+
+| State | Code | Scope | With several replicas |
+|---|---|---|---|
+| WebSocket connection counter | `app/application/chat/ws_connection_limit.py` (`MEMORY_COUNTS`, re-exported as `chat._ws_connection_counts`) | user | `memory` backend only, and the open-mode fallback; use `redis` for a shared limit |
+| Realtime stream slots | `app/application/realtime/stream_http.py` | user | Already in Redis (lease semaphore) |
+| Chat resume buffer, cancel and attached flags | `app/application/chat/transports/resume_buffer.py` | run | Already in Redis; `chat.resume` works on any replica |
+| Realtime pub/sub and replay buffer | `app/domains/realtime/events.py` | organisation | Already in Redis |
+| Rate limits, LLM concurrency semaphore, WebSocket tickets, usage touch | `app/rate_limit/*`, `app/domains/chat/services/ws_ticket_service.py`, `app/auth/usage_touch.py` | user, organisation | Already in Redis |
+| Grace watchers of dropped runs | `app/application/chat/transports/ws.py` (`_GRACE_WATCHERS`, `_DROPPED_RUNS`) | run | Owned by the process that runs the pipeline; drained at shutdown (below) |
+| SSE run tasks | `app/application/chat/transports/sse.py` (`_active_runs`) | run | Task references of this process only |
+| Cache single-flight futures | `app/core/cache.py` (`_inflight`) | value key | Deduplicates loads per process; correctness comes from the Redis version keys |
+| JWKS keys | `app/auth/providers/jwt_jwks_provider.py` | auth provider | Per process by design (public keys, `AUTH_JWKS_CACHE_TTL_SECONDS`) |
+| Provider circuit breakers | `app/domains/ai/providers/resilience.py` (`breaker_registry`) | provider and model | Each replica trips on its own failures; not tenant data |
+| Vector index generation snapshot | `app/domains/vector_index/services/generation_service.py` (`registry`) | deployment | Reloaded from PostgreSQL after `VECTOR_INDEX_REGISTRY_CACHE_SECONDS` |
+| RLS soft-denial log throttle | `app/db/tenant_context.py` | table | Log throttling only |
+
+Clients and one-time init markers (`qdrant_client._async_clients`, Sentry and Langfuse init
+sets, `lru_cache` on settings, the auth provider, and MCP server objects, the frontend
+route allow-list in `metrics_frontend.py`) hold no tenant data.
+
+### Graceful shutdown and drain (R08-02, contract 5.2.5)
+
+When Kubernetes (or `docker compose`) stops an API pod:
+
+1. **preStop sleep** (chart, C1): the pod keeps serving while endpoints and the ingress
+   remove it, so no new connection arrives after uvicorn stops listening.
+2. **SIGTERM, uvicorn graceful shutdown**: uvicorn stops accepting connections, closes every
+   open WebSocket with close code `1012` (service restart; all three WebSocket
+   implementations of uvicorn `0.54` do, `tests/test_shutdown_drain.py`), and waits for
+   in-flight HTTP requests and SSE streams up to `UVICORN_TIMEOUT_GRACEFUL_SHUTDOWN` seconds
+   (uvicorn's `--timeout-graceful-shutdown` read from the environment; unset by default,
+   which means no limit).
+3. **Dropped runs**: the frontend (`src/lib/chat/ws-reconnect.ts`) treats `1012` as
+   retryable and reconnects to another replica with `chat.resume`; the run that lost its
+   socket keeps going on this replica in its grace window (`CHAT_WS_RESUME_GRACE_SECONDS`),
+   writing to the Redis resume buffer the new replica reads.
+4. **Drain**: lifespan shutdown first waits up to `API_SHUTDOWN_DRAIN_SECONDS` (default `0`
+   = no wait, as before 0.8.0; at most 120) for those runs to finish, then cancels the rest
+   (a cancelled run records its partial usage). Log `api.shutdown.drain` with
+   `finished` and `cancelled` counts only.
+5. **Close clients**: the cache Redis, Redis, RabbitMQ, Qdrant, MinIO, ClamAV, Neo4j, the
+   loop-lag monitor, and the database engine close.
+
+Budget rule: `preStop sleep + UVICORN_TIMEOUT_GRACEFUL_SHUTDOWN + API_SHUTDOWN_DRAIN_SECONDS`
+must stay below `terminationGracePeriodSeconds` (Kubernetes) or `stop_grace_period`
+(Compose), with a few seconds of margin; otherwise the kubelet or Docker sends `SIGKILL`
+during the drain and the remaining runs stop without their partial usage. A run longer than
+the drain is cancelled.
+
+### Readiness scope (R08-02, contract 5.2.6)
+
+`GET /api/v1/ready` reports every dependency (`postgres`, `redis`, `redis_cache` when
+`REDIS_CACHE_URL` is set, `rabbitmq`, `qdrant`, `minio`, `neo4j` with the enterprise graph,
+`openai_config`) in its body and in `rudix_dependency_readiness`.
+`READINESS_REQUIRED_DEPENDENCIES` (comma list; unknown names fail settings validation) picks
+which failures answer `503`; the body still says `degraded` and lists every failure. Unset
+means every dependency, as before 0.8.0. The chart's readiness probe (C1) uses
+`READINESS_REQUIRED_DEPENDENCIES=postgres,redis`, so a Qdrant or RabbitMQ blip does not take
+every pod out of the Service at once; liveness uses `GET /api/v1/health`.
+
+### Redis roles (R08-05, contract 5.2.7)
+
+| Variable | Holds | Unset |
+|---|---|---|
+| `REDIS_URL` | State: rate limits, semaphores and connection leases, WebSocket tickets, the resume buffer, realtime pub/sub, usage touch, cache version keys | Required |
+| `REDIS_CACHE_URL` | Cached values only (`app/core/cache.py`); may use an evicting policy such as `allkeys-lru` | Values share `REDIS_URL` |
+| `CELERY_RESULT_BACKEND_URL` | Celery task results (`redis_result_backend_url()`) | Results share `REDIS_URL` |
+
+Version keys stay on `REDIS_URL` so evicting cached values can never reset a version and
+resurrect stale values. When the cache Redis is down, cached reads fall back to PostgreSQL
+(`rudix_cache_errors_total{operation="get"}`, or `operation="unavailable"` when it was down
+at boot; values never move to `REDIS_URL`), and `/ready` reports `redis_cache` down and
+reconnects it. The
+state Redis needs persistence and `noeviction` (see "Data stores, backups, and restore").
 
 ## Metrics and alerting
 
@@ -471,6 +633,40 @@ against a real scratch instance are staging-only (plan section 9).
 ## Secrets and runtime configuration
 
 <!-- v080-D1 -->
+
+Secrets (R08-11). Pods read one existing Kubernetes Secret, named by `secrets.existingSecret`,
+with `envFrom`; values files hold only its name and the chart never renders a `Secret` with
+values (`secrets.create` must stay `false`). Optionally set `secrets.externalSecret.enabled:
+true` to render an External Secrets Operator `ExternalSecret`
+(`templates/externalsecret.yaml`, `external-secrets.io/v1`) that writes that Secret from a
+secret manager: `secretStoreRef` (`name`, `kind` `SecretStore` or `ClusterSecretStore`),
+`refreshInterval` (default `1h`), and `data` items mapping an environment variable name
+(`secretKey`) to a `remoteRef` (`key`, optional `property` and `version`). The operator and the
+store are not part of the chart. Rendering fails when the ExternalSecret is enabled without
+`secrets.existingSecret`, a store name and kind, or at least one complete `data` item. To
+rotate `APP_AUTH_SECRET`, add `APP_AUTH_SECRET_PREVIOUS` to the Secret or the `data` list; see
+`docs/11` `### Rotation`.
+
+Runtime configuration (R08-11). `runtimeConfig.env` renders into the `<fullname>-frontend`
+ConfigMap, which the frontend Deployment reads with `envFrom`. It holds
+`NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE` (default `build`) and allowlisted public names
+(`frontend/config/public-runtime-keys.mjs`) with placeholder values. The values reach the
+browser only when the image was built with `NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE=request`;
+`backend/tests/test_helm_chart_secrets.py` fails when a values file lists a name outside the
+allowlist. Build-time names (`NEXT_PUBLIC_ASSET_PREFIX`, `PUBLIC_ASSET_CACHE_CONTROL`,
+`NEXT_PUBLIC_PUBLIC_SITE_URL`) are refused in `runtimeConfig.env`.
+
+CDN (R08-12). `cdn.assetPrefix` and `cdn.publicAssetCacheControl` record the build-time values
+the frontend image was built with; the chart checks their shape (`https://` prefix, no
+`immutable`) and renders nothing from them, because they cannot change after `next build`.
+
+Canonical URL decision for one image (plan section 6). Prerendered public pages bake
+`metadataBase`, canonical and hreflang URLs from `NEXT_PUBLIC_PUBLIC_SITE_URL` at build. One
+frontend image for staging and production therefore needs the owner to accept the production
+canonical URL on staging, served with `X-Robots-Tag: noindex` (`EDGE_NOINDEX=true` on the
+staging edge, A1), and one CDN host for both. Until that decision, the release workflow builds
+one image per environment (the default); `RUDIX_FRONTEND_IMAGE_MODE=single` is the switch
+(docs/14).
 
 ## Operator steps
 

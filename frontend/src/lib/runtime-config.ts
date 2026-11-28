@@ -1,3 +1,5 @@
+import { publicEnvSource } from "@/lib/public-env";
+
 const DEFAULT_API_URL = "http://localhost:8000/api/v1";
 const DEFAULT_APP_URL = "http://localhost:3000";
 const PRODUCTION_LIKE_ENVIRONMENTS = new Set(["staging", "production"]);
@@ -253,7 +255,7 @@ function validateProductionLikeUrl(
 }
 
 export function parseFrontendRuntimeConfig(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = publicEnvSource(),
   options: FrontendRuntimeConfigParseOptions = {},
 ): FrontendRuntimeConfigValidation {
   const errors: string[] = [];
@@ -362,7 +364,7 @@ export function parseFrontendRuntimeConfig(
 }
 
 export function getFrontendRuntimeConfig(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = publicEnvSource(),
 ): FrontendRuntimeConfig {
   return parseFrontendRuntimeConfig(env, {
     publicOrigin: getBrowserOrigin(),
@@ -370,13 +372,13 @@ export function getFrontendRuntimeConfig(
 }
 
 export function getFrontendRuntimeConfigErrors(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = publicEnvSource(),
 ): string[] {
   return parseFrontendRuntimeConfig(env).errors;
 }
 
 export function assertFrontendRuntimeConfigForBuild(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv = publicEnvSource(),
 ): void {
   const errors = getFrontendRuntimeConfigErrors(env);
   if (errors.length === 0) {

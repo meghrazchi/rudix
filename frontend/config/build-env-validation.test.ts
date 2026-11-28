@@ -135,3 +135,65 @@ describe("validateBuildEnvironment", () => {
     expect(errors[0]).toContain("NEXT_PUBLIC_AUTH_LOCAL_FALLBACK");
   });
 });
+
+describe("validateBuildEnvironment delivery inputs (R08-11, R08-12)", () => {
+  it("accepts the defaults and valid values", () => {
+    expect(validateBuildEnvironment(BASE)).toEqual([]);
+    expect(
+      validateBuildEnvironment({
+        ...BASE,
+        NEXT_PUBLIC_DEPLOYMENT_ENV: "production",
+        NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE: "Request",
+        NEXT_PUBLIC_ASSET_PREFIX: "https://cdn.example.com/rudix",
+        PUBLIC_ASSET_CACHE_CONTROL: "public, max-age=3600, s-maxage=86400",
+      }),
+    ).toEqual([]);
+  });
+
+  it("rejects an unknown runtime config source", () => {
+    const errors = validateBuildEnvironment({
+      ...BASE,
+      NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE: "runtime",
+    });
+    expect(errors).toEqual([
+      "NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE must be build or request.",
+    ]);
+  });
+
+  it.each([
+    ["not a url", "must be a valid absolute URL"],
+    ["ftp://cdn.example.com", "must use http:// or https://"],
+    ["https://cdn.example.com/?v=1", "must not have a query string"],
+  ])("rejects asset prefix %s", (value, message) => {
+    const errors = validateBuildEnvironment({
+      ...BASE,
+      NEXT_PUBLIC_ASSET_PREFIX: value,
+    });
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+    expect(errors[0]).not.toContain(value);
+  });
+
+  it("requires an https asset prefix in staging and production", () => {
+    const errors = validateBuildEnvironment({
+      ...BASE,
+      NEXT_PUBLIC_DEPLOYMENT_ENV: "staging",
+      NEXT_PUBLIC_ASSET_PREFIX: "http://cdn.example.com",
+    });
+    expect(errors).toEqual([
+      "NEXT_PUBLIC_ASSET_PREFIX must use https:// when NEXT_PUBLIC_DEPLOYMENT_ENV is staging or production.",
+    ]);
+  });
+
+  it.each([
+    ["public, max-age=31536000, immutable", "must not be immutable"],
+    ["public; max-age=60", "may hold only Cache-Control directives"],
+  ])("rejects public asset cache control %s", (value, message) => {
+    const errors = validateBuildEnvironment({
+      ...BASE,
+      PUBLIC_ASSET_CACHE_CONTROL: value,
+    });
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain(message);
+  });
+});

@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { isExternalHref, type PublicSiteLinks } from "@/lib/public-site/links";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
+import { publicEnv } from "@/lib/public-env";
 
 export const CONTACT_TEAM_SIZE_OPTIONS = [
   "1-10",
@@ -164,7 +165,12 @@ function inferDefaultApiEndpoint(): string | null {
 function inferMailtoAddress(links: PublicSiteLinks): string | null {
   const configured =
     trimToNull(process.env.NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO) ??
-    trimToNull(process.env.NEXT_PUBLIC_SUPPORT_EMAIL);
+    trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_SUPPORT_EMAIL",
+        process.env.NEXT_PUBLIC_SUPPORT_EMAIL,
+      ),
+    );
 
   if (configured) {
     return toMailtoHref(configured);

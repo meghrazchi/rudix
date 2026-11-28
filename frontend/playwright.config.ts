@@ -25,6 +25,15 @@ const GATE_FRONTEND_PORT = Number.parseInt(
 );
 const GATE_FRONTEND_BASE_URL = `http://127.0.0.1:${GATE_FRONTEND_PORT}`;
 const GATE_SPECS = /route-gate\.spec\.ts$/;
+// R08-11: request-time configuration needs a production build (request mode,
+// API URL A) started with different runtime values (API URL B), so it gets a
+// fourth server with its own build directory (.next-e2e-runtime).
+const RUNTIME_FRONTEND_PORT = Number.parseInt(
+  process.env.PLAYWRIGHT_RUNTIME_FRONTEND_PORT ?? "3104",
+  10,
+);
+const RUNTIME_FRONTEND_BASE_URL = `http://127.0.0.1:${RUNTIME_FRONTEND_PORT}`;
+const RUNTIME_SPECS = /runtime-config\.spec\.ts$/;
 const useBundledBrowser =
   process.env.PLAYWRIGHT_USE_BUNDLED_BROWSER === "true" ||
   process.env.CI === "true";
@@ -72,7 +81,7 @@ export default defineConfig({
     ...extraBrowserProjects,
     {
       name: "chromium",
-      testIgnore: [WS_SPECS, GATE_SPECS],
+      testIgnore: [WS_SPECS, GATE_SPECS, RUNTIME_SPECS],
       use: {
         ...devices["Desktop Chrome"],
         ...(useBundledBrowser ? {} : { channel: "chrome" }),
@@ -98,6 +107,16 @@ export default defineConfig({
         storageState: consentedStorageState(GATE_FRONTEND_BASE_URL),
       },
     },
+    {
+      name: "chromium-runtime-config",
+      testMatch: RUNTIME_SPECS,
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(useBundledBrowser ? {} : { channel: "chrome" }),
+        baseURL: RUNTIME_FRONTEND_BASE_URL,
+        storageState: consentedStorageState(RUNTIME_FRONTEND_BASE_URL),
+      },
+    },
   ],
   webServer: [
     devServer(FRONTEND_PORT, FRONTEND_BASE_URL, {}),
@@ -114,6 +133,13 @@ export default defineConfig({
       NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN: "",
       NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN: "",
     }),
+    {
+      // Builds once (several minutes), then starts the standalone server.
+      command: `node e2e/support/runtime-config-server.mjs ${RUNTIME_FRONTEND_PORT}`,
+      url: `${RUNTIME_FRONTEND_BASE_URL}/login`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 900_000,
+    },
   ],
 });
 

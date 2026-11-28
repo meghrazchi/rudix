@@ -14,6 +14,7 @@ import { RoleAccessSection } from "@/components/settings/security/RoleAccessSect
 import { RateLimitsSection } from "@/components/settings/security/RateLimitsSection";
 import { AiPostureSection } from "@/components/settings/security/AiPostureSection";
 import { AuditLogSection } from "@/components/settings/security/AuditLogSection";
+import { publicEnv } from "@/lib/public-env";
 
 export function SecuritySettingsTab() {
   const { state } = useAuthSession();
@@ -24,11 +25,22 @@ export function SecuritySettingsTab() {
   const capabilities = useMemo(() => getSecurityCapabilities(), []);
 
   const changePasswordUrl = trimToNull(
-    process.env.NEXT_PUBLIC_SECURITY_CHANGE_PASSWORD_URL,
+    publicEnv(
+      "NEXT_PUBLIC_SECURITY_CHANGE_PASSWORD_URL",
+      process.env.NEXT_PUBLIC_SECURITY_CHANGE_PASSWORD_URL,
+    ),
   );
-  const auditPageUrl = trimToNull(process.env.NEXT_PUBLIC_AUDIT_PAGE_URL);
+  const auditPageUrl = trimToNull(
+    publicEnv(
+      "NEXT_PUBLIC_AUDIT_PAGE_URL",
+      process.env.NEXT_PUBLIC_AUDIT_PAGE_URL,
+    ),
+  );
   const auditExportUrl = trimToNull(
-    process.env.NEXT_PUBLIC_SECURITY_AUDIT_EXPORT_URL,
+    publicEnv(
+      "NEXT_PUBLIC_SECURITY_AUDIT_EXPORT_URL",
+      process.env.NEXT_PUBLIC_SECURITY_AUDIT_EXPORT_URL,
+    ),
   );
 
   return (

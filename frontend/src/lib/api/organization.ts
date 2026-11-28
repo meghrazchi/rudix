@@ -3,6 +3,7 @@ import type { components } from "@/lib/api/generated/schema";
 
 import { apiRequest } from "@/lib/api/request";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
+import { publicEnv } from "@/lib/public-env";
 
 type Schemas = components["schemas"];
 
@@ -56,17 +57,48 @@ export class OrganizationEndpointUnavailableError extends Error {
 
 function getOrgEndpoints() {
   return {
-    profileUrl: trimToNull(process.env.NEXT_PUBLIC_ORGANIZATION_PROFILE_URL),
-    settingsUrl: trimToNull(process.env.NEXT_PUBLIC_ORGANIZATION_SETTINGS_URL),
+    profileUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_ORGANIZATION_PROFILE_URL",
+        process.env.NEXT_PUBLIC_ORGANIZATION_PROFILE_URL,
+      ),
+    ),
+    settingsUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_ORGANIZATION_SETTINGS_URL",
+        process.env.NEXT_PUBLIC_ORGANIZATION_SETTINGS_URL,
+      ),
+    ),
     ingestionUrl: trimToNull(
-      process.env.NEXT_PUBLIC_ORGANIZATION_INGESTION_URL,
+      publicEnv(
+        "NEXT_PUBLIC_ORGANIZATION_INGESTION_URL",
+        process.env.NEXT_PUBLIC_ORGANIZATION_INGESTION_URL,
+      ),
     ),
     transferOwnershipUrl: trimToNull(
-      process.env.NEXT_PUBLIC_ORGANIZATION_TRANSFER_OWNERSHIP_URL,
+      publicEnv(
+        "NEXT_PUBLIC_ORGANIZATION_TRANSFER_OWNERSHIP_URL",
+        process.env.NEXT_PUBLIC_ORGANIZATION_TRANSFER_OWNERSHIP_URL,
+      ),
     ),
-    archiveUrl: trimToNull(process.env.NEXT_PUBLIC_ORGANIZATION_ARCHIVE_URL),
-    exportUrl: trimToNull(process.env.NEXT_PUBLIC_ORGANIZATION_EXPORT_URL),
-    deleteUrl: trimToNull(process.env.NEXT_PUBLIC_ORGANIZATION_DELETE_URL),
+    archiveUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_ORGANIZATION_ARCHIVE_URL",
+        process.env.NEXT_PUBLIC_ORGANIZATION_ARCHIVE_URL,
+      ),
+    ),
+    exportUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_ORGANIZATION_EXPORT_URL",
+        process.env.NEXT_PUBLIC_ORGANIZATION_EXPORT_URL,
+      ),
+    ),
+    deleteUrl: trimToNull(
+      publicEnv(
+        "NEXT_PUBLIC_ORGANIZATION_DELETE_URL",
+        process.env.NEXT_PUBLIC_ORGANIZATION_DELETE_URL,
+      ),
+    ),
   };
 }
 

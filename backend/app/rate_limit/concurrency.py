@@ -56,6 +56,22 @@ redis.call('PEXPIRE', KEYS[1], lease_ms)
 return {1, count + 1}
 """
 
+# R08-03: extend a held lease to Redis ``TIME`` + lease_ms. Returns 0 when the lease is gone
+# (released, purged, or already expired), so the caller re-acquires instead of resurrecting
+# a slot that another connection may have taken meanwhile.
+REFRESH_SCRIPT = """
+local lease_ms = tonumber(ARGV[2])
+local t = redis.call('TIME')
+local now_ms = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
+local score = redis.call('ZSCORE', KEYS[1], ARGV[1])
+if not score or tonumber(score) <= now_ms then
+  return 0
+end
+redis.call('ZADD', KEYS[1], 'XX', now_ms + lease_ms, ARGV[1])
+redis.call('PEXPIRE', KEYS[1], lease_ms)
+return 1
+"""
+
 # Interval between two acquire attempts while waiting for a slot.
 _POLL_SECONDS = 0.05
 
@@ -78,6 +94,29 @@ def acquire_reference_impl(
     store.zadd(key, {lease_id: float(now_ms + lease_ms)})
     store.pexpire(key, lease_ms)
     return [1, count + 1]
+
+
+def refresh_reference_impl(
+    store: ScriptStore, keys: Sequence[str], args: Sequence[Any], now_ms: int
+) -> int:
+    """Python twin of ``REFRESH_SCRIPT`` (``now_ms`` stands in for Redis ``TIME``)."""
+    key = keys[0]
+    lease_id = str(args[0])
+    lease_ms = int(args[1])
+    score = store.zscore(key, lease_id)
+    if score is None or score <= now_ms:
+        return 0
+    store.zadd(key, {lease_id: float(now_ms + lease_ms)})
+    store.pexpire(key, lease_ms)
+    return 1
+
+
+async def try_refresh(redis: Any, *, key: str, lease_id: str, lease_ms: int) -> bool:
+    """Extend lease ``lease_id`` by ``lease_ms`` from now; False when it is gone. Redis
+    errors propagate."""
+    script = get_script(redis, REFRESH_SCRIPT)
+    reply = await script(keys=[key], args=[lease_id, lease_ms])
+    return int(reply) == 1
 
 
 def semaphore_key(organization_id: UUID | str) -> str:

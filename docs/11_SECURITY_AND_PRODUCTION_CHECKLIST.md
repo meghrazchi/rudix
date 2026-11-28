@@ -513,6 +513,110 @@ allowlist unless production refuses that value.
 
 Frontend `NEXT_PUBLIC_*` values are baked into the browser bundle. `next build` (`frontend/config/build-env-validation.mjs`) fails in staging/production when `NEXT_PUBLIC_AUTH_LOCAL_FALLBACK` or `NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK` is `true`, or `NEXT_PUBLIC_AUTH_LOCAL_PASSWORD`, `NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_PASSWORD`, `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN` or `NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN` is non-empty (R02-11).
 
+### Rotation
+
+Rotate on a schedule and at once after a suspected leak. The order matters: add the new value
+where it is checked, deploy, then remove the old one (R08-11).
+
+- **`APP_AUTH_SECRET` (JWT and Slack OAuth state signing).** Signing always uses
+  `APP_AUTH_SECRET`; verification tries it first, then `APP_AUTH_SECRET_PREVIOUS` (constant-time
+  compare, the same issuer, audience, expiry, and token-type checks). To rotate: set
+  `APP_AUTH_SECRET_PREVIOUS` to the current value and `APP_AUTH_SECRET` to a new random value
+  (at least 32 bytes) in one deploy of every API, MCP, and worker process; startup refuses a
+  previous value that is empty or equal to the current one. Access tokens and refresh tokens are
+  both HMAC-signed tokens (`backend/app/auth/token_codec.py`); refresh tokens are also looked up
+  by hash in the `auth_refresh_sessions` table, and every refresh issues a new pair signed with the new
+  secret. Keep the previous secret for at least the access-token TTL
+  (`APP_AUTH_ACCESS_TOKEN_TTL_SECONDS`, default 1 hour) plus `APP_AUTH_CLOCK_SKEW_SECONDS`; keep
+  it for the refresh lifetime (`APP_AUTH_REFRESH_TOKEN_TTL_SECONDS`, default 14 days) if
+  signed-in users must not be asked to sign in again. Watch
+  `rudix_auth_token_verified_by_previous_key_total{kind}` (`access`, `refresh`,
+  `bot_oauth_state`): when it stops growing, remove `APP_AUTH_SECRET_PREVIOUS` and deploy again.
+  After removal, tokens signed with the old secret are rejected. The snapshot exposes only
+  `infrastructure.app_auth_secret_previous_set`; neither value is logged.
+- **Connector credential encryption key.** `CONNECTOR_CREDENTIAL_ENCRYPTION_KEY` (required
+  outside development and test; `APP_AUTH_SECRET` is only its development fallback) encrypts
+  stored connector credentials. It has no previous-key support, so it is not rotatable yet
+  (deferred); `APP_AUTH_SECRET_PREVIOUS` is never used for it. Rotating `APP_AUTH_SECRET` in
+  development without that key set makes stored connector credentials unreadable.
+- **LLM and embedding provider API keys** (`OPENAI_API_KEY`, `LOCAL_*_API_KEY`, org-level
+  provider keys): create the new key at the provider, deploy it, confirm calls succeed, then
+  revoke the old key at the provider. There is no overlap setting; the provider keeps both keys
+  valid until you revoke the old one.
+- **Webhook signing secrets.** `POST /api/v1/admin/webhooks/{webhook_id}/rotate-secret` (role
+  with `webhooks_create`) generates a new secret, shows it once, and replaces the stored hash in
+  the same request; the old secret is invalid from then on and there is no overlap. Only a
+  SHA-256 hash of the secret is stored, so no delivery today is signed with it: the
+  `POST .../test` ping sends `X-Rudix-Timestamp` but no signature, and there is no queued event
+  delivery to re-sign. Update the receiver right after rotating. When signed event delivery is
+  added, deliveries already queued at rotation time must be documented again.
+- **Slack and Teams bot secrets** (`BOT_SLACK_SIGNING_SECRET`, `BOT_SLACK_CLIENT_SECRET`,
+  `BOT_TEAMS_SHARED_SECRET`): one value each, no overlap. Regenerate at the provider and deploy
+  the new value straight away; requests signed with the old secret in between are rejected
+  with 401 and the provider retries them. Rotating `APP_AUTH_SECRET` keeps pending Slack
+  install links valid through `APP_AUTH_SECRET_PREVIOUS`.
+- **`METRICS_BEARER_TOKEN`.** The app accepts one token. Write the new token to the Prometheus
+  credentials file (`authorization.credentials_file`) first, then deploy the app with it; scrapes
+  fail between the two steps, so keep the gap short (alerts on missing scrapes may fire once).
+- **OTLP exporter headers** (the tracing exporter credentials added by B3 in `0.8.0`, when tracing is on): add the new
+  credential at the collector or vendor, deploy the new header, then revoke the old one.
+- **Redis, RabbitMQ, PostgreSQL, MinIO/S3 credentials.** Create a second user or key with the
+  same grants, switch the URLs or keys in the Secret, roll every API, worker, beat, and MCP pod
+  (or Compose service), confirm no connection uses the old user (server-side client lists),
+  then drop it. For PostgreSQL keep the role names of `docs/10` (`rudix_app`, migrations
+  owner) and rotate the password with `ALTER ROLE ... PASSWORD` only after the switch.
+- **Backup encryption key.** Encrypt new backups with the new key and keep every old key for as
+  long as backups made with it are retained, or restores fail; see
+  `docs/runbooks/BACKUP_AND_RESTORE.md` (written in `0.8.0`, A2).
+- **Moving off whole-file environment secrets.** `STAGING_ENV_FILE` and `PRODUCTION_ENV_FILE`
+  (docs/14 `## Required GitHub Secrets`) hold every backend secret in one GitHub secret, so
+  rotating one value means rewriting the file. Prefer one GitHub environment secret per value,
+  or a secret manager with the chart's `secrets.externalSecret` (External Secrets Operator).
+
+- [ ] Rotate `APP_AUTH_SECRET` with `APP_AUTH_SECRET_PREVIOUS`, wait for
+  `rudix_auth_token_verified_by_previous_key_total` to stop growing, then remove the previous
+  secret (operator, 0.8.0)
+- [ ] Move staging and production secrets from `STAGING_ENV_FILE`/`PRODUCTION_ENV_FILE` to
+  per-secret environment secrets or a secret manager (operator, 0.8.0)
+- [ ] Write the rotation dates and owners of every secret above in the operations log
+  (operator, 0.8.0)
+
+## Edge and TLS
+
+Staging and production compose put a Caddy edge in front of every public service (`R08-01`;
+[docs/10](./10_DEPLOYMENT_DOCKER.md), "Edge proxy, scaling, and environment parity"). The Helm
+chart uses NGINX Ingress objects instead ([docs/28](./28_KUBERNETES_HELM_DEPLOYMENT.md), "Edge
+and ingress").
+
+- Only `edge` publishes host ports, and only 80 and 443 (plus 443/udp for HTTP/3).
+  `deploy/scripts/check_compose_config.sh` and `backend/tests/test_compose_parity.py` fail on
+  any other published port. Matomo's public 8081 is closed; it is served through the edge on
+  its own host when `EDGE_MATOMO=on`.
+- TLS: automatic ACME certificates (`EDGE_TLS_MODE=acme`) or operator files
+  (`EDGE_TLS_MODE=files`, `deploy/compose/edge/certs/`, git-ignored). HSTS comes from the
+  frontend and the API, not the edge.
+- Forwarded headers: the edge has no `trusted_proxies`, so client-sent `X-Forwarded-*` values
+  are replaced. The API's `last_used_ip` reads the leftmost `X-Forwarded-For`, which is then
+  the edge's view of the client. `FORWARDED_ALLOW_IPS` defaults to `*` on api and mcp because
+  only compose-network containers can reach them; narrow it to the compose subnet on a shared
+  network. On Kubernetes, keep the ingress-nginx default `use-forwarded-headers: "false"`
+  unless a trusted load balancer sits in front.
+- Body limit: `EDGE_MAX_REQUEST_BODY` (26MiB) and `ingress.maxBodySize` (`26m`) sit just above
+  `MAX_UPLOAD_SIZE_MB` (25); raise them together.
+- Log redaction: edge access logs drop the query string (`?redacted`) and delete
+  `Authorization`, `Proxy-Authorization`, `Cookie`, `X-Api-Key`, and `Set-Cookie`. The ingress
+  controller's log format must also leave out the query string (docs/28 gives the ConfigMap).
+- Staging hosts send `X-Robots-Tag: noindex, nofollow` (`EDGE_NOINDEX=true`,
+  `ingress.noindex: true`).
+- [ ] Host firewall (or cloud security group) allows only 80 and 443 from outside on staging
+  and production (operator, 0.8.0)
+- [ ] External TLS scan of the app, API, and Matomo hosts run on staging and production, with
+  the result and date recorded here (operator, 0.8.0)
+- [ ] `CADDY_IMAGE` pinned to an exact tag or digest in the production env file, and
+  `PGBOUNCER_IMAGE` when the `pooler` profile is used (operator, 0.8.0)
+- [ ] ACME account email (`EDGE_ACME_EMAIL`) or operator certificate files set, and DNS for
+  every edge host points at the edge (operator, 0.8.0)
+
 ## Security headers
 
 Frontend (`frontend/config/security-headers.mjs`, wired from `next.config.ts` `headers()`):
@@ -524,6 +628,7 @@ Frontend (`frontend/config/security-headers.mjs`, wired from `next.config.ts` `h
 - Why no nonce yet: the public marketing pages are now prerendered at build time, once per locale (R07-01), and a per-request nonce would force every page back to dynamic rendering; hashes/SRI do not cover the inline flight-data scripts Next emits. `script-src` therefore allows `'unsafe-inline'` for now. The inline JSON-LD block is `type="application/ld+json"` data and is not governed by `script-src`.
 - Enforcement rollout: set `NEXT_PUBLIC_CSP_ENFORCE=true` (default `false`) to send the same policy as `Content-Security-Policy` instead of `Content-Security-Policy-Report-Only`. Flip it only after a clean report-only period with no unexpected violations. A stricter script policy (no `'unsafe-inline'`) is still not implemented.
 - Set `NEXT_PUBLIC_CSP_REPORT_URI` to collect violation reports (for example a Sentry security endpoint); no backend endpoint exists for it.
+- Request mode (R08-11, `NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE=request`): `next.config.ts` leaves the CSP out of its build-time headers and `src/proxy.ts` sets the same policy (`buildSecurityHeaders`) on every matched response from the runtime environment, including prerendered pages (the proxy runs on the Node.js runtime before filesystem routes). The other headers stay build-time. `/runtime-config.js` serves only the names in `config/public-runtime-keys.mjs` (`no-store`, `nosniff`, JSON escaped for a script); development-only flags and secrets are never served. With `NEXT_PUBLIC_ASSET_PREFIX` (R08-12) the CDN origin is added to `script-src`, `style-src`, `font-src`, and `img-src`. Build mode, the default, is unchanged.
 
 Backend (`app/core/security_headers.py`): ASGI middleware adds `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options: DENY`, and HSTS in staging/production, without overwriting headers a route already set.
 
@@ -821,6 +926,7 @@ never document text.
 - [ ] Sentry integrated.
 - [ ] Response compression: responses of at least `HTTP_GZIP_MINIMUM_BYTES` (default 1024; `0` disables) are gzip-encoded (streamed bodies such as exports and downloads whenever the client accepts gzip), and `text/event-stream` and image/archive types are never compressed. Compression exposes BREACH-style size side channels, so never reflect a secret (CSRF token, API key) in the same compressed body as attacker-controlled input.
 - [ ] Chat resume buffer (R05-13): every WebSocket run's events, answer text included, are kept in Redis for `CHAT_RESUME_BUFFER_TTL_SECONDS` (default 300) under `rudix:{env}:chat:resume:v1:{org}:{user}:{message_id}`. `chat.resume` builds the key from its own principal, so another user or organisation cannot read it (`resume_unavailable`), and the stored-answer fallback joins `chat_sessions` on organisation and user. Redis must be private (no public port, authentication on, TLS where it crosses hosts) and is not a store of record; lower the TTL or set `CHAT_WS_RESUME_GRACE_SECONDS=0` where answer text must not linger. `CHAT_WS_ALLOW_QUERY_TOKEN` is `false` by default since 0.5.0.
+- [ ] With more than one API replica, `WS_CHAT_CONNECTION_LIMIT_BACKEND=redis` so `WS_CHAT_MAX_CONNECTIONS_PER_USER` holds across replicas (leases under `rudix:{env}:chat:ws:conn:v1:{org}:{user}` store only ids); `RATE_LIMIT_REDIS_FAILURE_MODE=closed` rejects new sockets (`4429`) instead of counting per replica while Redis fails, and `REDIS_CACHE_URL`, when used, points at a Redis as private as `REDIS_URL` (operator, 0.8.0)
 
 ### Documents
 

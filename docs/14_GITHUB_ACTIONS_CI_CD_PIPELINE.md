@@ -80,6 +80,28 @@ the chart tests (`tests/test_helm_chart_*.py`) run instead of skipping. `kubecon
 job are first exercised in CI; they were not run on a development machine when the job was
 added, so add `Deploy config` to the required checks only after it has passed on `develop`.
 
+Edge and parity checks in `deploy-config` (`0.8.0`, `R08-01`, `R08-12`): "Check compose files"
+also checks staging and production with `--profile graph --profile analytics --profile pooler
+--profile redis-split --profile mcp`, and fails when any service other than `edge` publishes a
+host port or `edge` publishes one other than 80 or 443 (`docker compose config --format json`).
+"Validate Caddyfile" (after "Check compose files") runs `caddy validate` from the pinned
+`caddy:2.10` image on `deploy/compose/edge/Caddyfile` for every combination of
+`EDGE_TLS_MODE` (`acme`, `files` with a throwaway self-signed certificate), `EDGE_NOINDEX`
+(`true`, `false`), and `EDGE_MATOMO` (`off`, `on`). It is first exercised in CI; Caddy is not
+installed on development machines, where `backend/tests/test_edge_proxy_config.py` checks the
+Caddyfile text instead.
+
+Release deploys (`0.8.0`): both Terraform steps set the new variable `TF_VAR_compose_profiles`
+(staging `graph`, production `analytics`, which keeps Neo4j on staging and Matomo on
+production running now that both sit behind profiles). Terraform writes it to the host `.env`
+as `COMPOSE_PROFILES=` when not empty and uploads `deploy/compose/edge/` (the Caddyfile and
+its snippets, each hashed into the rollout triggers) next to the compose file. The edge image
+is pinned like the data stores: the production env file must set `CADDY_IMAGE` (and
+`PGBOUNCER_IMAGE` when `COMPOSE_PROFILES` includes `pooler`) to an exact tag or digest, or
+`deploy/scripts/check_deploy_env.sh` fails the production deploy unless
+`DEPLOY_ALLOW_UNPINNED_IMAGES=true`; staging only warns. Add `CADDY_IMAGE` to
+`PRODUCTION_ENV_FILE` before the first `0.8.0` production deploy.
+
 Coverage thresholds are ratchets: raise them when coverage rises and never lower them without
 a reason in the pull request.
 
@@ -515,6 +537,31 @@ NEXT_PUBLIC_DEPLOYMENT_ENV=production
 NEXT_PUBLIC_API_URL=https://api.getrudix.com/api/v1
 NEXT_PUBLIC_APP_URL=https://getrudix.com
 ```
+
+### Single frontend image (optional, R08-11)
+
+By default `build-images` builds two frontend images, `frontend-staging` and
+`frontend-production`, each with its environment's public URLs baked in. Set the repository
+variable `RUDIX_FRONTEND_IMAGE_MODE=single` to build one image instead, in request mode
+(`NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE=request`), with `NEXT_PUBLIC_PUBLIC_SITE_URL` from the
+variable `RUDIX_PUBLIC_SITE_URL` (required, `https://`). The image is pushed under both
+repositories, so `frontend_staging_image` and `frontend_production_image` are the same digest
+and the rest of the workflow (scan, sign, staging deploy, promotion) is unchanged. Each
+environment then sets its public values at runtime (container env or the chart's
+`runtimeConfig.env`). Canonical URLs stay build-time, so staging serves the production
+canonical URL and must send `X-Robots-Tag: noindex` (`EDGE_NOINDEX=true`); a CDN asset prefix
+must be one host for both. This path is first exercised in GitHub Actions; leave the variable
+unset until the owner has accepted those two decisions.
+
+### Per-secret environment secrets (recommended, R08-11)
+
+`STAGING_ENV_FILE` and `PRODUCTION_ENV_FILE` carry every backend secret in one GitHub secret.
+Rotating one value means rewriting and re-pasting the whole file, and every reader of the
+secret sees all values. Move to one GitHub environment secret per value (for example
+`APP_AUTH_SECRET`, `APP_AUTH_SECRET_PREVIOUS`, `DATABASE_URL`, `METRICS_BEARER_TOKEN`) that
+the deploy step writes into the env file, or to a secret manager read by the chart's
+`secrets.externalSecret` (External Secrets Operator). Until then, keep the whole-file secrets;
+the rotation order for each value is in `docs/11` `### Rotation`.
 
 ### Evaluation and quality gates
 
