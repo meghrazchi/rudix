@@ -739,6 +739,60 @@ question text is never part of a key).
 - Version keys restart from the epoch-millisecond clock when missing (eviction), never from
   `0` or `1`, so an evicted version cannot resurrect orphaned values.
 
+## Tracing
+
+OpenTelemetry tracing (R08-10, `app/core/tracing.py`) is off by default. With
+`TRACING_ENABLED=false` no tracer provider, exporter, propagator, or instrumentation is
+installed, so no span exists and nothing is sent anywhere; request-ID logs and Langfuse work
+as before. With it on, the API, workers, and MCP server export spans over OTLP/HTTP
+(protobuf) to `OTEL_EXPORTER_OTLP_ENDPOINT`. No collector or vendor is chosen.
+
+What a span can carry is decided in one place, `RedactingSpanExporter`
+(`app/core/tracing_redaction.py`), which rebuilds every span before export:
+
+- Only allowlisted attributes leave the process: HTTP method, route, and status, `url.scheme`,
+  `server.address`, `db.system`, `db.operation`, `messaging.system`,
+  `messaging.destination.name`, `celery.task_name`, `celery.action`, `rpc.*`, and
+  `rudix.request_id`, `rudix.organization_id`, `rudix.llm.provider`, `rudix.llm.model`,
+  `rudix.qdrant.collection`, `rudix.outcome`, `error.type`. Any attribute whose name contains
+  token, prompt, content, text, query, password, secret, authorization, or cookie is dropped
+  even when it matches the allowlist. `db.statement`, `url.full`, `http.target`, request and
+  response headers, and Redis arguments are never exported.
+- No content: prompts, retrieved document text, answers, SQL text, Redis values, task
+  arguments, Authorization headers, and cookies never reach an exported span. Manual spans
+  around Qdrant calls and the LLM wrapper record provider, model, collection, and outcome
+  only. URL-like values lose their query string and fragment; values are cut to 256
+  characters.
+- Exception events keep `exception.type` only (no message, no stack trace), and the span
+  status description (which carries the exception message) is dropped.
+- `tests/test_tracing_redaction.py` seeds recognizable sentinel strings into every one of
+  these places and asserts that none appears in exported names, attributes, or events.
+
+Operator checklist:
+
+- [ ] Keep `TRACING_ENABLED=false` until a collector is chosen; tracing is an operator
+  decision, not a default (operator, 0.8.0).
+- [ ] Run the collector on a private network only: never expose its OTLP port publicly, and
+  use `https://` for `OTEL_EXPORTER_OTLP_ENDPOINT` in staging and production (settings
+  validation and the chart refuse `http://` there unless `TRACING_ALLOW_INSECURE_ENDPOINT=true`
+  is set for a collector reachable only inside the cluster) (operator, 0.8.0).
+- [ ] Authenticate the API and workers to the collector with headers in
+  `OTEL_EXPORTER_OTLP_HEADERS` (`name=value,...`), stored only in the secret store (the chart
+  reads the Secret key of that name; never a ConfigMap or values file). The value is a
+  `SecretStr`, never logged, and the settings snapshot reports only whether an endpoint is set
+  (operator, 0.8.0).
+- [ ] Keep `TRACING_TRUST_INBOUND_CONTEXT=false` unless a trusted proxy strips or sets
+  `traceparent`: with `false` an inbound `traceparent` keeps its trace id (so the span links
+  to the caller's trace) but its sampled flag and `tracestate` are ignored; the API samples
+  by a per-process salted hash of the trace id, so a client can neither force sampling nor
+  craft a trace id that is always sampled. Inbound `baggage` is never propagated (W3C trace
+  context only). Workers follow the `traceparent` their own producers wrote (operator, 0.8.0).
+- [ ] Treat the collector and the trace backend as holding operational metadata
+  (organisation ids, routes, model names); give them the same access controls and retention
+  as logs (operator, 0.8.0).
+- [ ] Keep `TRACING_SAMPLE_RATIO` low (default `0.05`); raise it only for a bounded
+  investigation (operator, 0.8.0).
+
 ## Logging safety
 
 Do log:

@@ -1109,8 +1109,35 @@ API line carries `request_id` (from `X-Request-ID` or generated, returned in the
 header), plus `user_id` and `organization_id` when known (`app/core/logging.py`). Ship
 container stdout to the aggregator the operator runs (Loki, Elasticsearch/OpenSearch, or a
 managed service) with the node or Docker logging driver, and index `request_id`,
-`organization_id`, `level`, and `event`. Rudix runs no log shipper container. B3 adds
-`trace_id` to the same lines.
+`organization_id`, `level`, and `event`. Rudix runs no log shipper container. With tracing on
+(R08-10), the same lines also carry `trace_id` and `span_id`; index `trace_id` too.
+
+### OpenTelemetry tracing (R08-10)
+
+- Off by default (`TRACING_ENABLED=false`): no spans, no exporter, and no `trace_id` in logs.
+  With it on, each process exports to `OTEL_EXPORTER_OTLP_ENDPOINT` (OTLP/HTTP) as
+  `service.name` `rudix-api`, `rudix-worker`, or `rudix-mcp` (prefix
+  `TRACING_SERVICE_NAME_PREFIX`), with `deployment.environment` and `service.version`.
+- Spans: one server span per HTTP request (route template and status; `/health`, `/ready`, and
+  `/metrics` excluded by `TRACING_EXCLUDED_PATHS`) carrying `rudix.request_id` and, once
+  authenticated, `rudix.organization_id`; SQLAlchemy (all engines, including the replica and
+  maintenance engines), Redis, and httpx client spans; Celery publish and run spans linked
+  through the `traceparent` message header; manual `rudix.qdrant.search`,
+  `rudix.qdrant.upsert`/`delete`, and `rudix.llm.call` spans with `rudix.outcome`
+  (`ok`, `error`, `cancelled`, `closed`). Each instrumentation can be turned off with
+  `TRACING_INSTRUMENT_SQLALCHEMY|REDIS|HTTPX|CELERY=false`.
+- Correlation: a log line written while a span is active has `trace_id` and `span_id`; a
+  Langfuse chat trace has `otel_trace_id` in its metadata (docs/18); the server span has
+  `rudix.request_id`. From an `X-Request-ID` find the log lines, then the trace by `trace_id`.
+- Sampling: `TRACING_SAMPLE_RATIO` (default `0.05`) of new traces; children follow their
+  parent. An inbound `traceparent` cannot force sampling unless
+  `TRACING_TRUST_INBOUND_CONTEXT=true` (docs/11 "Tracing").
+- Logs: `tracing.init` (runtime, ratio, `endpoint_set`), `tracing.shutdown` (`flushed`),
+  `tracing.instrumentation_failed`, `tracing.uninstrument_failed`, `tracing.shutdown_failed`,
+  and `worker.tracing_init_failed` (error class only). Shutdown flushes pending spans with a
+  5 s limit, last in the API lifespan and in each worker child.
+- Redaction keeps allowlisted attributes only (docs/11 "Tracing"); spans never hold prompts,
+  document text, answers, SQL, or headers. No baseline span volume exists yet.
 
 ## Continuous evaluation
 

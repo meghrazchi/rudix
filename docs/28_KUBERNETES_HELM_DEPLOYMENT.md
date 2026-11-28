@@ -345,6 +345,39 @@ authenticated ingress, never anonymous.
 
 <!-- v080-B3 -->
 
+B3 (R08-10). OpenTelemetry tracing is off in every values file. Security rules: docs/11
+"Tracing"; spans, logs, and correlation: docs/12 "OpenTelemetry tracing (R08-10)". No
+collector or vendor is part of the chart.
+
+**Values.** The `tracing` block holds `enabled` (default `false`), `endpoint` (the OTLP/HTTP
+collector base URL, empty placeholder; `/v1/traces` is appended), and `headersSecretKey`
+(`OTEL_EXPORTER_OTLP_HEADERS`). The backend reads the matching keys from `config.env` (anchor
+`# v080-B3`): `TRACING_ENABLED`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `TRACING_SAMPLE_RATIO`
+(`"0.05"`), and `TRACING_TRUST_INBOUND_CONTEXT` (`"false"`). `rudix.b3.validate`
+(`templates/_b3.tpl`, included from `templates/tracing/validate.yaml`, which renders nothing)
+fails the render when `TRACING_ENABLED` or `OTEL_EXPORTER_OTLP_ENDPOINT` disagree with the
+block, when tracing is enabled without an endpoint, when staging or production use a plain
+`http://` endpoint without `TRACING_ALLOW_INSECURE_ENDPOINT: "true"`, or when
+`headersSecretKey` is anything but `OTEL_EXPORTER_OTLP_HEADERS` (pods load the Secret with
+`envFrom`, which keeps key names).
+
+**Enabling.** Run a collector inside the cluster or on a private network (never exposed
+publicly). Put its auth headers, if any, into `secrets.existingSecret` under
+`OTEL_EXPORTER_OTLP_HEADERS` (`name=value,...`), then set `tracing.enabled: true`,
+`tracing.endpoint`, and the same two values in `config.env`. If a NetworkPolicy with egress
+rules is on (C1), allow egress from the api, worker, and mcp pods to the collector. Each
+component reports as `rudix-api`, `rudix-worker`, or `rudix-mcp`. Worker children set up
+tracing after the fork; shutdown flushes pending spans within 5 seconds, inside the existing
+grace period.
+
+**Image.** The OpenTelemetry packages are regular backend dependencies in `backend/uv.lock`,
+so the images install them from the lockfile like every other package; nothing is added at
+deploy time. No Docker build was run for this change.
+
+**Checks.** `backend/tests/test_helm_chart_tracing.py` renders the defaults, staging, and
+production (switches off), an enabled production render, the insecure-endpoint switch, and
+every validation failure.
+
 ## Workloads, rollout, autoscaling, and network policy
 
 <!-- v080-C1 -->

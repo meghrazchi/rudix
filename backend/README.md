@@ -1324,6 +1324,16 @@ conversion on staging volume first.
   - `BEAT_HEARTBEAT_INTERVAL_SECONDS` (default 60): period of the `ops.beat.heartbeat` beat task.
   - SLO targets, recording rules, burn-rate alerts, Alertmanager routing, and the deploy overlay: docs/12 "SLO rules and burn-rate alerts (0.8.0)"; Kubernetes ServiceMonitors: docs/28 "Metrics and alerting".
 
+## OpenTelemetry tracing (0.8.0, R08-10)
+
+- Off by default: with `TRACING_ENABLED=false`, `init_tracing` (`app/core/tracing.py`) installs no tracer provider, exporter, or instrumentation and no span exists.
+- Enable with `TRACING_ENABLED=true` and `OTEL_EXPORTER_OTLP_ENDPOINT` (OTLP/HTTP collector base URL; `https://` in staging and production unless `TRACING_ALLOW_INSECURE_ENDPOINT=true`). Collector auth headers go in `OTEL_EXPORTER_OTLP_HEADERS` (`name=value,...`, secret store only). No collector or vendor is assumed.
+- Setup points: `init_tracing("api")` right after Sentry in the lifespan and `shutdown_tracing()` (flush, 5 s limit) last in its `finally`; `instrument_fastapi_app` in `app/main.py`; `init_tracing("worker")` in each worker child (`worker_process_init`) and `shutdown_tracing()` in `worker_process_shutdown`; `init_tracing("mcp")` in `app/mcp/main.py`. `service.name` is `<TRACING_SERVICE_NAME_PREFIX>-<runtime>`.
+- Instrumented: FastAPI server spans (`TRACING_EXCLUDED_PATHS`, default `health,ready,metrics`), SQLAlchemy (commenter off; engines created later in `app/db/session.py`, such as the replica and maintenance engines, are instrumented through a creation hook), Redis, httpx, and Celery (publish and run linked through `traceparent`). `TRACING_INSTRUMENT_SQLALCHEMY|REDIS|HTTPX|CELERY=false` turns one off. Manual spans: `rudix.qdrant.search` (`QueryRetrievalService.aretrieve_candidates`), `rudix.qdrant.<operation>` (`QdrantService._request`), and `rudix.llm.call` (`ResilientChatProvider`), with provider, model, collection, and outcome only (`app/core/tracing_context.py`).
+- Redaction: `RedactingSpanExporter` (`app/core/tracing_redaction.py`) keeps allowlisted attributes only and strips exception messages and stack traces (docs/11 "Tracing"). Sampling: `TRACING_SAMPLE_RATIO` (0.05); `TRACING_TRUST_INBOUND_CONTEXT=false` keeps an inbound trace id but ignores its sampled flag (`app/core/tracing_sampling.py`).
+- Correlation: structured log lines get `trace_id` and `span_id`, the server span gets `rudix.request_id` (and `rudix.organization_id` once authenticated), and Langfuse chat traces get `otel_trace_id`.
+- Tests: `tests/test_tracing.py`, `tests/test_tracing_redaction.py`, `tests/test_tracing_celery.py` (in-memory exporter, kombu `memory://` broker), and `tests/test_helm_chart_tracing.py`.
+
 ## Directory overview
 
 ```text
