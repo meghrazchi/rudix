@@ -783,6 +783,49 @@ Requirements:
 - Keep real provider credentials and the production receiver address in CI/CD
   secrets or deployment secret stores, not in committed env examples.
 
+## Backups and restore
+
+Backups (`R08-06`; [docs/10](./10_DEPLOYMENT_DOCKER.md) "Backup strategy",
+[runbooks/BACKUP_AND_RESTORE.md](./runbooks/BACKUP_AND_RESTORE.md)) hold every tenant's
+documents and database rows, so they get the same protection as production.
+
+- Encryption: every artifact is encrypted client-side with AES-256-GCM (`RUDIXBK1`) before
+  upload; tampering, reordering, and truncation fail on restore. Uploads also request
+  server-side encryption (`BACKUP_S3_SSE`, `AES256` or `aws:kms`). In staging and production
+  `BACKUP_S3_SSE=none` is refused unless `BACKUP_S3_SSE_NONE_ALLOWED=true`.
+- Key: `BACKUP_ENCRYPTION_KEY_FILE` holds the base64 of 32 random bytes, mounted read-only
+  from a secret (Compose bind mount, chart `backup.encryptionKeySecret`). It is never an
+  environment variable, never logged, and never written to a marker. Rotation: generate a new
+  key, keep every old key (offline, access-controlled) for as long as backups made with it are
+  retained; `backup_restore.py --key-file` selects the right key by the id in the file header.
+  A lost key makes its backups unrecoverable.
+- Off-host bucket: `BACKUP_BUCKET` lives in another account or region than the application
+  data, with versioning, a retention policy (object lock where available), and credentials
+  that can write and read but not delete when the provider allows it. Objects removed from the
+  application bucket are removed from the mirror in the next run (data deletion reaches the
+  backup); the bucket's noncurrent-version expiry bounds how long a removed copy remains.
+- Markers (`<prefix>/<kind>/latest.json`) carry completion time, object key, size, and hash
+  only: no hostname, path, URL, or secret. CLIs print kinds, ages, sizes, and table counts only.
+- Scratch restores contain production data: restore only into stores with production access
+  controls, never into a developer machine, and mask or drop the data after a drill.
+  `deploy/scripts/restore_drill.sh` refuses a target equal to `DATABASE_URL`,
+  `DATABASE_MIGRATION_URL`, `DATABASE_MAINTENANCE_URL`, or `QDRANT_URL`.
+- Deploy gate: `DEPLOY_BACKUP_GATE=ssh` (default) keeps the file-age check over SSH;
+  `marker` reads the markers inside the api container. Either mode blocks a production deploy
+  when a backup is older than `DEPLOY_BACKUP_MAX_AGE_HOURS` (26).
+- [ ] Backup bucket created in another account or region, with versioning, retention or object
+  lock, server-side encryption, and access logging enabled (operator, 0.8.0)
+- [ ] Backup credentials scoped to the backup bucket (write and read, no delete where the
+  provider allows) and stored only in the secret store (operator, 0.8.0)
+- [ ] Backup encryption key generated, stored as a secret, and a copy of every key kept
+  offline with restricted access; rotation recorded in the secret store (operator, 0.8.0)
+- [ ] Backups enabled (chart `backup.enabled` or the Compose `backup` profile with a host
+  timer), `BACKUP_FRESHNESS_CHECK_ENABLED=true`, and the backup alerts routed (operator, 0.8.0)
+- [ ] `DEPLOY_BACKUP_GATE=marker` set once markers are fresh for every kind (operator, 0.8.0)
+- [ ] First restore drill run on staging and recorded in
+  `docs/runbooks/RESTORE_DRILL_LOG.md`, with the scratch data removed afterwards
+  (operator, 0.8.0)
+
 ## Data deletion
 
 When deleting a document:

@@ -118,6 +118,30 @@ make seed-dev
   - `REDIS_CACHE_URL` (unset = `REDIS_URL`): cached values only; version keys and every
     other state key stay on `REDIS_URL`. `CELERY_RESULT_BACKEND_URL` (unset = `REDIS_URL`):
     Celery results. `/ready` adds `redis_cache` when the cache URL is set.
+- Backups, freshness, and restore verification (0.8.0, R08-06, R08-04, R08-05; details in
+  `docs/10_DEPLOYMENT_DOCKER.md` "Backup strategy" and `docs/runbooks/BACKUP_AND_RESTORE.md`):
+  - `BACKUP_ENABLED` (false): the runner `scripts/backup_run.py --kind postgres|qdrant|objects`
+    refuses to run while false. It encrypts with AES-256-GCM (`app/ops/backup/crypto.py`,
+    format `RUDIXBK1`), uploads to `BACKUP_BUCKET` under `BACKUP_PREFIX` (`rudix`), and
+    writes `<prefix>/<kind>/latest.json`. In staging and production an enabled runner needs
+    `BACKUP_BUCKET` and `BACKUP_ENCRYPTION_KEY_FILE` (base64 of 32 bytes, a mounted file), and
+    `BACKUP_S3_SSE` (`AES256`, `aws:kms`, or `none` only with `BACKUP_S3_SSE_NONE_ALLOWED=true`).
+  - `BACKUP_S3_ENDPOINT` (unset = AWS; set = path-style), `BACKUP_S3_REGION`,
+    `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY` (unset = default credential chain),
+    `BACKUP_S3_KMS_KEY_ID`, `BACKUP_WORK_DIR` (`/tmp/rudix-backup`; the postgres kind reads
+    `postgres.dump` from it, produced by `pg_dump -Fc` in the `postgres:16` image).
+  - `BACKUP_FRESHNESS_CHECK_ENABLED` (false), `BACKUP_FRESHNESS_INTERVAL_SECONDS` (900),
+    `BACKUP_MAX_AGE_HOURS` (26), `BACKUP_KINDS` (`postgres,qdrant,objects`): beat task
+    `ops.backups.check_freshness` sets `rudix_backup_last_success_timestamp_seconds{kind}` and
+    `rudix_backup_freshness_checks_total{outcome}`; `scripts/check_backup_freshness.py` exits 1
+    when a kind is missing or stale (deploy gate `DEPLOY_BACKUP_GATE=marker`).
+  - `scripts/backup_restore.py --kind ... (--latest | --object-key K) --out PATH
+    [--key-file OLD]` downloads, checks the SHA-256, and decrypts.
+    `scripts/verify_postgres_restore.py --database-url URL [--expect-revision R]
+    [--manifest floors.json]` exits 0 only when the revision, tables, RLS policies, primary
+    keys, key indexes, and row-count floors hold (`--write-manifest` records floors).
+  - `QDRANT_WRITE_CONSISTENCY_FACTOR` (unset = server default): replicas that must
+    acknowledge a write, applied when a collection is created (`app/clients/qdrant_tuning.py`).
 
 ## Settings layout and startup behavior
 
