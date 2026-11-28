@@ -44,7 +44,11 @@ import {
   mockUserPreferences,
   mockUserProfile,
 } from "@/test/msw/fixtures";
-import type { DocumentStatus } from "@/lib/api/documents";
+import type { CollectionListItemResponse } from "@/lib/api/collections";
+import type {
+  DocumentListItemResponse,
+  DocumentStatus,
+} from "@/lib/api/documents";
 
 type MockApiHandlersOptions = {
   apiBaseUrl?: string;
@@ -345,5 +349,112 @@ export function createMockApiHandlers(
     http.delete(`${apiBaseUrl}/team/members/:memberId`, () =>
       HttpResponse.json({ removed: true }),
     ),
+  ];
+}
+
+// ── Two-page list fixtures (R07-06) ─────────────────────────────────────────
+
+/** `count` indexed documents named `paged-<n>.pdf`, newest first. */
+export function makePagedDocuments(count: number): DocumentListItemResponse[] {
+  return Array.from({ length: count }, (_, index) => ({
+    document_id: `paged-doc-${index + 1}`,
+    filename: `paged-${index + 1}.pdf`,
+    file_type: "pdf",
+    status: "indexed",
+    page_count: 1,
+    chunk_count: 2,
+    error_message: null,
+    error_details: null,
+    created_at: "2026-05-14T00:00:00Z",
+    updated_at: "2026-05-15T00:00:00Z",
+  }));
+}
+
+/** `count` org-wide collections named `Collection <n>`. */
+export function makePagedCollections(
+  count: number,
+): CollectionListItemResponse[] {
+  return Array.from({ length: count }, (_, index) => ({
+    collection_id: `paged-col-${index + 1}`,
+    name: `Collection ${index + 1}`,
+    description: null,
+    owner_id: "user-1",
+    owner_email: "admin@example.com",
+    document_count: 1,
+    indexed_count: 1,
+    access_policy: "org_wide",
+    is_dynamic: false,
+    created_at: "2026-05-14T00:00:00Z",
+    updated_at: "2026-05-14T00:00:00Z",
+  })) as CollectionListItemResponse[];
+}
+
+const MSW_CURSOR_PREFIX = "msw-offset:";
+
+/**
+ * Paged list handlers: `/documents` returns keyset cursor pages for
+ * `sort_by=created_at` (`total` on the first page or with `include_total`) and
+ * offset pages otherwise; `/collections` returns offset pages with `total` and
+ * honours `name_query`. Every request is recorded in `requests`.
+ */
+export function createPagedListHandlers({
+  apiBaseUrl = MSW_FIXTURES_API_BASE_URL,
+  documents = makePagedDocuments(30),
+  collections = makePagedCollections(30),
+  requests = [],
+}: {
+  apiBaseUrl?: string;
+  documents?: DocumentListItemResponse[];
+  collections?: CollectionListItemResponse[];
+  requests?: URL[];
+} = {}): HttpHandler[] {
+  return [
+    http.get(`${apiBaseUrl}/documents`, ({ request }) => {
+      const url = new URL(request.url);
+      requests.push(url);
+      const { limit } = parsePaginationParams(request.url);
+      const sortBy = url.searchParams.get("sort_by") ?? "created_at";
+      const query = url.searchParams.get("filename_query")?.toLowerCase();
+      const matching = query
+        ? documents.filter((doc) => doc.filename.toLowerCase().includes(query))
+        : documents;
+      const cursor = url.searchParams.get("cursor");
+      const offset = cursor
+        ? Number.parseInt(cursor.slice(MSW_CURSOR_PREFIX.length), 10)
+        : parsePaginationParams(request.url).offset;
+      const items = pageItems(matching, limit, offset);
+      const hasMore = offset + limit < matching.length;
+      const cursorMode = sortBy === "created_at";
+      const withTotal =
+        !cursor || url.searchParams.get("include_total") === "true";
+      return HttpResponse.json({
+        items,
+        total: cursorMode && !withTotal ? null : matching.length,
+        limit,
+        offset: cursorMode ? 0 : offset,
+        next_cursor:
+          cursorMode && hasMore
+            ? `${MSW_CURSOR_PREFIX}${offset + limit}`
+            : null,
+        status: null,
+        sort_by: sortBy,
+        sort_order: url.searchParams.get("sort_order") ?? "desc",
+      });
+    }),
+    http.get(`${apiBaseUrl}/collections`, ({ request }) => {
+      const url = new URL(request.url);
+      requests.push(url);
+      const { limit, offset } = parsePaginationParams(request.url);
+      const query = url.searchParams.get("name_query")?.toLowerCase();
+      const matching = query
+        ? collections.filter((col) => col.name.toLowerCase().includes(query))
+        : collections;
+      return HttpResponse.json({
+        items: pageItems(matching, limit, offset),
+        total: matching.length,
+        limit,
+        offset,
+      });
+    }),
   ];
 }
