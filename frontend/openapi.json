@@ -25279,6 +25279,30 @@
           }
         }
       }
+    },
+    "/api/v1/events/stream": {
+      "get": {
+        "tags": ["events"],
+        "summary": "Stream Events",
+        "operationId": "stream_events_api_v1_events_stream_get",
+        "responses": {
+          "200": {
+            "description": "Server-Sent Events for the caller's organisation, filtered to the events the caller may see. Frames: `id: <n>`, `event: <type>`, `data: {type, organization_id, occurred_at, payload}`, plus `: keep-alive` comments. Types: `document.status`, `documents.changed`, `notification.created`, `connector.sync`, `agent.run`, `incident`. Payloads carry ids and statuses only. Send `Last-Event-ID` to replay buffered events after that id. The stream ends after `REALTIME_STREAM_MAX_SECONDS`; reconnect.",
+            "content": {
+              "text/event-stream": {}
+            }
+          },
+          "404": {
+            "description": "Realtime events are not enabled for this deployment."
+          },
+          "429": {
+            "description": "Too many open streams for this user (`realtime_connection_limit`)."
+          },
+          "503": {
+            "description": "Redis is not reachable (`realtime_unavailable`); keep polling."
+          }
+        }
+      }
     }
   },
   "components": {

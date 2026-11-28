@@ -7594,6 +7594,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stream Events */
+        get: operations["stream_events_api_v1_events_stream_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -39236,6 +39253,47 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    stream_events_api_v1_events_stream_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Server-Sent Events for the caller's organisation, filtered to the events the caller may see. Frames: `id: <n>`, `event: <type>`, `data: {type, organization_id, occurred_at, payload}`, plus `: keep-alive` comments. Types: `document.status`, `documents.changed`, `notification.created`, `connector.sync`, `agent.run`, `incident`. Payloads carry ids and statuses only. Send `Last-Event-ID` to replay buffered events after that id. The stream ends after `REALTIME_STREAM_MAX_SECONDS`; reconnect. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": unknown;
+                };
+            };
+            /** @description Realtime events are not enabled for this deployment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Too many open streams for this user (`realtime_connection_limit`). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Redis is not reachable (`realtime_unavailable`); keep polling. */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
