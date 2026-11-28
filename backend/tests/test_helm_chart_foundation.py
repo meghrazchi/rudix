@@ -102,6 +102,11 @@ def probe_chart(tmp_path: Path) -> Path:
     return chart
 
 
+def _config_map(objects: list[dict[str, Any]], name: str) -> dict[str, Any]:
+    # C1 renders a Deployment and a Service with the same name as the frontend ConfigMap.
+    return next(o for o in objects if o["kind"] == "ConfigMap" and o["metadata"]["name"] == name)
+
+
 def _pods(objects: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return {obj["metadata"]["name"]: obj for obj in objects if obj["kind"] == "Pod"}
 
@@ -127,11 +132,11 @@ def test_chart_metadata() -> None:
 
 def test_config_map_holds_non_secret_env_and_defaults_render() -> None:
     objects = render_chart()
-    config = next(obj for obj in objects if obj["metadata"]["name"] == "rudix-config")
+    config = _config_map(objects, "rudix-config")
     assert config["data"]["ENVIRONMENT"] == "development"
     assert config["data"]["LOG_FORMAT"] == "json"
     assert config["data"]["API_BASE_URL"].endswith(".invalid")
-    frontend = next(obj for obj in objects if obj["metadata"]["name"] == "rudix-frontend")
+    frontend = _config_map(objects, "rudix-frontend")
     # D1 (R08-11) fills runtimeConfig.env with build mode and placeholder public values.
     assert frontend["data"]["NEXT_PUBLIC_RUNTIME_CONFIG_SOURCE"] == "build"
     account = next(obj for obj in objects if obj["kind"] == "ServiceAccount")
@@ -140,7 +145,7 @@ def test_config_map_holds_non_secret_env_and_defaults_render() -> None:
 
 def test_runtime_config_renders_into_frontend_config_map() -> None:
     objects = render_chart(set_values={"runtimeConfig.env.NEXT_PUBLIC_SAMPLE": "on"})
-    frontend = next(obj for obj in objects if obj["metadata"]["name"] == "rudix-frontend")
+    frontend = _config_map(objects, "rudix-frontend")
     assert frontend["data"]["NEXT_PUBLIC_SAMPLE"] == "on"
 
 
@@ -320,11 +325,11 @@ def test_numeric_env_values_render_as_plain_digits(tmp_path: Path) -> None:
         "runtimeConfig:\n  env:\n    NEXT_PUBLIC_POLL_MS: 15000000\n    NEXT_PUBLIC_EMPTY: null\n"
     )
     objects = render_chart([str(overrides)])
-    config = next(obj for obj in objects if obj["metadata"]["name"] == "rudix-config")
+    config = _config_map(objects, "rudix-config")
     assert config["data"]["UPLOAD_MAX_BYTES"] == "52428800"
     assert config["data"]["RATIO"] == "0.25"
     assert config["data"]["FLAG"] == "true"
-    frontend = next(obj for obj in objects if obj["metadata"]["name"] == "rudix-frontend")
+    frontend = _config_map(objects, "rudix-frontend")
     assert frontend["data"]["NEXT_PUBLIC_POLL_MS"] == "15000000"
     assert frontend["data"]["NEXT_PUBLIC_EMPTY"] == ""
 

@@ -323,6 +323,8 @@ def current_ws_run() -> WsRunHandle | None:
 _CURRENT_RUN: ContextVar[WsRunHandle | None] = ContextVar("chat_ws_run_handle", default=None)
 # Grace watchers outlive their connection; keep a reference until they finish.
 _GRACE_WATCHERS: set[asyncio.Task[None]] = set()
+# The run task each grace watcher follows, so a shutdown drain can cancel both (R08-02).
+_DROPPED_RUNS: dict[asyncio.Task[None], asyncio.Task[None]] = {}
 
 
 def start_ws_run(run: Coroutine[Any, Any, None], handle: WsRunHandle) -> asyncio.Task[None]:
@@ -401,7 +403,30 @@ def keep_run_alive_after_drop(task: asyncio.Task[None], handle: WsRunHandle) -> 
         return
     watcher = asyncio.create_task(_watch_dropped_run(task, buffer.key, float(grace)))
     _GRACE_WATCHERS.add(watcher)
-    watcher.add_done_callback(_GRACE_WATCHERS.discard)
+    _DROPPED_RUNS[watcher] = task
+    watcher.add_done_callback(_forget_watcher)
+
+
+def _forget_watcher(watcher: asyncio.Task[None]) -> None:
+    _GRACE_WATCHERS.discard(watcher)
+    _DROPPED_RUNS.pop(watcher, None)
+
+
+async def drain_dropped_runs(timeout: float) -> tuple[int, int]:
+    """Shutdown (R08-02): wait up to ``timeout`` seconds for dropped runs still in their
+    grace window, then cancel the rest. Returns ``(finished, cancelled)`` watcher counts."""
+    watchers = set(_GRACE_WATCHERS)
+    if not watchers:
+        return 0, 0
+    done, pending = await asyncio.wait(watchers, timeout=max(0.0, timeout))
+    runs = [_DROPPED_RUNS.get(watcher) for watcher in pending]
+    for task in (*pending, *runs):
+        if task is not None:
+            task.cancel()
+    await asyncio.gather(
+        *pending, *(run for run in runs if run is not None), return_exceptions=True
+    )
+    return len(done), len(pending)
 
 
 async def _watch_dropped_run(task: asyncio.Task[None], key: str, grace: float) -> None:

@@ -9,7 +9,7 @@ from app.clients.minio_client import check_minio_health
 from app.clients.neo4j_client import check_neo4j_health
 from app.clients.qdrant_client import check_qdrant_health
 from app.clients.rabbitmq_client import check_rabbitmq_health
-from app.clients.redis_client import check_redis_health
+from app.clients.redis_client import check_cache_redis_health, check_redis_health
 from app.core.config import settings
 from app.core.metrics import set_dependency_readiness
 from app.core.sentry import capture_sentry_test_event
@@ -101,10 +101,15 @@ async def _readiness_dependencies() -> dict[str, HealthDependency]:
     ]
     if settings.enterprise_graph_enabled:
         checks.append(run_async_check(check_neo4j_health))
+    cache_configured = settings.redis_cache_url is not None
+    if cache_configured:
+        checks.append(run_async_check(check_cache_redis_health))
 
-    results = await asyncio.gather(*checks)
+    results = list(await asyncio.gather(*checks))
     postgres_ok, redis_ok, rabbitmq_ok, qdrant_ok, minio_ok = results[:5]
-    neo4j_ok: bool | None = results[5] if settings.enterprise_graph_enabled else None
+    optional = results[5:]
+    neo4j_ok: bool | None = optional.pop(0) if settings.enterprise_graph_enabled else None
+    cache_ok: bool | None = optional.pop(0) if cache_configured else None
 
     dependencies: dict[str, HealthDependency] = {
         "postgres": _build_dependency(
@@ -151,11 +156,27 @@ async def _readiness_dependencies() -> dict[str, HealthDependency]:
             },
         )
 
+    if cache_ok is not None:
+        dependencies["redis_cache"] = _build_dependency(
+            ok=cache_ok,
+            detail="redis_cache_unreachable",
+            metadata={"url": _sanitize_url(str(settings.redis_cache_url))},
+        )
+
     return dependencies
 
 
 def _failed_dependencies(dependencies: dict[str, HealthDependency]) -> list[str]:
     return [name for name, dependency in dependencies.items() if not dependency.ok]
+
+
+def _blocking_failures(failed_dependencies: list[str]) -> list[str]:
+    """Failures that make ``/ready`` answer 503: those in ``READINESS_REQUIRED_DEPENDENCIES``,
+    or every failure when it is unset (R08-02)."""
+    required = settings.readiness_required_dependencies
+    if required is None:
+        return failed_dependencies
+    return [name for name in failed_dependencies if name in required]
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -172,14 +193,15 @@ async def healthz() -> HealthResponse:
 async def ready(response: Response) -> HealthResponse:
     dependencies = await _readiness_dependencies()
     failed_dependencies = _failed_dependencies(dependencies)
-    is_ready = not failed_dependencies
+    is_ready = not _blocking_failures(failed_dependencies)
 
     for dep_name, dep in dependencies.items():
         set_dependency_readiness(dep_name, dep.ok)
 
     response.status_code = status.HTTP_200_OK if is_ready else status.HTTP_503_SERVICE_UNAVAILABLE
     return HealthResponse(
-        status="ok" if is_ready else "degraded",
+        # "degraded" whenever anything failed, even when only optional dependencies did.
+        status="ok" if not failed_dependencies else "degraded",
         timestamp=_now_utc(),
         dependencies=dependencies,
         failed_dependencies=failed_dependencies,

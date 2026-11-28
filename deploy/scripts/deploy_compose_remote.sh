@@ -37,6 +37,17 @@ RUDIX_API_IMAGE=$DEPLOY_API_IMAGE
 RUDIX_WORKER_IMAGE=$DEPLOY_WORKER_IMAGE
 RUDIX_FRONTEND_IMAGE=$DEPLOY_FRONTEND_IMAGE
 EOF
+# Compose profiles (R08-12): DEPLOY_COMPOSE_PROFILES wins when set (even empty); otherwise a
+# COMPOSE_PROFILES line in the env file is kept; otherwise the release defaults (staging runs
+# Neo4j, production runs Matomo). docker compose reads COMPOSE_PROFILES from .env.
+if [ -n "${DEPLOY_COMPOSE_PROFILES+x}" ]; then
+  printf 'COMPOSE_PROFILES=%s\n' "$DEPLOY_COMPOSE_PROFILES" >> "$tmp_dir/.env"
+elif ! printf '%s\n' "$DEPLOY_ENV_FILE_CONTENT" | grep -qE '^[[:space:]]*(export[[:space:]]+)?COMPOSE_PROFILES='; then
+  case "$environment_name" in
+    staging) printf 'COMPOSE_PROFILES=graph\n' >> "$tmp_dir/.env" ;;
+    production) printf 'COMPOSE_PROFILES=analytics\n' >> "$tmp_dir/.env" ;;
+  esac
+fi
 
 # shellcheck disable=SC2086
 ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "mkdir -p '$DEPLOY_APP_PATH'"
@@ -56,6 +67,21 @@ done
 ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "mkdir -p '$DEPLOY_APP_PATH/rabbitmq'"
 # shellcheck disable=SC2086
 scp $scp_opts infra/rabbitmq/rabbitmq.conf infra/rabbitmq/enabled_plugins "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST:$DEPLOY_APP_PATH/rabbitmq/"
+# Edge proxy configuration (R08-01), mounted read-only from ./edge. Operator TLS files
+# (EDGE_TLS_MODE=files) live in ./edge/certs on the host and are not copied from here.
+edge_files="Caddyfile tls_acme tls_files noindex_true noindex_false matomo_on matomo_off"
+edge_sources=""
+for edge_file in $edge_files; do
+  if [ ! -f "deploy/compose/edge/$edge_file" ]; then
+    echo "Edge configuration not found: deploy/compose/edge/$edge_file" >&2
+    exit 1
+  fi
+  edge_sources="$edge_sources deploy/compose/edge/$edge_file"
+done
+# shellcheck disable=SC2086
+ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "mkdir -p '$DEPLOY_APP_PATH/edge'"
+# shellcheck disable=SC2086
+scp $scp_opts $edge_sources "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST:$DEPLOY_APP_PATH/edge/"
 
 # shellcheck disable=SC2086
 ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "
@@ -70,9 +96,11 @@ ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "
   fi
   # --remove-orphans stops services the compose file no longer defines, such as the single
   # 0.5.0 worker that the 0.6.0 pools replace (R06-04).
-  docker compose -f '$compose_file' up -d --remove-orphans
-  curl -fsS http://127.0.0.1:8000/api/v1/health >/dev/null
-  curl -fsS http://127.0.0.1:8000/api/v1/ready >/dev/null
+  # --wait: the checks below run once every started service is running or healthy.
+  docker compose -f '$compose_file' up -d --wait --remove-orphans
+  # Port 8000 is no longer published on the host (R08-01): check inside the api container.
+  docker compose -f '$compose_file' exec -T api python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5)\"
+  docker compose -f '$compose_file' exec -T api python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/ready', timeout=5)\"
 "
 
 echo "Remote deployment completed for ${environment_name}."

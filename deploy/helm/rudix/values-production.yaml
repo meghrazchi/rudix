@@ -31,6 +31,8 @@ config:
     # v080-B2
     # v080-B3
     # v080-C1
+    # Readiness gates only on the stores every request needs (contract 5.2.6, B1 setting).
+    READINESS_REQUIRED_DEPENDENCIES: postgres,redis
     # v080-C2
     # v080-D1
 
@@ -60,7 +62,17 @@ tmpVolume: {}
 metrics: {}
 
 # owner: A1
-ingress: {}
+ingress:
+  enabled: true
+  noindex: false
+  certManager:
+    clusterIssuer: ""
+  app:
+    host: app.rudix.invalid
+    tlsSecretName: rudix-production-app-tls
+  api:
+    host: api.rudix.invalid
+    tlsSecretName: rudix-production-api-tls
 
 # owner: A2
 backup: {}
@@ -69,25 +81,33 @@ backup: {}
 dataStores: {}
 
 # owner: C1
-frontend: {}
+frontend:
+  replicas: 3
 
 # owner: C1
-api: {}
+api:
+  replicas: 3
 
 # owner: C1
 mcp: {}
 
 # owner: C1
-workers: {}
+workers:
+  pools:
+    ingest:
+      replicas: 2
 
 # owner: C1
 beat: {}
 
 # owner: C1
-migrations: {}
+migrations:
+  useMigrationUrl: true
 
 # owner: C1
-autoscaling: {}
+autoscaling:
+  api:
+    maxReplicas: 10
 
 # owner: C1
 networkPolicy: {}

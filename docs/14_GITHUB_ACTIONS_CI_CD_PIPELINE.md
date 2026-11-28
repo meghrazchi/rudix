@@ -77,6 +77,28 @@ the chart tests (`tests/test_helm_chart_*.py`) run instead of skipping. `kubecon
 job are first exercised in CI; they were not run on a development machine when the job was
 added, so add `Deploy config` to the required checks only after it has passed on `develop`.
 
+Edge and parity checks in `deploy-config` (`0.8.0`, `R08-01`, `R08-12`): "Check compose files"
+also checks staging and production with `--profile graph --profile analytics --profile pooler
+--profile redis-split --profile mcp`, and fails when any service other than `edge` publishes a
+host port or `edge` publishes one other than 80 or 443 (`docker compose config --format json`).
+"Validate Caddyfile" (after "Check compose files") runs `caddy validate` from the pinned
+`caddy:2.10` image on `deploy/compose/edge/Caddyfile` for every combination of
+`EDGE_TLS_MODE` (`acme`, `files` with a throwaway self-signed certificate), `EDGE_NOINDEX`
+(`true`, `false`), and `EDGE_MATOMO` (`off`, `on`). It is first exercised in CI; Caddy is not
+installed on development machines, where `backend/tests/test_edge_proxy_config.py` checks the
+Caddyfile text instead.
+
+Release deploys (`0.8.0`): both Terraform steps set the new variable `TF_VAR_compose_profiles`
+(staging `graph`, production `analytics`, which keeps Neo4j on staging and Matomo on
+production running now that both sit behind profiles). Terraform writes it to the host `.env`
+as `COMPOSE_PROFILES=` when not empty and uploads `deploy/compose/edge/` (the Caddyfile and
+its snippets, each hashed into the rollout triggers) next to the compose file. The edge image
+is pinned like the data stores: the production env file must set `CADDY_IMAGE` (and
+`PGBOUNCER_IMAGE` when `COMPOSE_PROFILES` includes `pooler`) to an exact tag or digest, or
+`deploy/scripts/check_deploy_env.sh` fails the production deploy unless
+`DEPLOY_ALLOW_UNPINNED_IMAGES=true`; staging only warns. Add `CADDY_IMAGE` to
+`PRODUCTION_ENV_FILE` before the first `0.8.0` production deploy.
+
 Coverage thresholds are ratchets: raise them when coverage rises and never lower them without
 a reason in the pull request.
 
@@ -237,6 +259,15 @@ Rollback (dispatch `target=rollback`): inputs `environment` (`production` or `st
 `api:vX.Y.Z`, `worker:vX.Y.Z`, and `frontend-<environment>:<sha of vX.Y.Z>` to digests and
 swaps the images without running migrations. The three `rollback_*_image` inputs still work
 as a deprecated fallback when `version` is empty (kept for one milestone).
+
+Kubernetes (`0.8.0`): `release.yml` does not deploy to a cluster; it still rolls Compose out
+with Terraform. Installing or upgrading the Helm chart is an operator step: resolve the digests
+the workflow promoted (`api:staging-passed-<sha>` or `api:vX.Y.Z`, the same for `worker`, and
+`frontend-<environment>:<sha>`) with `docker buildx imagetools inspect`, then render and apply
+with `image.<name>.digest` (and `image.frontend.repository=frontend-<environment>`) as in
+[docs/28](./28_KUBERNETES_HELM_DEPLOYMENT.md#workloads-rollout-autoscaling-and-network-policy).
+The chart's migrate Job runs as a `pre-install,pre-upgrade` hook, so no separate migration step
+is needed there; `helm rollback` runs no migrations.
 
 Concurrency: each deploy job (and rollback) holds `rudix-deploy-staging` or
 `rudix-deploy-production`, so two runs never apply Terraform to the same environment at once.

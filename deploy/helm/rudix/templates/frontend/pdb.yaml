@@ -1,0 +1,3 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+{{- include "rudix.c1.pdb" (dict "root" . "component" "frontend") }}
+{{- end }}

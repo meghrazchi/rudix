@@ -57,6 +57,10 @@ class RedisRateLimitSettings(BaseModel):
     dependency_connect_timeout_seconds: float = Field(default=1.0, ge=0.1, le=30.0)
     dependency_read_timeout_seconds: float = Field(default=1.0, ge=0.1, le=120.0)
     dependency_max_retries: int = Field(default=0, ge=0, le=10)
+    # R08-05: optional Redis for cached values only (may evict). Unset: values share
+    # REDIS_URL. Version keys, rate limits, semaphores, tickets, the resume buffer, realtime,
+    # and usage touch always stay on REDIS_URL.
+    redis_cache_url: RedisDsn | None = None
 
 
 def validate_timeouts(settings: Settings) -> None:

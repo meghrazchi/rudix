@@ -53,8 +53,10 @@ ssh $ssh_opts "$DEPLOY_SSH_USER@$DEPLOY_SSH_HOST" "
   docker compose -f '$compose_file' pull
   echo 'Alembic head of the rollback image:'
   docker compose -f '$compose_file' run --rm --no-deps api alembic heads 2>/dev/null || echo '  (could not read alembic heads)'
-  docker compose -f '$compose_file' up -d
-  curl -fsS http://127.0.0.1:8000/api/v1/health >/dev/null
+  # --wait: the health check below runs once every started service is running or healthy.
+  docker compose -f '$compose_file' up -d --wait
+  # Port 8000 is no longer published on the host (R08-01): check inside the api container.
+  docker compose -f '$compose_file' exec -T api python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=5)\"
 "
 
 cat <<'EOF'

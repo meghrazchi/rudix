@@ -1,0 +1,9 @@
+{{- /* Worker metrics Services (port `metrics`), only when metrics are enabled; scraped by B2. */ -}}
+{{- if .Values.metrics.enabled }}
+{{- range $name := splitList "," (include "rudix.c1.poolNames" .) }}
+{{- if $name }}
+---
+{{ include "rudix.c1.service" (dict "root" $ "component" (printf "worker-%s" $name) "port" $.Values.metrics.workers.port "portName" "metrics") }}
+{{- end }}
+{{- end }}
+{{- end }}

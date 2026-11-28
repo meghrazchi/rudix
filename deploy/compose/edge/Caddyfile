@@ -1,0 +1,95 @@
+# Rudix edge proxy for the staging and production compose files (0.8.0, R08-01).
+#
+# The `edge` service is the only container with published ports (80 and 443). It terminates
+# TLS and proxies:
+#   {$RUDIX_APP_HOST}           -> frontend:3000
+#   {$RUDIX_API_HOST}           -> api:8000, and /mcp* -> mcp:8010 (profile `mcp`)
+#   {$RUDIX_MATOMO_HOST}        -> matomo:80 (only when EDGE_MATOMO=on, profile `analytics`)
+#
+# Environment placeholders ({$NAME} and {$NAME:default}) are substituted before the file is
+# parsed, so the snippet imports below select a file by name:
+#   tls_{$EDGE_TLS_MODE}       tls_acme (automatic certificates) or tls_files (operator files)
+#   noindex_{$EDGE_NOINDEX}    noindex_true (X-Robots-Tag) or noindex_false
+#   matomo_{$EDGE_MATOMO}      matomo_on (Matomo site) or matomo_off
+#
+# Forwarded headers: no `trusted_proxies` is configured, so Caddy replaces any
+# X-Forwarded-For/-Proto/-Host a client sends with values it computes itself. The API reads
+# the leftmost X-Forwarded-For (last_used_ip), so this must stay that way unless another proxy
+# sits in front of the edge. Security headers (CSP, HSTS, X-Frame-Options, ...) are set by the
+# frontend and the API, not here, so they are not duplicated.
+#
+# Validate with (CI step "Validate Caddyfile"):
+#   caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+# Access log: JSON on stdout, the query string removed from the logged URI (tokens and share
+# links can travel in it), and credential headers deleted.
+(access_log) {
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp [?].* ?redacted
+				request>headers>Authorization delete
+				request>headers>Proxy-Authorization delete
+				request>headers>Cookie delete
+				request>headers>X-Api-Key delete
+				resp_headers>Set-Cookie delete
+			}
+		}
+	}
+}
+
+# Upstream options shared by every scaled service. `dynamic a` re-resolves the compose service
+# name, so `docker compose up --scale api=N` adds replicas without an edge reload. Health is
+# tracked passively (failed dials and 502/503/504 answers take a replica out for fail_duration);
+# a request is retried on another replica for up to lb_try_duration.
+(upstream_options) {
+	lb_policy least_conn
+	lb_try_duration 5s
+	lb_try_interval 250ms
+	fail_duration 30s
+	max_fails 3
+	unhealthy_status 502 503 504
+	# Server-sent events: write every chunk to the client at once.
+	flush_interval -1
+	# WebSockets and long streams: close after a day, and keep open streams alive for five
+	# minutes after a config reload instead of cutting them.
+	stream_timeout 24h
+	stream_close_delay 5m
+}
+
+{$RUDIX_APP_HOST} {
+	import tls_{$EDGE_TLS_MODE:acme}
+	import noindex_{$EDGE_NOINDEX:false}
+	import access_log
+	reverse_proxy {
+		dynamic a frontend 3000
+		import upstream_options
+	}
+}
+
+{$RUDIX_API_HOST} {
+	import tls_{$EDGE_TLS_MODE:acme}
+	import noindex_{$EDGE_NOINDEX:false}
+	import access_log
+	# Upload cap: backend MAX_UPLOAD_SIZE_MB (25) plus headroom for multipart framing.
+	# Raise both together.
+	request_body {
+		max_size {$EDGE_MAX_REQUEST_BODY:26MiB}
+	}
+	handle /mcp* {
+		reverse_proxy {
+			dynamic a mcp {$MCP_HTTP_PORT:8010}
+			import upstream_options
+		}
+	}
+	handle {
+		reverse_proxy {
+			dynamic a api 8000
+			import upstream_options
+		}
+	}
+}
+
+import matomo_{$EDGE_MATOMO:off}

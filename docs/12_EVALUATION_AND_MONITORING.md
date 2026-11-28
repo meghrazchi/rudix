@@ -975,6 +975,27 @@ outbound request: the browser posts to our own API.
   worker counters above).
 - No measured baseline exists yet; the end-to-end check with Redis is a staging step.
 
+### Chat WebSocket connections and shutdown drain (R08-03, R08-02)
+
+- `rudix_chat_ws_connections` (gauge, `livesum`): accepted `/chat/ws` sockets open in the
+  process; `+1` on accept, `-1` when the handler ends. Sum it across pods for the fleet.
+- `rudix_chat_ws_connection_limit_total{backend,outcome}` (counter): `backend` is `memory`
+  or `redis` (`WS_CHAT_CONNECTION_LIMIT_BACKEND`); `outcome` is `accepted`, `rejected`
+  (limit reached, or Redis failed with `RATE_LIMIT_REDIS_FAILURE_MODE=closed`; the socket is
+  closed with `4429`), `fallback` (Redis failed in open mode; counted in process), or
+  `lease_lost` (a heartbeat refresh found the lease gone).
+- Logs: `ws_chat.connection.rejected` (backend, reason, limit),
+  `ws_chat.connection.limit_unavailable`, `ws_chat.connection.lease_lost`,
+  `ws_chat.connection.lease_reacquired`, `ws_chat.connection.lease_refresh_failed`,
+  `ws_chat.connection.release_failed` (organisation and user ids, error class only), and
+  `api.shutdown.drain` (`finished` and `cancelled` counts) or `api.shutdown.drain_failed`.
+- Watch: any `fallback` means the limit is enforced per replica only while Redis is
+  failing; steady `lease_lost` means heartbeats arrive later than
+  `WS_CHAT_CONNECTION_LEASE_SECONDS` (event-loop stalls, see `rudix_event_loop_lag_seconds`);
+  `cancelled` in `api.shutdown.drain` means runs outlasted `API_SHUTDOWN_DRAIN_SECONDS`.
+- No baseline exists yet; killing a replica during the staging load test (no failed chat)
+  is a staging exit criterion.
+
 ## Continuous evaluation
 
 Run evaluations:

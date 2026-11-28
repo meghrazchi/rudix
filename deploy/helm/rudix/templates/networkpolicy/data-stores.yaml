@@ -1,0 +1,46 @@
+{{- /*
+In-cluster data stores the operator runs (networkPolicy.dataStores, empty by default): each
+entry selects the store's pods and allows ingress to them only from Rudix application pods
+(api, mcp, worker pools, beat, migrate, backup-*). Ingress objects and the frontend never
+reach a data store.
+*/ -}}
+{{- if .Values.networkPolicy.enabled }}
+{{- $clients := include "rudix.c1.dataClientComponents" . | fromJsonArray -}}
+{{- range $store := .Values.networkPolicy.dataStores }}
+{{- $name := required "rudix: every networkPolicy.dataStores entry needs a name" $store.name -}}
+{{- $podSelector := required (printf "rudix: networkPolicy.dataStores %s needs a podSelector" $name) $store.podSelector -}}
+{{- $ports := required (printf "rudix: networkPolicy.dataStores %s needs ports" $name) $store.ports -}}
+{{- $namespace := $store.namespace | default $.Release.Namespace }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "rudix.c1.policyName" (dict "root" $ "name" (printf "datastore-%s" $name)) }}
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "rudix.c1.policyLabels" (dict "root" $) | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- toYaml $podSelector | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "rudix.c1.releaseSelector" $ | nindent 14 }}
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  {{- toYaml $clients | nindent 18 }}
+          {{- if ne $namespace $.Release.Namespace }}
+          namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $.Release.Namespace }}
+          {{- end }}
+      ports:
+        {{- toYaml $ports | nindent 8 }}
+{{- end }}
+{{- end }}

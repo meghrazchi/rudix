@@ -581,6 +581,42 @@ where it is checked, deploy, then remove the old one (R08-11).
 - [ ] Write the rotation dates and owners of every secret above in the operations log
   (operator, 0.8.0)
 
+## Edge and TLS
+
+Staging and production compose put a Caddy edge in front of every public service (`R08-01`;
+[docs/10](./10_DEPLOYMENT_DOCKER.md), "Edge proxy, scaling, and environment parity"). The Helm
+chart uses NGINX Ingress objects instead ([docs/28](./28_KUBERNETES_HELM_DEPLOYMENT.md), "Edge
+and ingress").
+
+- Only `edge` publishes host ports, and only 80 and 443 (plus 443/udp for HTTP/3).
+  `deploy/scripts/check_compose_config.sh` and `backend/tests/test_compose_parity.py` fail on
+  any other published port. Matomo's public 8081 is closed; it is served through the edge on
+  its own host when `EDGE_MATOMO=on`.
+- TLS: automatic ACME certificates (`EDGE_TLS_MODE=acme`) or operator files
+  (`EDGE_TLS_MODE=files`, `deploy/compose/edge/certs/`, git-ignored). HSTS comes from the
+  frontend and the API, not the edge.
+- Forwarded headers: the edge has no `trusted_proxies`, so client-sent `X-Forwarded-*` values
+  are replaced. The API's `last_used_ip` reads the leftmost `X-Forwarded-For`, which is then
+  the edge's view of the client. `FORWARDED_ALLOW_IPS` defaults to `*` on api and mcp because
+  only compose-network containers can reach them; narrow it to the compose subnet on a shared
+  network. On Kubernetes, keep the ingress-nginx default `use-forwarded-headers: "false"`
+  unless a trusted load balancer sits in front.
+- Body limit: `EDGE_MAX_REQUEST_BODY` (26MiB) and `ingress.maxBodySize` (`26m`) sit just above
+  `MAX_UPLOAD_SIZE_MB` (25); raise them together.
+- Log redaction: edge access logs drop the query string (`?redacted`) and delete
+  `Authorization`, `Proxy-Authorization`, `Cookie`, `X-Api-Key`, and `Set-Cookie`. The ingress
+  controller's log format must also leave out the query string (docs/28 gives the ConfigMap).
+- Staging hosts send `X-Robots-Tag: noindex, nofollow` (`EDGE_NOINDEX=true`,
+  `ingress.noindex: true`).
+- [ ] Host firewall (or cloud security group) allows only 80 and 443 from outside on staging
+  and production (operator, 0.8.0)
+- [ ] External TLS scan of the app, API, and Matomo hosts run on staging and production, with
+  the result and date recorded here (operator, 0.8.0)
+- [ ] `CADDY_IMAGE` pinned to an exact tag or digest in the production env file, and
+  `PGBOUNCER_IMAGE` when the `pooler` profile is used (operator, 0.8.0)
+- [ ] ACME account email (`EDGE_ACME_EMAIL`) or operator certificate files set, and DNS for
+  every edge host points at the edge (operator, 0.8.0)
+
 ## Security headers
 
 Frontend (`frontend/config/security-headers.mjs`, wired from `next.config.ts` `headers()`):
@@ -890,6 +926,7 @@ never document text.
 - [ ] Sentry integrated.
 - [ ] Response compression: responses of at least `HTTP_GZIP_MINIMUM_BYTES` (default 1024; `0` disables) are gzip-encoded (streamed bodies such as exports and downloads whenever the client accepts gzip), and `text/event-stream` and image/archive types are never compressed. Compression exposes BREACH-style size side channels, so never reflect a secret (CSRF token, API key) in the same compressed body as attacker-controlled input.
 - [ ] Chat resume buffer (R05-13): every WebSocket run's events, answer text included, are kept in Redis for `CHAT_RESUME_BUFFER_TTL_SECONDS` (default 300) under `rudix:{env}:chat:resume:v1:{org}:{user}:{message_id}`. `chat.resume` builds the key from its own principal, so another user or organisation cannot read it (`resume_unavailable`), and the stored-answer fallback joins `chat_sessions` on organisation and user. Redis must be private (no public port, authentication on, TLS where it crosses hosts) and is not a store of record; lower the TTL or set `CHAT_WS_RESUME_GRACE_SECONDS=0` where answer text must not linger. `CHAT_WS_ALLOW_QUERY_TOKEN` is `false` by default since 0.5.0.
+- [ ] With more than one API replica, `WS_CHAT_CONNECTION_LIMIT_BACKEND=redis` so `WS_CHAT_MAX_CONNECTIONS_PER_USER` holds across replicas (leases under `rudix:{env}:chat:ws:conn:v1:{org}:{user}` store only ids); `RATE_LIMIT_REDIS_FAILURE_MODE=closed` rejects new sockets (`4429`) instead of counting per replica while Redis fails, and `REDIS_CACHE_URL`, when used, points at a Redis as private as `REDIS_URL` (operator, 0.8.0)
 
 ### Documents
 
@@ -1001,6 +1038,11 @@ never document text.
 - [ ] Production deploys only from a `vX.Y.Z` tag on `main` whose `api`/`worker` digests passed staging; `cosign verify` passes for all three images.
 - [ ] `Secret scan`, `Backend dependency audit`, `Frontend dependency audit`, `Filesystem vulnerability scan`, and `Image scan` are required checks on `main`.
 - [ ] Rollback uses `deploy/scripts/rollback.sh <environment> <version>` and never downgrades the database automatically.
+- [ ] Kubernetes: `networkPolicy.ingressControllerNamespaceSelector` names the real ingress controller namespace, the default-deny policy is in place, and in-cluster data stores (if any) are listed in `networkPolicy.dataStores` so only Rudix application pods reach them (operator, 0.8.0).
+- [ ] Kubernetes: `connectionBudget.maxDatabaseConnections` is set from the database's (or pooler's) connection limit, so a scale-out cannot exhaust PostgreSQL connections (operator, 0.8.0).
+- [ ] Kubernetes: the `DATABASE_MIGRATION_URL` key exists in the existing Secret (schema owner) for the migrate hook Job; the application role in `DATABASE_URL` cannot alter the schema (operator, 0.8.0).
+- [ ] Kubernetes: releases are installed by image digest (`image.<name>.digest`), roll back with `helm rollback` (which never runs migrations or downgrades the database), and a deploy under load plus an API replica kill show zero failed requests on staging (operator, 0.8.0).
+- [ ] Kubernetes: when `autoscaling.mode=keda`, KEDA is installed and `autoscaling.prometheus.serverAddress` points at a Prometheus that scrapes the API and worker metrics (operator, 0.8.0).
 
 ## Threat model diagram
 
